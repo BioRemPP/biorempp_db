@@ -1,0 +1,148 @@
+# mkdocs.yml - BioRemPP Database Official Documentation Configuration
+site_name: BioRemPP Database Documentation
+site_url: https://biorempp-database.readthedocs.io
+site_description: >-
+  BioRemPP Database - Comprehensive biological remediation database.
+  Integrating KEGG, environmental agencies, manual curations, and
+  enzyme activity classifications for bioremediation research.
+
+repo_url: https://github.com/BioRemPP/biorempp_db
+repo_name: biorempp_db
+
+theme:
+  name: material
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: green
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: green
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  
+  font:
+    text: Roboto
+    code: Roboto Mono
+  
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.tracking
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - toc.follow
+  
+  # logo: assets/logo.png
+  # favicon: assets/favicon.png
+
+plugins:
+  - search:
+      lang: en
+  - minify:
+      minify_html: true
+
+markdown_extensions:
+  # Python Markdown
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      title: On this page
+
+  # Python Markdown Extensions
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+extra:
+  version:
+    provider: mike
+    default: 1.0.0
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/BioRemPP/biorempp_db
+    - icon: fontawesome/solid/envelope
+      link: mailto:biorempp@gmail.com
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Requirements: getting-started/requirements.md
+      - Quick Start: getting-started/quick-start.md
+  - User Guide:
+      - Overview: user-guide/overview.md
+      - Input Data Files: user-guide/input-data.md
+      - Understanding Output: user-guide/understanding-output.md
+      - Troubleshooting: user-guide/troubleshooting.md
+  - Database Reference:
+      - Schema: database/schema.md
+      - Statistics: database/statistics.md
+      - Data Quality: database/data-quality.md
+      - FAIR Compliance: database/fair-compliance.md
+  - Validation & QC:
+      - Benchmarking: validation/benchmarking.md
+      - Known Limitations: validation/limitations.md
+      - Reproducibility: validation/reproducibility.md
+  - Interoperability:
+      - R and Python Integration: interoperability/r-python-integration.md
+      - Multi-Omics Integration: interoperability/multi-omics.md
+  - Reference:
+      - Data Sources: reference/data-sources.md
+      - Environmental Agencies: reference/environmental-agencies.md
+      - Glossary: reference/glossary.md
+  - About:
+      - How to Cite: about/how-to-cite.md
+      - Changelog: about/changelog.md
+      - License: about/license.md
+      - Contributing: about/contributing.md
+      - Roadmap: about/roadmap.md

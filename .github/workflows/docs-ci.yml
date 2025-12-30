@@ -1,0 +1,74 @@
+name: Documentation CI
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - 'scripts/build-docs.sh'
+      - '.github/workflows/docs-ci.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - 'scripts/build-docs.sh'
+
+jobs:
+  build-test:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Make build script executable
+        run: chmod +x scripts/build-docs.sh
+
+      - name: Install documentation dependencies
+        run: ./scripts/build-docs.sh install
+
+      - name: Build documentation
+        run: ./scripts/build-docs.sh build
+
+      - name: Verify documentation build
+        run: |
+          echo "Verifying documentation build..."
+          if [ -d "site" ]; then
+            echo "✓ Documentation built successfully"
+            echo "  Pages generated: $(find site -name '*.html' | wc -l)"
+            echo "  Total size: $(du -sh site | cut -f1)"
+
+            # Check for index.html
+            if [ -f "site/index.html" ]; then
+              echo "✓ Index page found"
+            else
+              echo "✗ Index page missing"
+              exit 1
+            fi
+          else
+            echo "✗ Documentation build failed - site directory not found"
+            exit 1
+          fi
+
+      - name: Upload documentation artifact
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: documentation-build
+          path: site/
+          retention-days: 7
+          compression-level: 6
