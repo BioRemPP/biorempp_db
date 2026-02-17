@@ -1,0 +1,13 @@
+services:
+  snakemake:
+    build:
+      context: ..
+      dockerfile: env/Dockerfile
+    container_name: biorempp-snakemake
+    working_dir: /workspace/biorempp_snakemake_version
+    volumes:
+      - ../../:/workspace
+    environment:
+      - TZ=UTC
+    command: >
+      snakemake --snakefile Snakefile --configfile config/config.yaml --cores 2 --printshellcmds
