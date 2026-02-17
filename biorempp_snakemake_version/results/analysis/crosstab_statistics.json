@@ -1,0 +1,16 @@
+{
+  "top_20_class_agency_combinations": {
+    "compound_classes": ["Chlorinated", "Polyaromatic", "Nitrogen-containing", "Aromatic", "Aliphatic", "Aromatic", "Aromatic", "Aliphatic", "Chlorinated", "Chlorinated", "Polyaromatic", "Aromatic", "Polyaromatic", "Aromatic", "Aromatic", "Chlorinated", "Chlorinated", "Polyaromatic", "Aliphatic", "Chlorinated"],
+    "agencies": ["ATSDR", "ATSDR", "IARC2B", "ATSDR", "IARC2B", "PSL", "IARC2B", "ATSDR", "EPA", "IARC2B", "EPC", "WFD", "IARC2B", "EPA", "EPC", "EPC", "IARC1", "IARC1", "PSL", "CONAMA"],
+    "compound_counts": [73, 58, 56, 54, 45, 40, 37, 36, 36, 36, 33, 32, 32, 30, 30, 28, 28, 28, 25, 25]
+  },
+  "top_20_enzyme_class_combinations": {
+    "compound_classes": ["Polyaromatic", "Aromatic", "Aromatic", "Polyaromatic", "Aliphatic", "Nitrogen-containing", "Aromatic", "Aliphatic", "Chlorinated", "Aliphatic", "Chlorinated", "Chlorinated", "Aromatic", "Nitrogen-containing", "Nitrogen-containing", "Chlorinated", "Chlorinated", "Nitrogen-containing", "Aliphatic", "Polyaromatic"],
+    "enzymes": ["cytochrome P450", "cytochrome P450", "dioxygenase", "dioxygenase", "cytochrome P450", "cytochrome P450", "monooxygenase", "monooxygenase", "cytochrome P450", "dehydrogenase", "monooxygenase", "dioxygenase", "dehydrogenase", "synthase", "reductase", "S-transferase", "dehalogenase", "dehydrogenase", "dehalogenase", "dehydrogenase"],
+    "counts": [573, 486, 406, 355, 349, 347, 312, 264, 249, 220, 183, 181, 155, 149, 142, 120, 117, 112, 98, 98]
+  },
+  "top_10_classes_by_ko_diversity": {
+    "compound_classes": ["Nitrogen-containing", "Aliphatic", "Aromatic", "Chlorinated", "Polyaromatic", "Inorganic", "Sulfur-containing", "Metal", "Organophosphorus", "Organometallic"],
+    "unique_ko_counts": [893, 493, 448, 388, 315, 201, 178, 156, 95, 74]
+  }
+}

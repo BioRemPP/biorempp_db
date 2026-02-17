@@ -1,0 +1,7 @@
+.snakemake/
+input_data/*
+work/*
+logs/*
+!input_data/.gitkeep
+!work/.gitkeep
+!logs/.gitkeep

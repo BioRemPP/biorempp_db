@@ -1,0 +1,42 @@
+configfile: "config/config.yaml"
+
+from os.path import join
+
+VERSION = config["version"]
+PATHS = config["paths"]
+RESULTS_DIR = PATHS["results_dir"]
+WORK_DIR = PATHS["work_dir"]
+
+OUTPUTS = config["outputs"]
+DATABASE_CSV = join(RESULTS_DIR, "database", OUTPUTS["database_csv"])
+DATABASE_XLSX = join(RESULTS_DIR, "database", OUTPUTS["database_xlsx"])
+
+ANALYSIS_FILES = [
+    join(RESULTS_DIR, "analysis", "database_metadata.json"),
+    join(RESULTS_DIR, "analysis", "basic_statistics.json"),
+    join(RESULTS_DIR, "analysis", "compound_statistics.json"),
+    join(RESULTS_DIR, "analysis", "ko_statistics.json"),
+    join(RESULTS_DIR, "analysis", "enzyme_statistics.json"),
+    join(RESULTS_DIR, "analysis", "gene_statistics.json"),
+    join(RESULTS_DIR, "analysis", "crosstab_statistics.json"),
+    join(RESULTS_DIR, "analysis", "executive_summary.json"),
+    join(RESULTS_DIR, "analysis", "complete_analysis.json"),
+]
+
+KEGG_RELEASE = join(RESULTS_DIR, "metadata", "kegg_release.json")
+WORKFLOW_SUMMARY = join(RESULTS_DIR, "reports", "workflow_summary.json")
+
+localrules: all
+
+rule all:
+    input:
+        DATABASE_CSV,
+        DATABASE_XLSX,
+        KEGG_RELEASE,
+        WORKFLOW_SUMMARY,
+        ANALYSIS_FILES
+
+include: "workflow/rules/00_preflight.smk"
+include: "workflow/rules/10_generation.smk"
+include: "workflow/rules/20_analysis.smk"
+include: "workflow/rules/90_reporting.smk"

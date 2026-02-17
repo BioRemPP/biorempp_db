@@ -43,6 +43,12 @@ env.bak/
 venv.bak/
 .venv/
 
+# Keep Snakemake pipeline runtime environment files versioned
+!biorempp_snakemake_version/env/
+!biorempp_snakemake_version/env/**
+!biorempp_snakemake_version/workflow/lib/
+!biorempp_snakemake_version/workflow/lib/**
+
 # PyInstaller
 *.manifest
 *.spec

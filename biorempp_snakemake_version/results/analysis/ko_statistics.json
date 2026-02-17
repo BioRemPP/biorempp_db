@@ -1,0 +1,20 @@
+{
+  "total_unique_ko": 1542,
+  "top_20_ko": {
+    "ko_ids": ["K14579", "K14580", "K07408", "K07409", "K07410", "K07411", "K07412", "K07413", "K07414", "K07418", "K07420", "K07424", "K01563", "K00490", "K07426", "K07428", "K07429", "K21647", "K14578", "K14581"],
+    "frequencies": [104, 98, 86, 86, 86, 86, 86, 86, 86, 86, 86, 86, 85, 83, 83, 83, 83, 81, 74, 68],
+    "unique_compounds_per_ko": [27, 26, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 17, 23, 23, 23, 23, 14, 17, 16]
+  },
+  "ko_frequency_summary": {
+    "min_frequency": 1,
+    "max_frequency": 104,
+    "mean_frequency": 7.0499,
+    "median_frequency": 3
+  },
+  "compounds_per_ko_summary": {
+    "min_compounds": 1,
+    "max_compounds": 27,
+    "mean_compounds": 2.2179,
+    "median_compounds": 1
+  }
+}
