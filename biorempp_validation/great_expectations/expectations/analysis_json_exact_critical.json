@@ -1,0 +1,182 @@
+{
+  "name": "analysis_json_exact_critical",
+  "expectations": [
+    {
+      "type": "expect_table_row_count_to_be_between",
+      "kwargs": {
+        "min_value": 1,
+        "max_value": 1
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "basic_stats_exact_match",
+        "value_set": [
+          true
+        ]
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "basic_expected_columns_exact_match",
+        "value_set": [
+          true
+        ]
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "compound_total_exact_match",
+        "value_set": [
+          true
+        ]
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "compound_class_distribution_exact_match",
+        "value_set": [
+          true
+        ]
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "compound_agency_distribution_exact_match",
+        "value_set": [
+          true
+        ]
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "compound_top20_exact_match",
+        "value_set": [
+          true
+        ]
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "ko_total_exact_match",
+        "value_set": [
+          true
+        ]
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "ko_top20_exact_match",
+        "value_set": [
+          true
+        ]
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "enzyme_total_exact_match",
+        "value_set": [
+          true
+        ]
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "enzyme_top30_exact_match",
+        "value_set": [
+          true
+        ]
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "gene_totals_exact_match",
+        "value_set": [
+          true
+        ]
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "gene_top20_exact_match",
+        "value_set": [
+          true
+        ]
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "crosstab_exact_match",
+        "value_set": [
+          true
+        ]
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "executive_summary_exact_match",
+        "value_set": [
+          true
+        ]
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "metadata_kegg_exact_match",
+        "value_set": [
+          true
+        ]
+      },
+      "severity": "critical",
+      "meta": {}
+    }
+  ],
+  "meta": {
+    "great_expectations_version": "1.12.3"
+  }
+}

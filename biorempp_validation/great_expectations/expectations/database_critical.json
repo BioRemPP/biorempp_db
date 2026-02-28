@@ -1,0 +1,132 @@
+{
+  "name": "database_critical",
+  "expectations": [
+    {
+      "type": "expect_table_columns_to_match_ordered_list",
+      "kwargs": {
+        "column_list": [
+          "cpd",
+          "compoundclass",
+          "ko",
+          "referenceAG",
+          "compoundname",
+          "genesymbol",
+          "genename",
+          "enzyme_activity"
+        ]
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_table_row_count_to_be_between",
+      "kwargs": {
+        "min_value": 1
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_compound_columns_to_be_unique",
+      "kwargs": {
+        "column_list": [
+          "cpd",
+          "compoundclass",
+          "ko",
+          "referenceAG",
+          "compoundname",
+          "genesymbol",
+          "genename",
+          "enzyme_activity"
+        ]
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "cpd"
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "compoundclass"
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "ko"
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "referenceAG"
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "compoundname"
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "genesymbol"
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "genename"
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "enzyme_activity"
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_match_regex",
+      "kwargs": {
+        "column": "cpd",
+        "regex": "^C\\d{5}$"
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_match_regex",
+      "kwargs": {
+        "column": "ko",
+        "regex": "^K\\d{5}$"
+      },
+      "severity": "critical",
+      "meta": {}
+    }
+  ],
+  "meta": {
+    "great_expectations_version": "1.12.3"
+  }
+}

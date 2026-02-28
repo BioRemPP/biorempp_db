@@ -1,0 +1,6 @@
+name: warning_report
+validations:
+  - suite: database_warning
+    dataset: database_csv
+  - suite: analysis_json_warning
+    dataset: analysis_warning

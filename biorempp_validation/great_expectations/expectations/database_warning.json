@@ -1,0 +1,108 @@
+{
+  "name": "database_warning",
+  "expectations": [
+    {
+      "type": "expect_column_distinct_values_to_be_in_set",
+      "kwargs": {
+        "column": "referenceAG",
+        "value_set": [
+          "ATSDR",
+          "CONAMA",
+          "EPA",
+          "EPC",
+          "IARC1",
+          "IARC2A",
+          "IARC2B",
+          "PSL",
+          "WFD"
+        ]
+      },
+      "severity": "warning",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_distinct_values_to_be_in_set",
+      "kwargs": {
+        "column": "compoundclass",
+        "value_set": [
+          "Aliphatic",
+          "Aromatic",
+          "Chlorinated",
+          "Halogenated",
+          "Inorganic",
+          "Metal",
+          "Nitrogen-containing",
+          "Organometallic",
+          "Organophosphorus",
+          "Organosulfur",
+          "Polyaromatic",
+          "Sulfur-containing"
+        ]
+      },
+      "severity": "warning",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_unique_value_count_to_be_between",
+      "kwargs": {
+        "column": "cpd",
+        "min_value": 250,
+        "max_value": 700
+      },
+      "severity": "warning",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_unique_value_count_to_be_between",
+      "kwargs": {
+        "column": "ko",
+        "min_value": 900,
+        "max_value": 2500
+      },
+      "severity": "warning",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_unique_value_count_to_be_between",
+      "kwargs": {
+        "column": "genesymbol",
+        "min_value": 1000,
+        "max_value": 2200
+      },
+      "severity": "warning",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_unique_value_count_to_be_between",
+      "kwargs": {
+        "column": "genename",
+        "min_value": 900,
+        "max_value": 2200
+      },
+      "severity": "warning",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_unique_value_count_to_be_between",
+      "kwargs": {
+        "column": "enzyme_activity",
+        "min_value": 120,
+        "max_value": 400
+      },
+      "severity": "warning",
+      "meta": {}
+    },
+    {
+      "type": "expect_table_row_count_to_be_between",
+      "kwargs": {
+        "min_value": 7000,
+        "max_value": 20000
+      },
+      "severity": "warning",
+      "meta": {}
+    }
+  ],
+  "meta": {
+    "great_expectations_version": "1.12.3"
+  }
+}

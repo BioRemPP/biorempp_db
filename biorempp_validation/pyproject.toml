@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "biorempp-validation"
+version = "1.0.0"
+description = "Great Expectations validation suite for BioRemPP database outputs."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "great_expectations>=1.12,<1.13",
+  "pandas>=2.0,<3.0",
+  "PyYAML>=6.0,<7.0",
+  "jsonschema>=4.0,<5.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0,<9.0",
+]
+
+[project.scripts]
+biorempp-validate = "biorempp_validation.run_validation:main_cli"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
