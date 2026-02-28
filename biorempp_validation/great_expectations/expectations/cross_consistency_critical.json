@@ -1,0 +1,66 @@
+{
+  "name": "cross_consistency_critical",
+  "expectations": [
+    {
+      "type": "expect_table_row_count_to_be_between",
+      "kwargs": {
+        "min_value": 12,
+        "max_value": 12
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "metric",
+        "value_set": [
+          "total_entries",
+          "total_columns",
+          "unique_compounds",
+          "unique_ko_entries",
+          "unique_compound_classes",
+          "unique_reference_agencies",
+          "unique_gene_symbols",
+          "unique_gene_names",
+          "unique_enzyme_activities",
+          "max_compoundnames_per_cpd",
+          "max_genesymbols_per_ko",
+          "max_genenames_per_ko"
+        ]
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_pair_values_to_be_equal",
+      "kwargs": {
+        "column_A": "csv_value",
+        "column_B": "stats_value"
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "csv_value",
+        "min_value": 0
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "stats_value",
+        "min_value": 0
+      },
+      "severity": "critical",
+      "meta": {}
+    }
+  ],
+  "meta": {
+    "great_expectations_version": "1.12.3"
+  }
+}

@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+
+results/data_docs/
+results/critical_checkpoint_result.json
+results/warning_checkpoint_result.json
+results/validation_summary.json

@@ -1,0 +1,12 @@
+name: critical_gate
+validations:
+  - suite: database_critical
+    dataset: database_csv
+  - suite: analysis_json_critical
+    dataset: analysis_critical
+  - suite: analysis_json_exact_critical
+    dataset: analysis_exact
+  - suite: metadata_kegg_critical
+    dataset: metadata_kegg
+  - suite: cross_consistency_critical
+    dataset: cross_consistency

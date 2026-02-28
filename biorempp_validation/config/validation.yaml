@@ -1,0 +1,70 @@
+version: "1.0.0"
+
+policy:
+  fail_on_critical: true
+  fail_on_warning: true
+  generate_data_docs: true
+
+strict_exact: true
+
+paths:
+  # Relative to biorempp_validation/ project root.
+  input_results_root: ../biorempp_snakemake_version/results
+  output_dir: results
+  expectations_dir: great_expectations/expectations
+  checkpoints_dir: great_expectations/checkpoints
+
+required_files:
+  - database/biorempp_database_v1.0.0.csv
+  - analysis/basic_statistics.json
+  - analysis/compound_statistics.json
+  - analysis/ko_statistics.json
+  - analysis/enzyme_statistics.json
+  - analysis/gene_statistics.json
+  - analysis/crosstab_statistics.json
+  - analysis/database_metadata.json
+  - analysis/executive_summary.json
+  - analysis/complete_analysis.json
+  - metadata/kegg_release.json
+
+database_contract:
+  expected_columns:
+    - cpd
+    - compoundclass
+    - ko
+    - referenceAG
+    - compoundname
+    - genesymbol
+    - genename
+    - enzyme_activity
+  expected_reference_agencies:
+    - ATSDR
+    - CONAMA
+    - EPA
+    - EPC
+    - IARC1
+    - IARC2A
+    - IARC2B
+    - PSL
+    - WFD
+  expected_compound_classes:
+    - Aliphatic
+    - Aromatic
+    - Chlorinated
+    - Halogenated
+    - Inorganic
+    - Metal
+    - Nitrogen-containing
+    - Organometallic
+    - Organophosphorus
+    - Organosulfur
+    - Polyaromatic
+    - Sulfur-containing
+
+drift_thresholds:
+  row_count: {min: 7000, max: 20000}
+  unique_compounds: {min: 250, max: 700}
+  unique_ko: {min: 900, max: 2500}
+  unique_genesymbol: {min: 1000, max: 2200}
+  unique_genename: {min: 900, max: 2200}
+  unique_enzyme_activity: {min: 120, max: 400}

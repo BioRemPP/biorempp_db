@@ -1,0 +1,66 @@
+{
+  "name": "analysis_json_warning",
+  "expectations": [
+    {
+      "type": "expect_table_row_count_to_be_between",
+      "kwargs": {
+        "min_value": 1,
+        "max_value": 1
+      },
+      "severity": "warning",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "compound_top_n",
+        "min_value": 1
+      },
+      "severity": "warning",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "ko_top_n",
+        "min_value": 1
+      },
+      "severity": "warning",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "enzyme_top_n",
+        "min_value": 1
+      },
+      "severity": "warning",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "executive_text_fields_non_empty",
+        "value_set": [
+          true
+        ]
+      },
+      "severity": "warning",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "crosstab_required_sections_present",
+        "value_set": [
+          true
+        ]
+      },
+      "severity": "warning",
+      "meta": {}
+    }
+  ],
+  "meta": {
+    "great_expectations_version": "1.12.3"
+  }
+}

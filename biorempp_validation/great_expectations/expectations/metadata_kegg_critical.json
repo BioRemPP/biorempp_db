@@ -1,0 +1,87 @@
+{
+  "name": "metadata_kegg_critical",
+  "expectations": [
+    {
+      "type": "expect_table_row_count_to_be_between",
+      "kwargs": {
+        "min_value": 1,
+        "max_value": 1
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "release_text"
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "parsed_version"
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "retrieved_at_utc"
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "source_url"
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "source_url",
+        "value_set": [
+          "https://rest.kegg.jp/info/kegg"
+        ]
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_match_regex",
+      "kwargs": {
+        "column": "parsed_version",
+        "regex": "^\\d+\\.\\d+\\+?$"
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_match_regex",
+      "kwargs": {
+        "column": "retrieved_at_utc",
+        "regex": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+      },
+      "severity": "critical",
+      "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "raw_response_len",
+        "min_value": 1
+      },
+      "severity": "critical",
+      "meta": {}
+    }
+  ],
+  "meta": {
+    "great_expectations_version": "1.12.3"
+  }
+}
