@@ -107,8 +107,8 @@
       "cpd": 100,
       "compoundclass": 100,
       "ko": 100,
-      "ec": 22.8636,
-      "reaction": 77.0029,
+      "ec": 86.4319,
+      "reaction": 92.3346,
       "referenceAG": 100,
       "compoundname": 100,
       "genesymbol": 100,
@@ -119,7 +119,10 @@
   "link_match": {
     "policy": {
       "source_of_truth": "KEGG REST API",
-      "ko_fallback_all_keys": true,
+      "mapping_join_key": "cpd+ko",
+      "reference_ag_join_key": false,
+      "replicate_by_reference_ag": true,
+      "ko_dense_priority": true,
       "synthetic_ec_reaction_cartesian": false
     },
     "coverage": {
@@ -148,13 +151,22 @@
       "false_na_pairs_count": 0,
       "false_na_pairs_examples": []
     },
+    "row_shapes": {
+      "dense": 34928,
+      "ec_only": 3319,
+      "reaction_only": 5931,
+      "both_na": 73
+    },
     "row_provenance": {
-      "direct_compound_supported": 8531,
-      "ko_supported_only": 46103,
+      "direct_compound_supported": 16863,
+      "ko_supported_only": 27315,
       "unsupported": 73
     },
     "consistency_sentinels": {
-      "duplicate_full_rows": 38421
+      "duplicate_full_rows": 31379,
+      "resolvable_pair_count": 2249,
+      "mixed_sparse_on_resolvable_pairs": 0,
+      "mixed_sparse_on_resolvable_examples": []
     }
   }
 }

@@ -26,9 +26,9 @@
     "IARC2A": 29
   },
   "top_20_compounds": {
-    "compound_ids": ["C06790", "C07535", "C00829", "C14343", "C00014", "C18428", "C00067", "C00090", "C06604", "C14322", "C11090", "C00084", "C14430", "C07561", "C19425", "C10928", "C14219", "C11146", "C16453", "C19302"],
-    "compound_names": ["Trichloroethene", "Benzo[a]pyrene", "Naphthalene", "Trifluralin", "Ammonia", "Diuron", "Formaldehyde", "Catechol", "Parathion", "Chlorpyrifos", "Endosulfan", "Acetaldehyde", "Dichlorvos", "Carbon tetrachloride", "Fluoranthene", "Alachlor", "2-Chlorophenol", "Methylmercury chloride", "4-(N-Nitrosomethylamino)-1-(3-pyridyl)-1-butanone", "Thioacetamide"],
-    "frequencies": [4140, 2163, 2058, 1836, 1764, 1467, 1419, 1065, 1044, 960, 888, 876, 810, 750, 720, 654, 636, 594, 586, 540]
+    "compound_ids": ["C06790", "C07535", "C14343", "C00829", "C18428", "C00014", "C00067", "C06604", "C00090", "C14322", "C11090", "C14430", "C00084", "C07561", "C19425", "C10928", "C11146", "C14219", "C19302", "C10984"],
+    "compound_names": ["Trichloroethene", "Benzo[a]pyrene", "Trifluralin", "Naphthalene", "Diuron", "Ammonia", "Formaldehyde", "Parathion", "Catechol", "Chlorpyrifos", "Endosulfan", "Dichlorvos", "Acetaldehyde", "Carbon tetrachloride", "Fluoranthene", "Alachlor", "Methylmercury chloride", "2-Chlorophenol", "Thioacetamide", "Cypermethrin"],
+    "frequencies": [3636, 1624, 1602, 1596, 1260, 1162, 993, 906, 850, 834, 816, 714, 702, 625, 624, 600, 486, 474, 450, 438]
   },
   "class_distribution_summary": {
     "total_classes": 12,

@@ -131,33 +131,64 @@ build_key_universe <- function(agency_norm, curated_norm, links) {
   )
 }
 
-expand_keys_with_ko_fallback <- function(key_universe, links) {
-  ec_rows <- key_universe %>%
+build_ko_complete <- function(links) {
+  links$ko_ec %>%
+    dplyr::inner_join(links$ec_reaction, by = "ec", relationship = "many-to-many") %>%
+    dplyr::inner_join(links$ko_reaction, by = c("ko", "reaction")) %>%
+    dplyr::transmute(ko, ec, reaction) %>%
+    dplyr::distinct()
+}
+
+expand_keys_with_consistent_mapping <- function(key_universe, links) {
+  ko_complete <- build_ko_complete(links)
+
+  dense_rows <- key_universe %>%
+    dplyr::inner_join(ko_complete, by = "ko", relationship = "many-to-many") %>%
+    dplyr::transmute(cpd, ko, ec, reaction, referenceAG) %>%
+    dplyr::distinct()
+
+  dense_keys <- dense_rows %>%
+    dplyr::distinct(cpd, ko, referenceAG)
+
+  non_dense_keys <- key_universe %>%
+    dplyr::anti_join(dense_keys, by = c("cpd", "ko", "referenceAG"))
+
+  ec_rows <- non_dense_keys %>%
     dplyr::inner_join(links$ko_ec, by = "ko", relationship = "many-to-many") %>%
     dplyr::transmute(cpd, ko, ec, reaction = NA_character_, referenceAG) %>%
     dplyr::distinct()
 
-  reaction_rows <- key_universe %>%
+  reaction_rows <- non_dense_keys %>%
     dplyr::inner_join(links$ko_reaction, by = "ko", relationship = "many-to-many") %>%
     dplyr::transmute(cpd, ko, ec = NA_character_, reaction, referenceAG) %>%
     dplyr::distinct()
 
-  supported_keys <- dplyr::bind_rows(
+  partial_supported_keys <- dplyr::bind_rows(
     ec_rows %>% dplyr::distinct(cpd, ko, referenceAG),
     reaction_rows %>% dplyr::distinct(cpd, ko, referenceAG)
   ) %>%
     dplyr::distinct()
 
-  unsupported_rows <- key_universe %>%
-    dplyr::anti_join(supported_keys, by = c("cpd", "ko", "referenceAG")) %>%
+  unsupported_rows <- non_dense_keys %>%
+    dplyr::anti_join(partial_supported_keys, by = c("cpd", "ko", "referenceAG")) %>%
     dplyr::mutate(
       ec = NA_character_,
       reaction = NA_character_
     ) %>%
-    dplyr::select(cpd, ko, ec, reaction, referenceAG)
-
-  dplyr::bind_rows(ec_rows, reaction_rows, unsupported_rows) %>%
+    dplyr::select(cpd, ko, ec, reaction, referenceAG) %>%
     dplyr::distinct()
+
+  rows <- dplyr::bind_rows(dense_rows, ec_rows, reaction_rows, unsupported_rows) %>%
+    dplyr::distinct()
+
+  list(
+    rows = rows,
+    ko_complete = ko_complete,
+    dense_rows = dense_rows,
+    partial_ec_rows = ec_rows,
+    partial_reaction_rows = reaction_rows,
+    unsupported_rows = unsupported_rows
+  )
 }
 
 add_compound_names <- function(compounds, compound_list) {
@@ -180,16 +211,21 @@ curated_norm <- normalize_curated_compounds(local_data$curated_compounds)
 links <- extract_kegg_links(kegg_data)
 
 universe <- build_key_universe(agency_norm, curated_norm, links)
-integrated <- expand_keys_with_ko_fallback(universe$key_universe, links)
-merged_compounds <- add_compound_names(integrated, kegg_data$compound_list)
+expanded <- expand_keys_with_consistent_mapping(universe$key_universe, links)
+merged_compounds <- add_compound_names(expanded$rows, kegg_data$compound_list)
 
 log_message(
   sprintf(
-    "Universe keys: %d | Direct EC keys: %d | Direct reaction keys: %d | Curated keys: %d | Merged rows: %d",
+    "Universe keys: %d | Direct EC keys: %d | Direct reaction keys: %d | Curated keys: %d | KO complete tuples: %d | Dense rows: %d | Partial EC rows: %d | Partial reaction rows: %d | Unsupported rows: %d | Merged rows: %d",
     nrow(universe$key_universe),
     nrow(universe$direct_ec_keys),
     nrow(universe$direct_reaction_keys),
     nrow(universe$curated_keys),
+    nrow(expanded$ko_complete),
+    nrow(expanded$dense_rows),
+    nrow(expanded$partial_ec_rows),
+    nrow(expanded$partial_reaction_rows),
+    nrow(expanded$unsupported_rows),
     nrow(merged_compounds)
   ),
   "INFO"

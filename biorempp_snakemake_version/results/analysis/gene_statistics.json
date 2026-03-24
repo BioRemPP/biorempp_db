@@ -2,11 +2,11 @@
   "total_unique_genesymbols": 1517,
   "total_unique_genenames": 1422,
   "top_20_genesymbols": {
-    "symbols": ["CYP1A1", "nahAc", "CYP1A2", "nahAd", "CYP3A4", "HPGDS", "CYP2J", "nahAb", "GSTP", "nahAa", "GST", "GSTK1", "CYP2C", "CYP1B1", "CYP2E1", "CYP2B", "CYP3A", "dhaA", "CYP2C8", "CYP3A5"],
-    "frequencies": [1892, 1768, 1720, 1666, 1323, 1320, 1290, 1184, 1173, 1156, 1150, 1144, 1118, 1032, 990, 860, 688, 680, 640, 640]
+    "symbols": ["CYP1A1", "CYP1A2", "nahAc", "nahAd", "HPGDS", "nahAb", "nahAa", "GSTP", "GST", "GSTK1", "CYP2C", "CYP2E1", "CYP1B1", "CYP2J", "CYP2B", "CYP3A", "dhaA", "CYP2C8", "CYP3A5", "CYP2D6"],
+    "frequencies": [1806, 1634, 1456, 1372, 1210, 1184, 1156, 1122, 1100, 1092, 1032, 990, 946, 946, 774, 602, 595, 576, 576, 448]
   },
   "top_20_genenames": {
-    "names": ["cytochrome P450 family 1 subfamily A1", "naphthalene 1,2-dioxygenase subunit alpha", "cytochrome P450 family 1 subfamily A2", "naphthalene 1,2-dioxygenase subunit beta", "cytochrome P450 family 3 subfamily A4", "prostaglandin-H2 D-isomerase / glutathione transferase", "cytochrome P450 family 2 subfamily J", "naphthalene 1,2-dioxygenase ferredoxin component", "glutathione S-transferase P", "naphthalene 1,2-dioxygenase ferredoxin reductase component", "glutathione S-transferase", "glutathione S-transferase kappa 1", "cytochrome P450 family 2 subfamily C", "cytochrome P450 family 1 subfamily B1", "cytochrome P450 family 2 subfamily E1", "cytochrome P450 family 2 subfamily B", "cytochrome P450 family 3 subfamily A", "haloalkane dehalogenase", "cytochrome P450 family 2 subfamily C8", "cytochrome P450 family 3 subfamily A5"],
-    "frequencies": [1892, 1768, 1720, 1666, 1323, 1320, 1290, 1184, 1173, 1156, 1150, 1144, 1118, 1032, 990, 860, 688, 680, 640, 640]
+    "names": ["cytochrome P450 family 1 subfamily A1", "cytochrome P450 family 1 subfamily A2", "naphthalene 1,2-dioxygenase subunit alpha", "naphthalene 1,2-dioxygenase subunit beta", "prostaglandin-H2 D-isomerase / glutathione transferase", "naphthalene 1,2-dioxygenase ferredoxin component", "naphthalene 1,2-dioxygenase ferredoxin reductase component", "glutathione S-transferase P", "glutathione S-transferase", "glutathione S-transferase kappa 1", "cytochrome P450 family 2 subfamily C", "cytochrome P450 family 2 subfamily E1", "cytochrome P450 family 1 subfamily B1", "cytochrome P450 family 2 subfamily J", "cytochrome P450 family 2 subfamily B", "cytochrome P450 family 3 subfamily A", "haloalkane dehalogenase", "cytochrome P450 family 2 subfamily C8", "cytochrome P450 family 3 subfamily A5", "cytochrome P450 family 2 subfamily D6"],
+    "frequencies": [1806, 1634, 1456, 1372, 1210, 1184, 1156, 1122, 1100, 1092, 1032, 990, 946, 946, 774, 602, 595, 576, 576, 448]
   }
 }
