@@ -1,4 +1,4 @@
-/#!/usr/bin/env Rscript
+#!/usr/bin/env Rscript
 
 source("workflow/lib/utils.R")
 
@@ -36,6 +36,11 @@ normalize_reaction <- function(value) {
   cleaned <- stringr::str_remove(cleaned, stringr::regex("^rn\\s*:\\s*", ignore_case = TRUE))
   extracted <- stringr::str_extract(cleaned, stringr::regex("R\\d{5}", ignore_case = TRUE))
   dplyr::if_else(is.na(extracted), NA_character_, stringr::str_to_upper(extracted))
+}
+
+sorted_unique <- function(values) {
+  unique_values <- unique(values[!is.na(values) & values != ""])
+  sort(unique_values)
 }
 
 build_link_tables <- function(bundle) {
@@ -78,9 +83,25 @@ build_link_tables <- function(bundle) {
   )
 }
 
-sorted_unique <- function(values) {
-  unique_values <- unique(values[!is.na(values) & values != ""])
-  sort(unique_values)
+build_ko_complete <- function(links) {
+  links$ko_ec %>%
+    dplyr::inner_join(links$ec_reaction, by = "ec", relationship = "many-to-many") %>%
+    dplyr::inner_join(links$ko_reaction, by = c("ko", "reaction")) %>%
+    dplyr::transmute(ko, ec, reaction) %>%
+    dplyr::distinct()
+}
+
+compute_completeness <- function(database) {
+  if (nrow(database) == 0) {
+    return(list())
+  }
+  completeness <- list()
+  for (column_name in colnames(database)) {
+    column_values <- database[[column_name]]
+    missing <- is.na(column_values) | trimws(as.character(column_values)) == ""
+    completeness[[column_name]] <- (1 - sum(missing) / nrow(database)) * 100
+  }
+  completeness
 }
 
 build_link_match <- function(database, links) {
@@ -98,6 +119,8 @@ build_link_match <- function(database, links) {
 
   ko_supported <- sorted_unique(c(links$ko_ec$ko, links$ko_reaction$ko))
   cpd_supported <- sorted_unique(c(links$cpd_ec$cpd, links$cpd_reaction$cpd))
+  ko_complete <- build_ko_complete(links)
+  ko_resolvable <- sorted_unique(ko_complete$ko)
 
   ko_matched <- intersect(db_kos, ko_supported)
   ko_unmatched <- setdiff(db_kos, ko_supported)
@@ -106,32 +129,34 @@ build_link_match <- function(database, links) {
 
   direct_pairs <- dplyr::bind_rows(
     links$ko_ec %>%
-      dplyr::inner_join(links$cpd_ec, by = "ec") %>%
+      dplyr::inner_join(links$cpd_ec, by = "ec", relationship = "many-to-many") %>%
       dplyr::transmute(cpd, ko),
     links$ko_reaction %>%
-      dplyr::inner_join(links$cpd_reaction, by = "reaction") %>%
+      dplyr::inner_join(links$cpd_reaction, by = "reaction", relationship = "many-to-many") %>%
       dplyr::transmute(cpd, ko)
   ) %>%
     dplyr::distinct()
-
   direct_pair_keys <- paste(direct_pairs$cpd, direct_pairs$ko, sep = "|")
-  ko_supported_set <- unique(ko_supported)
 
   pair_summary <- db_norm %>%
     dplyr::mutate(
-      has_ec = !is.na(ec) & ec != "",
-      has_reaction = !is.na(reaction) & reaction != ""
+      dense = !is.na(ec) & ec != "" & !is.na(reaction) & reaction != "",
+      ec_only = !is.na(ec) & ec != "" & (is.na(reaction) | reaction == ""),
+      reaction_only = (is.na(ec) | ec == "") & !is.na(reaction) & reaction != "",
+      both_na = (is.na(ec) | ec == "") & (is.na(reaction) | reaction == "")
     ) %>%
     dplyr::group_by(cpd, ko) %>%
     dplyr::summarise(
-      any_ec = any(has_ec),
-      any_reaction = any(has_reaction),
+      has_dense = any(dense),
+      has_ec_only = any(ec_only),
+      has_reaction_only = any(reaction_only),
+      has_both_na = any(both_na),
       .groups = "drop"
     ) %>%
     dplyr::mutate(
-      pair_key = paste(cpd, ko, sep = "|"),
-      support_direct = pair_key %in% direct_pair_keys,
-      support_ko = ko %in% ko_supported_set,
+      has_sparse = has_ec_only | has_reaction_only,
+      support_direct = paste(cpd, ko, sep = "|") %in% direct_pair_keys,
+      support_ko = ko %in% ko_supported,
       support_class = dplyr::case_when(
         support_direct ~ "direct_compound_supported",
         support_ko ~ "ko_supported_only",
@@ -139,44 +164,50 @@ build_link_match <- function(database, links) {
       )
     )
 
+  row_shape_counts <- list(
+    dense = as.integer(sum(!is.na(db_norm$ec) & db_norm$ec != "" & !is.na(db_norm$reaction) & db_norm$reaction != "")),
+    ec_only = as.integer(sum(!is.na(db_norm$ec) & db_norm$ec != "" & (is.na(db_norm$reaction) | db_norm$reaction == ""))),
+    reaction_only = as.integer(sum((is.na(db_norm$ec) | db_norm$ec == "") & !is.na(db_norm$reaction) & db_norm$reaction != "")),
+    both_na = as.integer(sum((is.na(db_norm$ec) | db_norm$ec == "") & (is.na(db_norm$reaction) | db_norm$reaction == "")))
+  )
+
   false_na_pairs <- pair_summary %>%
-    dplyr::filter(!any_ec, !any_reaction, support_ko) %>%
+    dplyr::filter(!has_dense, !has_sparse, has_both_na, support_ko) %>%
     dplyr::select(cpd, ko)
+
+  resolvable_pairs <- pair_summary %>%
+    dplyr::filter(ko %in% ko_resolvable)
+  mixed_sparse_on_resolvable <- resolvable_pairs %>%
+    dplyr::filter(has_sparse | has_both_na) %>%
+    dplyr::select(cpd, ko, has_dense, has_ec_only, has_reaction_only, has_both_na)
 
   cpd_ec_keys <- paste(links$cpd_ec$cpd, links$cpd_ec$ec, sep = "|")
   cpd_reaction_keys <- paste(links$cpd_reaction$cpd, links$cpd_reaction$reaction, sep = "|")
   ko_ec_keys <- paste(links$ko_ec$ko, links$ko_ec$ec, sep = "|")
   ko_reaction_keys <- paste(links$ko_reaction$ko, links$ko_reaction$reaction, sep = "|")
-
-  bridge_ko_reaction <- links$ko_ec %>%
-    dplyr::inner_join(links$ec_reaction, by = "ec") %>%
-    dplyr::transmute(ko, reaction) %>%
-    dplyr::distinct()
-  bridge_ko_ec <- links$ko_reaction %>%
-    dplyr::inner_join(links$ec_reaction, by = "reaction") %>%
-    dplyr::transmute(ko, ec) %>%
-    dplyr::distinct()
-
-  bridge_ko_reaction_keys <- paste(bridge_ko_reaction$ko, bridge_ko_reaction$reaction, sep = "|")
-  bridge_ko_ec_keys <- paste(bridge_ko_ec$ko, bridge_ko_ec$ec, sep = "|")
+  ko_complete_keys <- paste(ko_complete$ko, ko_complete$ec, ko_complete$reaction, sep = "|")
 
   row_provenance <- db_norm %>%
     dplyr::mutate(
       has_ec = !is.na(ec) & ec != "",
       has_reaction = !is.na(reaction) & reaction != "",
+      dense = has_ec & has_reaction,
       cpd_ec_key = paste(cpd, ec, sep = "|"),
       cpd_reaction_key = paste(cpd, reaction, sep = "|"),
       ko_ec_key = paste(ko, ec, sep = "|"),
       ko_reaction_key = paste(ko, reaction, sep = "|"),
+      ko_complete_key = paste(ko, ec, reaction, sep = "|"),
       is_direct = dplyr::case_when(
+        dense ~ (cpd_ec_key %in% cpd_ec_keys) | (cpd_reaction_key %in% cpd_reaction_keys),
         has_ec ~ cpd_ec_key %in% cpd_ec_keys,
         has_reaction ~ cpd_reaction_key %in% cpd_reaction_keys,
         TRUE ~ FALSE
       ),
       is_ko_supported = dplyr::case_when(
-        has_ec ~ (ko_ec_key %in% ko_ec_keys) | (ko_ec_key %in% bridge_ko_ec_keys),
-        has_reaction ~ (ko_reaction_key %in% ko_reaction_keys) | (ko_reaction_key %in% bridge_ko_reaction_keys),
-        TRUE ~ FALSE
+        dense ~ ko_complete_key %in% ko_complete_keys,
+        has_ec ~ ko_ec_key %in% ko_ec_keys,
+        has_reaction ~ ko_reaction_key %in% ko_reaction_keys,
+        TRUE ~ ko %in% ko_supported
       ),
       provenance = dplyr::case_when(
         is_direct ~ "direct_compound_supported",
@@ -213,7 +244,10 @@ build_link_match <- function(database, links) {
   list(
     policy = list(
       source_of_truth = "KEGG REST API",
-      ko_fallback_all_keys = TRUE,
+      mapping_join_key = "cpd+ko",
+      reference_ag_join_key = FALSE,
+      replicate_by_reference_ag = TRUE,
+      ko_dense_priority = TRUE,
       synthetic_ec_reaction_cartesian = FALSE
     ),
     coverage = list(
@@ -238,24 +272,15 @@ build_link_match <- function(database, links) {
       false_na_pairs_count = nrow(false_na_pairs),
       false_na_pairs_examples = utils::head(false_na_pairs, 50)
     ),
+    row_shapes = row_shape_counts,
     row_provenance = row_provenance_named,
     consistency_sentinels = list(
-      duplicate_full_rows = duplicate_full_rows
+      duplicate_full_rows = duplicate_full_rows,
+      resolvable_pair_count = nrow(resolvable_pairs),
+      mixed_sparse_on_resolvable_pairs = nrow(mixed_sparse_on_resolvable),
+      mixed_sparse_on_resolvable_examples = utils::head(mixed_sparse_on_resolvable, 50)
     )
   )
-}
-
-compute_completeness <- function(database) {
-  if (nrow(database) == 0) {
-    return(list())
-  }
-  completeness <- list()
-  for (column_name in colnames(database)) {
-    column_values <- database[[column_name]]
-    missing <- is.na(column_values) | trimws(as.character(column_values)) == ""
-    completeness[[column_name]] <- (1 - sum(missing) / nrow(database)) * 100
-  }
-  completeness
 }
 
 links <- build_link_tables(kegg_data)

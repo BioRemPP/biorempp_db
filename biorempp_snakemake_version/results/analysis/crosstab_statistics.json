@@ -5,9 +5,9 @@
     "compound_counts": [73, 58, 56, 54, 45, 40, 37, 36, 36, 36, 33, 32, 32, 30, 30, 28, 28, 28, 25, 25]
   },
   "top_20_enzyme_class_combinations": {
-    "compound_classes": ["Polyaromatic", "Polyaromatic", "Aromatic", "Aromatic", "Aliphatic", "Nitrogen-containing", "Chlorinated", "Chlorinated", "Aromatic", "Chlorinated", "Aliphatic", "Aromatic", "Chlorinated", "Nitrogen-containing", "Chlorinated", "Aliphatic", "Halogenated", "Chlorinated", "Polyaromatic", "Aliphatic"],
-    "enzymes": ["cytochrome P450", "dioxygenase", "cytochrome P450", "dioxygenase", "cytochrome P450", "cytochrome P450", "cytochrome P450", "S-transferase", "monooxygenase", "dioxygenase", "dehydrogenase", "dehydrogenase", "dehydrogenase", "dioxygenase", "dehalogenase", "monooxygenase", "cytochrome P450", "isomerase", "dehydrogenase", "dehalogenase"],
-    "counts": [4796, 4012, 3469, 3129, 2569, 2533, 1891, 1398, 1380, 1332, 1302, 703, 615, 608, 598, 578, 573, 542, 522, 502]
+    "compound_classes": ["Polyaromatic", "Polyaromatic", "Aromatic", "Aromatic", "Nitrogen-containing", "Aliphatic", "Chlorinated", "Chlorinated", "Aliphatic", "Chlorinated", "Aromatic", "Aromatic", "Chlorinated", "Nitrogen-containing", "Halogenated", "Chlorinated", "Chlorinated", "Aliphatic", "Aliphatic", "Polyaromatic"],
+    "enzymes": ["cytochrome P450", "dioxygenase", "cytochrome P450", "dioxygenase", "cytochrome P450", "cytochrome P450", "cytochrome P450", "S-transferase", "dehydrogenase", "dioxygenase", "monooxygenase", "dehydrogenase", "dehydrogenase", "dioxygenase", "cytochrome P450", "dehalogenase", "isomerase", "S-transferase", "dehalogenase", "dehydrogenase"],
+    "counts": [3615, 3523, 2918, 2700, 2116, 2101, 1643, 1339, 1067, 1061, 909, 584, 541, 540, 510, 504, 499, 480, 424, 419]
   },
   "top_10_classes_by_ko_diversity": {
     "compound_classes": ["Nitrogen-containing", "Aliphatic", "Aromatic", "Chlorinated", "Polyaromatic", "Inorganic", "Sulfur-containing", "Metal", "Organophosphorus", "Organometallic"],
