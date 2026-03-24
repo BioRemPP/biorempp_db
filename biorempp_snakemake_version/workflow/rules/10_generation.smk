@@ -65,8 +65,7 @@ rule merge_relationships:
         local_data = join(WORK_DIR, "local_data.rds"),
         kegg_data = join(WORK_DIR, "kegg_data.rds")
     output:
-        merged = join(WORK_DIR, "merged_compounds.rds"),
-        audit = join(RESULTS_DIR, "metadata", "link_consistency_audit.json")
+        join(WORK_DIR, "merged_compounds.rds")
     params:
         config_file = "config/config.yaml"
     log:
@@ -76,8 +75,7 @@ rule merge_relationships:
             "Rscript workflow/scripts/generation/04_merge_relationships.R "
             "--local-data {input.local_data} "
             "--kegg-data {input.kegg_data} "
-            "--output {output.merged} "
-            "--audit-output {output.audit} "
+            "--output {output} "
             "--config {params.config_file} "
             "> {log} 2>&1"
         )

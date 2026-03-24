@@ -3,7 +3,7 @@
 source("workflow/lib/utils.R")
 source("workflow/lib/io_contracts.R")
 
-load_required_packages(c("readr", "stringr"))
+load_required_packages(c("stringr"))
 
 args <- parse_cli_args()
 require_cli_args(args, c("output", "config", "base-url"))
@@ -11,19 +11,20 @@ require_cli_args(args, c("output", "config", "base-url"))
 output_file <- args[["output"]]
 base_url <- sub("/$", "", args[["base-url"]])
 
-fetch_endpoint <- function(endpoint, columns, sep = "\t", max_retries = 3) {
+fetch_endpoint_raw <- function(endpoint, sep = "\t", max_retries = 3) {
   url <- paste0(base_url, "/", endpoint)
 
   for (attempt in seq_len(max_retries)) {
     result <- tryCatch(
       {
-        read.csv(
+        read.delim(
           url,
           header = FALSE,
           sep = sep,
-          col.names = columns,
           stringsAsFactors = FALSE,
-          quote = ""
+          quote = "",
+          fill = TRUE,
+          comment.char = ""
         )
       },
       error = function(e) {
@@ -43,81 +44,136 @@ fetch_endpoint <- function(endpoint, columns, sep = "\t", max_retries = 3) {
   stop("Unreachable retry state for endpoint: ", endpoint, call. = FALSE)
 }
 
-validate_endpoint_structure <- function(endpoint_name, data_frame) {
+all_values_match <- function(values, pattern) {
+  clean <- trimws(as.character(values))
+  if (length(clean) == 0) {
+    return(FALSE)
+  }
+  non_empty <- !is.na(clean) & clean != ""
+  if (!all(non_empty)) {
+    return(FALSE)
+  }
+  all(grepl(pattern, clean, ignore.case = TRUE))
+}
+
+canonicalize_link_endpoint <- function(endpoint_name, data_frame) {
   expected_columns <- KEGG_ENDPOINTS[[endpoint_name]]$columns
-  prefix_rules <- KEGG_ENDPOINT_PREFIX_RULES[[endpoint_name]]
 
   if (!is.data.frame(data_frame)) {
     stop(sprintf("Endpoint %s did not return a data.frame.", endpoint_name), call. = FALSE)
   }
-  if (!identical(colnames(data_frame), expected_columns)) {
+  if (nrow(data_frame) < 1) {
+    stop(sprintf("Endpoint %s returned zero rows.", endpoint_name), call. = FALSE)
+  }
+  if (ncol(data_frame) < 2) {
     stop(
       sprintf(
-        "Endpoint %s returned unexpected columns. Expected [%s], got [%s].",
+        "Endpoint %s returned fewer than 2 columns (got %d).",
         endpoint_name,
-        paste(expected_columns, collapse = ", "),
-        paste(colnames(data_frame), collapse = ", ")
+        ncol(data_frame)
       ),
       call. = FALSE
     )
   }
-  if (nrow(data_frame) < 1) {
-    stop(sprintf("Endpoint %s returned zero rows.", endpoint_name), call. = FALSE)
-  }
 
-  for (column_name in names(prefix_rules)) {
-    values <- trimws(as.character(data_frame[[column_name]]))
-    invalid <- is.na(values) | values == "" | !grepl(prefix_rules[[column_name]], values, ignore.case = TRUE)
-    if (any(invalid)) {
-      sample_invalid <- unique(values[invalid])[1]
+  col_a <- data_frame[[1]]
+  col_b <- data_frame[[2]]
+
+  if (endpoint_name == "compound_list") {
+    col_a_is_cpd <- all_values_match(col_a, KEGG_VALUE_PATTERNS$cpd)
+    col_b_is_cpd <- all_values_match(col_b, KEGG_VALUE_PATTERNS$cpd)
+
+    if (col_a_is_cpd && !col_b_is_cpd) {
+      canonical <- data.frame(cpd = col_a, compoundname = col_b, stringsAsFactors = FALSE)
+    } else if (col_b_is_cpd && !col_a_is_cpd) {
+      canonical <- data.frame(cpd = col_b, compoundname = col_a, stringsAsFactors = FALSE)
+    } else {
       stop(
         sprintf(
-          "Endpoint %s failed structural validation in column '%s'. Invalid rows: %d. Example: '%s'.",
+          "Endpoint %s has invalid orientation/content for columns cpd/compoundname. Sample: '%s' | '%s'.",
           endpoint_name,
-          column_name,
-          sum(invalid),
-          sample_invalid
+          as.character(col_a[[1]]),
+          as.character(col_b[[1]])
         ),
         call. = FALSE
       )
     }
-  }
 
-  if ("compoundname" %in% colnames(data_frame)) {
-    names_raw <- trimws(as.character(data_frame$compoundname))
-    invalid_names <- is.na(names_raw) | names_raw == ""
-    if (any(invalid_names)) {
+    names_clean <- trimws(as.character(canonical$compoundname))
+    if (any(is.na(names_clean) | names_clean == "")) {
       stop(
-        sprintf(
-          "Endpoint %s has empty compound names (%d rows).",
-          endpoint_name,
-          sum(invalid_names)
-        ),
+        sprintf("Endpoint %s has empty compound names.", endpoint_name),
         call. = FALSE
       )
     }
+    return(canonical)
   }
 
-  invisible(TRUE)
+  if (length(expected_columns) != 2) {
+    stop(sprintf("Endpoint %s expected 2 canonical columns.", endpoint_name), call. = FALSE)
+  }
+
+  first_name <- expected_columns[[1]]
+  second_name <- expected_columns[[2]]
+  first_pattern <- KEGG_VALUE_PATTERNS[[first_name]]
+  second_pattern <- KEGG_VALUE_PATTERNS[[second_name]]
+
+  if (is.null(first_pattern) || is.null(second_pattern)) {
+    stop(sprintf("Endpoint %s has missing value pattern mapping.", endpoint_name), call. = FALSE)
+  }
+
+  first_is_first <- all_values_match(col_a, first_pattern)
+  second_is_second <- all_values_match(col_b, second_pattern)
+  first_is_second <- all_values_match(col_a, second_pattern)
+  second_is_first <- all_values_match(col_b, first_pattern)
+
+  canonical <- NULL
+  if (first_is_first && second_is_second) {
+    canonical <- data.frame(col_a, col_b, stringsAsFactors = FALSE)
+  } else if (first_is_second && second_is_first) {
+    canonical <- data.frame(col_b, col_a, stringsAsFactors = FALSE)
+  } else {
+    stop(
+      sprintf(
+        "Endpoint %s failed structural validation/orientation. Sample: '%s' | '%s'.",
+        endpoint_name,
+        as.character(col_a[[1]]),
+        as.character(col_b[[1]])
+      ),
+      call. = FALSE
+    )
+  }
+
+  colnames(canonical) <- expected_columns
+  canonical
 }
 
 validate_kegg_bundle <- function(bundle) {
-  endpoint_names <- names(KEGG_ENDPOINT_PREFIX_RULES)
+  endpoint_names <- names(KEGG_ENDPOINTS)
   for (endpoint_name in endpoint_names) {
     if (!endpoint_name %in% names(bundle)) {
       stop(sprintf("Missing endpoint in KEGG bundle: %s", endpoint_name), call. = FALSE)
     }
-    validate_endpoint_structure(endpoint_name, bundle[[endpoint_name]])
+    if (!is.data.frame(bundle[[endpoint_name]]) || nrow(bundle[[endpoint_name]]) < 1) {
+      stop(sprintf("Endpoint %s bundle is empty or invalid.", endpoint_name), call. = FALSE)
+    }
   }
   invisible(TRUE)
 }
 
+fetch_and_normalize_endpoint <- function(endpoint_name) {
+  endpoint_cfg <- KEGG_ENDPOINTS[[endpoint_name]]
+  raw <- fetch_endpoint_raw(endpoint_cfg$endpoint, endpoint_cfg$sep)
+  canonicalize_link_endpoint(endpoint_name, raw)
+}
+
 kegg_data <- list(
-  ko_ec_links = fetch_endpoint(KEGG_ENDPOINTS$ko_ec_links$endpoint, KEGG_ENDPOINTS$ko_ec_links$columns, KEGG_ENDPOINTS$ko_ec_links$sep),
-  ko_reaction_links = fetch_endpoint(KEGG_ENDPOINTS$ko_reaction_links$endpoint, KEGG_ENDPOINTS$ko_reaction_links$columns, KEGG_ENDPOINTS$ko_reaction_links$sep),
-  compound_ec_links = fetch_endpoint(KEGG_ENDPOINTS$compound_ec_links$endpoint, KEGG_ENDPOINTS$compound_ec_links$columns, KEGG_ENDPOINTS$compound_ec_links$sep),
-  compound_reaction_links = fetch_endpoint(KEGG_ENDPOINTS$compound_reaction_links$endpoint, KEGG_ENDPOINTS$compound_reaction_links$columns, KEGG_ENDPOINTS$compound_reaction_links$sep),
-  compound_list = fetch_endpoint(KEGG_ENDPOINTS$compound_list$endpoint, KEGG_ENDPOINTS$compound_list$columns, KEGG_ENDPOINTS$compound_list$sep)
+  ko_ec_links = fetch_and_normalize_endpoint("ko_ec_links"),
+  ko_reaction_links = fetch_and_normalize_endpoint("ko_reaction_links"),
+  compound_ec_links = fetch_and_normalize_endpoint("compound_ec_links"),
+  compound_reaction_links = fetch_and_normalize_endpoint("compound_reaction_links"),
+  ec_reaction_links = fetch_and_normalize_endpoint("ec_reaction_links"),
+  compound_list = fetch_and_normalize_endpoint("compound_list")
 )
 
 validate_kegg_bundle(kegg_data)
