@@ -13,6 +13,8 @@ EXPECTED_DATABASE_COLUMNS <- c(
   "cpd",
   "compoundclass",
   "ko",
+  "ec",
+  "reaction",
   "referenceAG",
   "compoundname",
   "genesymbol",
@@ -21,9 +23,17 @@ EXPECTED_DATABASE_COLUMNS <- c(
 )
 
 KEGG_ENDPOINTS <- list(
-  ko_ec_links = list(endpoint = "link/ko/ec", columns = c("ec", "ko"), sep = ""),
-  ko_reaction_links = list(endpoint = "link/ko/reaction", columns = c("reaction", "ko"), sep = ""),
-  compound_ec_links = list(endpoint = "link/compound/ec", columns = c("ec", "cpd"), sep = ""),
-  compound_reaction_links = list(endpoint = "link/cpd/reaction", columns = c("reaction", "cpd"), sep = ""),
+  ko_ec_links = list(endpoint = "link/ko/ec", columns = c("ec", "ko"), sep = "\t"),
+  ko_reaction_links = list(endpoint = "link/ko/reaction", columns = c("reaction", "ko"), sep = "\t"),
+  compound_ec_links = list(endpoint = "link/compound/ec", columns = c("ec", "cpd"), sep = "\t"),
+  compound_reaction_links = list(endpoint = "link/cpd/reaction", columns = c("reaction", "cpd"), sep = "\t"),
   compound_list = list(endpoint = "list/cpd/", columns = c("cpd", "compoundname"), sep = "\t")
+)
+
+KEGG_ENDPOINT_PREFIX_RULES <- list(
+  ko_ec_links = c(ec = "^ec:", ko = "^ko:"),
+  ko_reaction_links = c(reaction = "^rn:", ko = "^ko:"),
+  compound_ec_links = c(ec = "^ec:", cpd = "^cpd:"),
+  compound_reaction_links = c(reaction = "^rn:", cpd = "^cpd:"),
+  compound_list = c(cpd = "^C\\d{5}$")
 )

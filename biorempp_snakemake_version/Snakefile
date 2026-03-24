@@ -24,6 +24,7 @@ ANALYSIS_FILES = [
 ]
 
 KEGG_RELEASE = join(RESULTS_DIR, "metadata", "kegg_release.json")
+LINK_AUDIT = join(RESULTS_DIR, "metadata", "link_consistency_audit.json")
 WORKFLOW_SUMMARY = join(RESULTS_DIR, "reports", "workflow_summary.json")
 
 localrules: all
@@ -33,6 +34,7 @@ rule all:
         DATABASE_CSV,
         DATABASE_XLSX,
         KEGG_RELEASE,
+        LINK_AUDIT,
         WORKFLOW_SUMMARY,
         ANALYSIS_FILES
 
