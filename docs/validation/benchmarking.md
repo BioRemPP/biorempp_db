@@ -61,7 +61,7 @@ The BioRemPP Database represents a **novel data integration effort** that combin
 **KEGG coverage in BioRemPP:**
 
 - **Compounds:** 384 / ~18,600 KEGG compounds (2.1%)
-- **KO entries:** 1,541 / ~47,400 KEGG KO (3.3%)
+- **KO entries:** 1,542 / ~47,400 KEGG KO (3.3%)
 
 **Interpretation:** BioRemPP is a **focused subset** of KEGG, prioritizing environmentally relevant compounds.
 
@@ -235,8 +235,8 @@ cat("Duplicates:", duplicates, "\n")
 
 **Result:**
 
-- **Total rows:** 10,869
-- **Unique rows:** 10,869
+- **Total rows:** 10,871
+- **Unique rows:** 10,871
 - **Duplicates:** 0
 
 **Conclusion:** ✅ No duplicate entries; deduplication strategy is effective.
@@ -301,10 +301,10 @@ cat("Fallback to genename:", fallback_count, "\n")
 
 **Method:**
 
-1. Run pipeline: `source("generate_database.R")`
-2. Save output: `db_run1 <- read.csv("output_data/biorempp_database_v1.0.0.csv")`
+1. Run pipeline: `snakemake --cores 2` (or via Docker)
+2. Save output: `db_run1 <- read.csv("results/database/biorempp_database_v1.0.0.csv")`
 3. Re-run pipeline
-4. Save output: `db_run2 <- read.csv("output_data/biorempp_database_v1.0.0.csv")`
+4. Save output: `db_run2 <- read.csv("results/database/biorempp_database_v1.0.0.csv")`
 5. Compare: `identical(db_run1, db_run2)`
 
 **Result:**
@@ -412,7 +412,7 @@ cat("Unexpected classes:", paste(unexpected_classes, collapse = ", "), "\n")
 
 **Method:**
 
-- **Lexicon size:** 210 unique enzyme terms
+- **Lexicon size:** 218 unique enzyme terms
 - **Coverage check:** Compare against major enzyme families in biodegradation literature
 
 **Result:**

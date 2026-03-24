@@ -40,7 +40,12 @@ The BioRemPP Database pipeline is designed to achieve **computational reproducib
 
 | File | Purpose | Version Tracking |
 |------|---------|------------------|
-| `generate_database.R` | Main pipeline script | Git commits |
+| `Snakefile` | Workflow entry point | Git commits |
+| `workflow/rules/*.smk` | Pipeline rule definitions | Git commits |
+| `config/config.yaml` | Version, paths, KEGG endpoints | Git commits |
+| `env/Dockerfile` | Pins rocker/tidyverse:4.3, R & Python deps | Git commits |
+| `env/r-packages.txt` | R package dependency list | Git commits |
+| `env/python-requirements.txt` | Python dependency pins | Git commits |
 | `input_data/*.xlsx` | Input data files | Git LFS (large files) |
 | `input_data/*.txt` | KEGG reference files | Git LFS |
 | `mkdocs.yml` | Documentation config | Git commits |
@@ -58,7 +63,7 @@ The BioRemPP Database pipeline is designed to achieve **computational reproducib
 
 | File | KEGG Release | Download Date | Rows | Version Identifier |
 |------|--------------|---------------|------|-------------------|
-| `kegglistcompounds.xlsx` | Dec,25 | December 2025 | 10,869 | KEGG Release Dec,25 |
+| `kegglistcompounds.xlsx` | Dec,25 | December 2025 | 10,871 | KEGG Release Dec,25 |
 | `kegglistko.txt` | Dec,25 | December 2025 | 47,421 | KEGG Release Dec,25 |
 
 **Reproducibility guarantee:**
@@ -93,7 +98,7 @@ The BioRemPP Database pipeline is designed to achieve **computational reproducib
 
 | File | Source | Terms | Version Identifier |
 |------|--------|-------|-------------------|
-| `enzymes_unique.txt` | Literature review | 210 | v1.0.0 |
+| `enzymes_unique.txt` | Literature review | 218 | v1.0.0 |
 
 **Reproducibility guarantee:**
 
@@ -163,39 +168,32 @@ The pipeline queries KEGG REST API for:
 **Dependency management:**
 
 ```r
-required_packages <- c("readxl", "dplyr", "tidyr", "stringr", "readr", "xlsx")
+required_packages <- c("readxl", "dplyr", "tidyr", "stringr", "readr", "writexl", "jsonlite")
 ```
 
-**Reproducibility challenge:** R package versions may change over time.
+**Reproducibility approach:** Docker pins ALL dependencies — R version, R packages, Python packages, and Snakemake version — eliminating version drift entirely.
 
-**Current approach:**
-
-- ⚠️ **No version pinning** — Pipeline uses latest installed versions
-- ⚠️ **Potential for breakage** — Future package updates may introduce incompatibilities
-
-**Recommended approach for reproducibility:**
-
-```r
-# Use renv for package version management
-renv::init()
-renv::snapshot()  # Creates renv.lock file
-```
-
-**Future improvement:** Add `renv.lock` file to repository for exact package version reproducibility.
+- ✅ **Docker image** — `rocker/tidyverse:4.3` pins R version and base packages
+- ✅ **R packages pinned** — `env/r-packages.txt` lists all R dependencies, installed at image build time
+- ✅ **Python packages pinned** — `env/python-requirements.txt` pins `snakemake==7.32.4`, `pulp==2.7.0`, etc.
+- ✅ **No version drift** — Rebuilding the Docker image always produces the same environment
 
 ---
 
 ### System Dependencies
 
-**Operating system:** Cross-platform (Windows, macOS, Linux)
+**Operating system:** Cross-platform via Docker (Windows, macOS, Linux)
 
-**R version:** Tested on R ≥ 4.0.0
+**R version:** R ≥ 4.3 (pinned by `rocker/tidyverse:4.3` Docker image)
+
+**Snakemake version:** 7.32.4 (pinned by `env/python-requirements.txt`)
 
 **Reproducibility considerations:**
 
-- ✅ **R version documented** — Minimum version specified
-- ⚠️ **OS differences** — File path handling may differ (mitigated by `normalizePath()`)
-- ⚠️ **Locale differences** — Character encoding may vary (mitigated by UTF-8 specification)
+- ✅ **Docker eliminates OS-level variability** — All executions run inside the same container image
+- ✅ **R version pinned** — `rocker/tidyverse:4.3` guarantees R 4.3.x
+- ✅ **Locale fixed** — Container uses consistent UTF-8 locale
+- ✅ **Path handling** — Snakemake normalises paths inside the container
 
 ---
 
@@ -240,33 +238,39 @@ renv::snapshot()  # Creates renv.lock file
    git checkout v1.0.0
    ```
 
-2. **Verify R version:**
-   ```r
-   R.version.string  # Should be R >= 4.0.0
+2. **Build the Docker environment:**
+   ```bash
+   cd biorempp_snakemake_version
+   docker compose -f env/docker-compose.yml build
    ```
 
-3. **Install exact package versions (if `renv.lock` available):**
-   ```r
-   renv::restore()
+3. **Run pipeline (Docker — recommended):**
+   ```bash
+   docker compose -f env/docker-compose.yml run --rm snakemake
+   ```
+   Or without Docker:
+   ```bash
+   snakemake --cores 2
    ```
 
-4. **Run pipeline:**
+4. **Verify output:**
    ```r
-   source("generate_database.R")
-   ```
-
-5. **Verify output:**
-   ```r
-   db <- read.csv("output_data/biorempp_database_v1.0.0.csv")
-   nrow(db)  # Should be 10,869
+   db <- read.csv("results/database/biorempp_database_v1.0.0.csv")
+   nrow(db)  # Should be 10,871
    length(unique(db$cpd))  # Should be 384
+   ```
+
+5. **Verify checksums** (new in Snakemake workflow):
+   ```bash
+   cat results/metadata/workflow_summary.json
+   # Contains SHA-256 checksums of all output files
    ```
 
 **Expected reproducibility:**
 
-- ✅ **Identical row count** — 10,869 rows
+- ✅ **Identical row count** — 10,871 rows
 - ✅ **Identical compound count** — 384 unique compounds
-- ✅ **Identical KO count** — 1,541 unique KO entries
+- ✅ **Identical KO count** — 1,542 unique KO entries
 - ⚠️ **Potential API differences** — If KEGG updated between v1.0.0 release and reproduction
 
 ---
@@ -291,11 +295,10 @@ renv::snapshot()  # Creates renv.lock file
    git commit -m "Update KEGG reference files (Release YYYY-MM)"
    ```
 
-3. **Use package version management:**
-   ```r
-   renv::snapshot()
-   git add renv.lock
-   git commit -m "Pin R package versions"
+3. **Use the Docker environment for consistent execution:**
+   ```bash
+   docker compose -f env/docker-compose.yml run --rm snakemake
+   # All R and Python package versions are pinned inside the container
    ```
 
 4. **Document execution environment:**
@@ -306,7 +309,7 @@ renv::snapshot()  # Creates renv.lock file
 
 5. **Version control outputs:**
    ```bash
-   git add output_data/biorempp_database_v*.csv
+   git add results/database/biorempp_database_v*.csv
    git commit -m "Release v1.1.0"
    git tag v1.1.0
    ```
@@ -340,15 +343,16 @@ renv::snapshot()  # Creates renv.lock file
 
 **Impact:**
 
-- ⚠️ **Potential for breakage** — Deprecated functions, changed defaults
-- ⚠️ **Subtle result differences** — Rounding, sorting, encoding changes
+- ✅ **Eliminated by Docker** — All packages pinned inside the container image
+- ✅ **No version drift** — `env/r-packages.txt` and `env/python-requirements.txt` lock every dependency
 
 **Mitigation:**
 
-- Document R version (≥ 4.0.0)
-- Plan `renv` integration for v1.1.0
+- Docker image `rocker/tidyverse:4.3` pins R ≥ 4.3
+- `env/r-packages.txt` lists exact R package set
+- `env/python-requirements.txt` pins `snakemake==7.32.4`, `pulp==2.7.0`
 
-**Recommendation:** Use `renv::restore()` to install exact package versions.
+**Recommendation:** Always run the pipeline via Docker to guarantee identical package versions.
 
 ---
 
@@ -376,17 +380,17 @@ renv::snapshot()  # Creates renv.lock file
 
 **Impact:**
 
-- ⚠️ **Path separators** — Windows (`\`) vs. Unix (`/`)
-- ⚠️ **Line endings** — Windows (CRLF) vs. Unix (LF)
-- ⚠️ **Character encoding** — Locale-dependent
+- ✅ **Eliminated by Docker** — All executions run inside the same Linux-based container
+- ✅ **Path separators** — Container always uses Unix paths
+- ✅ **Line endings** — Container always uses LF
+- ✅ **Character encoding** — Container uses UTF-8 locale
 
 **Mitigation:**
 
-- Use `normalizePath()` for cross-platform paths
-- Specify UTF-8 encoding explicitly
-- Use `readLines()` with `warn = FALSE` for universal newline handling
+- Docker ensures identical OS environment regardless of host
+- Snakemake normalises paths inside the container
 
-**Recommendation:** Test pipeline on target OS before critical analyses.
+**Recommendation:** Use the Docker workflow (`docker compose -f env/docker-compose.yml run --rm snakemake`) for guaranteed cross-platform reproducibility.
 
 ---
 
@@ -396,12 +400,22 @@ renv::snapshot()  # Creates renv.lock file
 
 **Protocol:**
 
-1. Run pipeline: `source("generate_database.R")`
-2. Save output: `db1 <- read.csv("output_data/biorempp_database_v1.0.0.csv")`
-3. Delete output: `file.remove("output_data/biorempp_database_v1.0.0.csv")`
-4. Re-run pipeline: `source("generate_database.R")`
-5. Save output: `db2 <- read.csv("output_data/biorempp_database_v1.0.0.csv")`
-6. Compare: `identical(db1, db2)`
+1. Run pipeline:
+   ```bash
+   docker compose -f env/docker-compose.yml run --rm snakemake
+   ```
+2. Save output: `db1 <- read.csv("results/database/biorempp_database_v1.0.0.csv")`
+3. Record checksums from `results/metadata/workflow_summary.json`
+4. Clean outputs:
+   ```bash
+   snakemake --cores 2 --delete-all-output
+   ```
+5. Re-run pipeline:
+   ```bash
+   docker compose -f env/docker-compose.yml run --rm snakemake
+   ```
+6. Save output: `db2 <- read.csv("results/database/biorempp_database_v1.0.0.csv")`
+7. Compare: `identical(db1, db2)` and verify SHA-256 checksums match
 
 **Expected result:**
 
@@ -446,14 +460,15 @@ md5sum biorempp_database_v1.0.0.csv
 **BioRemPP Database v1.0.0 is reproducible under the following conditions:**
 
 1. ✅ **Same Git tag** — `git checkout v1.0.0`
-2. ✅ **Same R version** — R ≥ 4.0.0
-3. ✅ **Same package versions** — Use `renv::restore()` (when available)
+2. ✅ **Same Docker image** — `rocker/tidyverse:4.3` with pinned R and Python packages
+3. ✅ **Same Snakemake version** — 7.32.4 (pinned in `env/python-requirements.txt`)
 4. ✅ **Same KEGG reference files** — Committed to repository
-5. ⚠️ **Same KEGG API state** — May vary if KEGG updates database
+5. ✅ **SHA-256 verification** — `workflow_summary.json` provides checksums for all outputs
+6. ⚠️ **Same KEGG API state** — May vary if KEGG updates database
 
 **Reproducibility guarantee:**
 
-- **100% reproducibility** — When using local reference files only
+- **100% reproducibility** — When using Docker + local reference files
 - **Conditional reproducibility** — When querying live KEGG API
 
 **Recommended citation for reproducibility:**
@@ -464,6 +479,57 @@ Zenodo. https://doi.org/10.5281/zenodo.[PLACEHOLDER]
 Git tag: v1.0.0
 KEGG Release: Dec,25
 ```
+
+---
+
+## Output Verification via `workflow_summary.json`
+
+The Snakemake workflow automatically generates `results/metadata/workflow_summary.json`, which contains **SHA-256 checksums** of all output files produced during execution.
+
+**Purpose:** Enables independent verification that a pipeline run produced identical outputs.
+
+**Contents:**
+
+- SHA-256 hash of every file in `results/database/`
+- KEGG API release version captured at execution time (from `kegg_release.json`)
+- Workflow execution metadata (timestamp, Snakemake version, config hash)
+
+**Usage:**
+
+```bash
+# After running the pipeline, inspect checksums
+cat results/metadata/workflow_summary.json | python -m json.tool
+
+# Compare checksums between two runs
+diff <(jq -S . run1/results/metadata/workflow_summary.json) \
+     <(jq -S . run2/results/metadata/workflow_summary.json)
+```
+
+**Reproducibility benefit:**
+
+- ✅ **Automated** — Generated on every pipeline run; no manual hashing needed
+- ✅ **Tamper-evident** — Any change to outputs changes the checksums
+- ✅ **KEGG version captured** — `kegg_release.json` records the KEGG API state at execution time
+
+---
+
+## Automated Output Validation
+
+The **biorempp-validation** module complements these environment-level
+reproducibility measures with automated **output** reproducibility checks
+powered by Great Expectations (GX).  These checks recompute every analysis
+statistic from the raw CSV and verify bit-for-bit parity with the JSON
+artefacts.
+
+See the [Data Validation (GX)](../validation-gx/architecture.md) section for
+full details, including:
+
+- [Reproducibility Checks](../validation-gx/reproducibility-checks.md) —
+  cross-consistency validation and exact-match regression.
+- [Expectation Suites](../validation-gx/expectation-suites.md) — the 71
+  expectations that guard every pipeline run.
+- [Configuration Reference](../validation-gx/configuration.md) — tuning
+  policy flags and drift thresholds.
 
 ---
 

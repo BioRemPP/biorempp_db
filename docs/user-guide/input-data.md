@@ -6,7 +6,10 @@ This document specifies all input data required by the BioRemPP Database generat
 
 ## Overview of Input Data Types
 
-The BioRemPP Database pipeline requires **six mandatory input files** located in the `input_data/` directory. These files fall into three functional categories:
+The BioRemPP Database pipeline requires **six mandatory input files**. All six are loaded from a single directory configured as `paths.input_dir` in `config/config.yaml` (default: `../input_data`, i.e. the repository root `input_data/`). A convenience copy of all six files also exists inside `biorempp_snakemake_version/input_data/`.
+
+!!! info "Automatic preflight validation"
+    The Snakemake `preflight_check_inputs` rule validates that every required file exists before any processing begins. The canonical list of expected files is defined in `workflow/lib/io_contracts.R` (`REQUIRED_INPUT_FILES`).
 
 ### Category 1: KEGG Reference Data (Static Snapshots)
 
@@ -39,7 +42,7 @@ Domain-expert-contributed data to fill gaps and improve coverage:
 
 ## Mandatory Input Files
 
-All six files must be present in `input_data/` for pipeline execution.
+All six files must be present in the configured input directory for pipeline execution. The `preflight_check_inputs` rule verifies this automatically.
 
 ### File 1: `kegglistcompounds.xlsx`
 
@@ -83,8 +86,8 @@ compound_list <- read.csv("https://rest.kegg.jp/list/compound",
 compound_list$V2 <- sub(";.*$", "", compound_list$V2)  # Remove synonyms
 
 # Save to Excel
-library(xlsx)
-write.xlsx(compound_list, "kegglistcompounds.xlsx", row.names = FALSE, col.names = FALSE)
+library(writexl)
+write_xlsx(compound_list, "kegglistcompounds.xlsx")
 ```
 
 ---
@@ -215,7 +218,7 @@ mv kegglistko_with_header.txt kegglistko.txt
 
 **Total rows:** ~60
 
-**Header row:** None (pipeline assigns column names: `cpd`, `ko`)
+**Header row:** Yes (pipeline reads with default `col_names = TRUE`; columns: `cpd`, `ko`)
 
 #### Validation Rules
 
@@ -358,7 +361,7 @@ transferase
 nitrogenase
 ```
 
-**Total entries:** 210 unique enzyme terms
+**Total entries:** 218 unique enzyme terms
 
 **No header row**
 
@@ -427,6 +430,9 @@ All text files (`.txt`) must conform to:
 
 The pipeline enforces the following consistency rules across files:
 
+!!! tip "Snakemake workflow"
+    In the Snakemake pipeline, the `preflight_check_inputs` rule validates that all required input files exist before any processing begins. It does **not** perform cross-file content validation. The manual verification snippets below are provided for ad-hoc inspection outside the pipeline.
+
 #### Rule 1: Compound ID Consistency
 
 ✅ **All Compound IDs** in `compostos_todasagencias.xlsx`, `missing_compounds_founds_curated.xlsx`, and `confirm_class_CURATED.xlsx` **should exist** in `kegglistcompounds.xlsx`.
@@ -457,7 +463,7 @@ if (length(unmapped) > 0) {
 ```r
 # Check for unknown KO IDs
 ko_list <- read.delim("input_data/kegglistko.txt")$ko
-curated_ko <- read_excel("input_data/missing_compounds_founds_curated.xlsx", col_names = FALSE)$...2
+curated_ko <- read_excel("input_data/missing_compounds_founds_curated.xlsx")$ko
 unknown_ko <- setdiff(curated_ko, ko_list)
 if (length(unknown_ko) > 0) {
   warning("Unknown KO IDs: ", paste(unknown_ko, collapse = ", "))
@@ -562,7 +568,7 @@ clean_text <- function(x) {
 - `kegglistko.txt` **requires** header row
 - `kegglistcompounds.xlsx` **does NOT** have header row
 - `compostos_todasagencias.xlsx` **does NOT** have header row
-- `missing_compounds_founds_curated.xlsx` **does NOT** have header row
+- `missing_compounds_founds_curated.xlsx` **has** header row
 
 **Solution:** Verify header presence matches file specification above
 
@@ -643,6 +649,12 @@ if (length(invalid) > 0) {
 - ✅ **Maintain external curation log** for `missing_compounds_founds_curated.xlsx`
 - ✅ **Document agency database versions** (e.g., "EPA Priority Pollutant List, updated 2024-06-01")
 - ✅ **Record KEGG release** used for `kegglistcompounds.xlsx` and `kegglistko.txt`
+
+### Pipeline Configuration
+
+- ✅ **Input directory paths** are defined in `config/config.yaml` (`paths.input_dir`) — update this if your directory layout differs from the default
+- ✅ **Expected file list** is maintained in `workflow/lib/io_contracts.R` (`REQUIRED_INPUT_FILES`) — keep it in sync if you add or rename input files
+- ✅ **Output** is written to `results/database/` by the Snakemake workflow
 
 ### Quality Assurance
 

@@ -149,7 +149,7 @@ epa_compounds = db[db['referenceAG'] == 'EPA']
 ```r
 # Load database
 library(readr)
-db <- read_csv("biorempp_database_v1.0.0.csv")
+db <- read_csv("results/database/biorempp_database_v1.0.0.csv")
 
 # Inspect structure
 str(db)
@@ -160,9 +160,9 @@ summary(db)
 ```
 
 **Expected output:**
-- 10,869 rows × 8 columns
+- 10,871 rows × 8 columns
 - 384 unique compounds
-- 1,541 unique KO entries
+- 1,542 unique KO entries
 
 ---
 
@@ -171,7 +171,7 @@ summary(db)
 ```python
 # Load database
 import pandas as pd
-db = pd.read_csv("biorempp_database_v1.0.0.csv")
+db = pd.read_csv("results/database/biorempp_database_v1.0.0.csv")
 
 # Inspect structure
 print(db.info())
@@ -182,9 +182,9 @@ print(db.describe())
 ```
 
 **Expected output:**
-- 10,869 rows × 8 columns
+- 10,871 rows × 8 columns
 - 384 unique compounds
-- 1,541 unique KO entries
+- 1,542 unique KO entries
 
 ---
 
@@ -323,13 +323,13 @@ class_abundance = annotated_metagenome.groupby('compoundclass')['abundance'].sum
 **Issue:** Compounds with multiple chemical classes appear in multiple rows.
 
 **Impact:**
-- Row count (10,869) ≠ unique compound count (384)
+- Row count (10,871) ≠ unique compound count (384)
 - Naive aggregation may double-count compounds
 
 **Correct approach (R):**
 ```r
 # INCORRECT: Count rows
-nrow(db)  # 10,869 (inflated)
+nrow(db)  # 10,871 (inflated)
 
 # CORRECT: Count unique compounds
 length(unique(db$cpd))  # 384 (accurate)
@@ -343,7 +343,7 @@ db %>%
 **Correct approach (Python):**
 ```python
 # INCORRECT: Count rows
-len(db)  # 10,869 (inflated)
+len(db)  # 10,871 (inflated)
 
 # CORRECT: Count unique compounds
 db['cpd'].nunique()  # 384 (accurate)
@@ -393,13 +393,13 @@ valid_ko.all()  # Should be True
 **R best practice:**
 ```r
 # Explicitly specify UTF-8
-db <- read.csv("biorempp_database_v1.0.0.csv", encoding = "UTF-8")
+db <- read.csv("results/database/biorempp_database_v1.0.0.csv", encoding = "UTF-8")
 ```
 
 **Python best practice:**
 ```python
 # Explicitly specify UTF-8
-db = pd.read_csv("biorempp_database_v1.0.0.csv", encoding='utf-8')
+db = pd.read_csv("results/database/biorempp_database_v1.0.0.csv", encoding='utf-8')
 ```
 
 ---

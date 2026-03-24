@@ -124,15 +124,28 @@ nav:
       - Input Data Files: user-guide/input-data.md
       - Understanding Output: user-guide/understanding-output.md
       - Troubleshooting: user-guide/troubleshooting.md
+  - Pipeline Architecture:
+      - Overview: technical/pipeline-architecture.md
+      - Snakemake Rules: technical/snakemake-rules.md
+      - Configuration Reference: technical/config-reference.md
   - Database Reference:
       - Schema: database/schema.md
       - Statistics: database/statistics.md
       - Data Quality: database/data-quality.md
       - FAIR Compliance: database/fair-compliance.md
-  - Validation & QC:
+  - Pipeline Validation:
+      - QC Rules: validation/qc-rules.md
       - Benchmarking: validation/benchmarking.md
       - Known Limitations: validation/limitations.md
       - Reproducibility: validation/reproducibility.md
+  - Data Validation (GX):
+      - Architecture: validation-gx/architecture.md
+      - Expectation Suites: validation-gx/expectation-suites.md
+      - Severity Policy: validation-gx/severity-policy.md
+      - Data Contracts: validation-gx/data-contracts.md
+      - Reproducibility Checks: validation-gx/reproducibility-checks.md
+      - Configuration Reference: validation-gx/configuration.md
+      - Test Suite: validation-gx/testing.md
   - Interoperability:
       - R and Python Integration: interoperability/r-python-integration.md
       - Multi-Omics Integration: interoperability/multi-omics.md

@@ -10,9 +10,9 @@ The **BioRemPP Database** (Bioremediation Potential Profile Database) is a curat
 
 Environmental contamination by xenobiotic compounds—ranging from chlorinated solvents and polyaromatic hydrocarbons to pesticides and heavy metals—poses significant ecological and public health challenges. While substantial knowledge exists regarding microbial biodegradation capabilities, this information remains fragmented across disparate databases (KEGG, specialized biodegradation repositories), scattered literature, and disconnected regulatory frameworks (EPA, IARC, ATSDR, etc.). Researchers seeking to assess bioremediation potential for a specific contaminant or microbial community face significant barriers: manual cross-referencing of multiple databases, inconsistent identifier systems, incomplete pathway annotations, and lack of integrated regulatory context.
 
-BioRemPP Database v1.0.0 systematically integrates data from **KEGG** (Kyoto Encyclopedia of Genes and Genomes), **nine international environmental regulatory references**, and **manual curations** into a unified, FAIR-compliant (Findable, Accessible, Interoperable, Reusable) framework. The current release contains **10,869 database entries** linking **384 unique chemical compounds** to **1,541 KEGG Orthology (KO) identifiers**, **1,515 gene symbols**, and **205 enzyme activity types** across **12 chemical compound classes**, achieving **100% data completeness** across all core fields.
+BioRemPP Database v1.0.0 systematically integrates data from **KEGG** (Kyoto Encyclopedia of Genes and Genomes), **nine international environmental regulatory references**, and **manual curations** into a unified, FAIR-compliant (Findable, Accessible, Interoperable, Reusable) framework. The current release contains **10,871 database entries** linking **384 unique chemical compounds** to **1,542 KEGG Orthology (KO) identifiers**, **1,516 gene symbols**, and **205 enzyme activity types** across **12 chemical compound classes**, achieving **100% data completeness** across all core fields.
 
-The database generation pipeline is fully reproducible and transparent, implemented as a modular R workflow comprising 30+ documented functions organized into seven processing stages: local data loading, KEGG API integration, data merging, chemical classification, identifier sanitization, gene information enrichment, and enzyme activity extraction. All data sources, transformation steps, and quality control measures are explicitly documented to ensure scientific reproducibility and enable independent validation.
+The database generation pipeline is fully reproducible and transparent, implemented as a **Snakemake workflow** with 18 rules organized into four layers: preflight validation, data generation (ETL from local files and KEGG API), statistical analysis, and provenance reporting. The pipeline is fully containerized via Docker (based on `rocker/tidyverse:4.3`) with pinned dependencies (Snakemake 7.32.4, R packages, Python packages) to ensure bit-for-bit reproducibility. All data sources, transformation steps, and quality control measures are explicitly documented, and every output artifact receives a SHA-256 checksum for integrity verification.
 
 ---
 
@@ -120,8 +120,8 @@ This documentation is organized into **eight major sections** to serve different
 
 ### For Developers and Integrators
 
-5. **[Technical Documentation](technical/pipeline-architecture.md)** — Pipeline architecture, data transformation logic, KEGG API integration, and error handling
-6. **[Interoperability](interoperability/r-integration.md)** — Integration examples for R, Python, Bioconductor, and multi-omics workflows
+5. **[Pipeline Architecture](technical/pipeline-architecture.md)** — Snakemake workflow architecture, DAG, rule modules, configuration, and containerization
+6. **[Interoperability](interoperability/r-python-integration.md)** — Integration examples for R, Python, and multi-omics workflows
 
 ### For Reference
 
@@ -134,7 +134,7 @@ This documentation is organized into **eight major sections** to serve different
 |----------|-------------------------------|
 | Install and run the pipeline | [Installation Guide](getting-started/installation.md) |
 | Understand database structure | [Database Schema](database/schema.md) |
-| Load data into R or Python | [R Integration](interoperability/r-integration.md) / [Python Integration](interoperability/python-integration.md) |
+| Load data into R or Python | [R and Python Integration](interoperability/r-python-integration.md) |
 | Evaluate data quality | [Data Quality Metrics](database/data-quality.md) |
 | Assess reproducibility | [Reproducibility Protocols](validation/reproducibility.md) |
 | Understand FAIR compliance | [FAIR Compliance](database/fair-compliance.md) |
@@ -168,7 +168,7 @@ A peer-reviewed publication is in preparation. This citation format will be upda
 BioRemPP Database content is distributed under **Creative Commons Attribution 4.0 International (CC BY 4.0)**.  
 Database generation pipeline and scripts are distributed under **Apache License 2.0**.
 
-See [License](LICENSE) for full terms.
+See [License](about/license.md) for full terms.
 
 ---
 
@@ -178,6 +178,6 @@ See [License](LICENSE) for full terms.
 
 *Empowering bioremediation research through integrated, FAIR-compliant biodegradation data*
 
-[Documentation](index.md) · [GitHub](https://github.com/BioRemPP/biorempp_db) · [License](LICENSE) · [How to Cite](about/how-to-cite.md)
+[GitHub](https://github.com/BioRemPP/biorempp_db) · [License](about/license.md) · [How to Cite](about/how-to-cite.md)
 
 </div>

@@ -192,7 +192,7 @@ Novel genes or enzymes **can be added** through manual curation:
 
 **Extraction method limitations:**
 
-- **Pattern matching:** Relies on 210-term lexicon; novel enzyme names may be missed
+- **Pattern matching:** Relies on 218-term lexicon; novel enzyme names may be missed
 - **Fallback behavior:** If no match, full gene name used (may be verbose)
 - **Ambiguity:** Some gene names match multiple enzyme terms (first match used)
 
@@ -292,14 +292,14 @@ Novel genes or enzymes **can be added** through manual curation:
 
 **Implications:**
 
-- ⚠️ **Row count ≠ unique compounds** — 10,869 rows represent 384 unique compounds
+- ⚠️ **Row count ≠ unique compounds** — 10,871 rows represent 384 unique compounds
 - ⚠️ **Potential for double-counting** — Naive aggregation may overcount compounds
 
 **Correct analysis approach:**
 
 ```r
 # INCORRECT: Count rows
-nrow(db)  # 10,869 (inflated)
+nrow(db)  # 10,871 (inflated)
 
 # CORRECT: Count unique compounds
 length(unique(db$cpd))  # 384 (accurate)

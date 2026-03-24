@@ -53,8 +53,8 @@ The BioRemPP Database is designed as a **FAIR-compliant scientific resource** fo
 | **Description** | Bioremediation potential database linking environmental pollutants to biodegradation genes | `docs/index.md` |
 | **Keywords** | bioremediation, KEGG, environmental pollutants, biodegradation, enzymes | `README.md` |
 | **Data sources** | KEGG (Dec,25), 9 environmental agencies, manual curations | `docs/user-guide/input-data.md` |
-| **Schema** | 8 columns, 10,869 rows | `docs/database/schema.md` |
-| **Statistics** | 384 compounds, 1,541 KO entries, 205 enzymes | `docs/database/statistics.md` |
+| **Schema** | 8 columns, 10,871 rows | `docs/database/schema.md` |
+| **Statistics** | 384 compounds, 1,542 KO entries, 205 enzymes | `docs/database/statistics.md` |
 | **License** | CC BY 4.0 (data), Apache 2.0 (code) | `LICENSE`, `docs/LICENSE` |
 | **Contact** | biorempp@gmail.com | `README.md`, all documentation |
 
@@ -116,17 +116,17 @@ Each database column is documented with:
 
 - **Protocol:** HTTPS (standardized, open)
 - **URL:** `https://github.com/BioRemPP/biorempp_db`
-- **Direct download:** `https://github.com/BioRemPP/biorempp_db/raw/main/biorempp_db/output_data/biorempp_database_v1.0.0.csv`
+- **Direct download:** `https://github.com/BioRemPP/biorempp_db/raw/main/biorempp_db/biorempp_snakemake_version/results/database/biorempp_database_v1.0.0.csv`
 - **Authentication:** None required (public repository)
 
 #### Programmatic Access
 
 ```bash
 # Download via curl
-curl -O https://github.com/BioRemPP/biorempp_db/raw/main/biorempp_db/output_data/biorempp_database_v1.0.0.csv
+curl -O https://github.com/BioRemPP/biorempp_db/raw/main/biorempp_db/biorempp_snakemake_version/results/database/biorempp_database_v1.0.0.csv
 
 # Download via wget
-wget https://github.com/BioRemPP/biorempp_db/raw/main/biorempp_db/output_data/biorempp_database_v1.0.0.csv
+wget https://github.com/BioRemPP/biorempp_db/raw/main/biorempp_db/biorempp_snakemake_version/results/database/biorempp_database_v1.0.0.csv
 ```
 
 #### R Integration
@@ -134,14 +134,14 @@ wget https://github.com/BioRemPP/biorempp_db/raw/main/biorempp_db/output_data/bi
 ```r
 # Direct load from GitHub
 library(readr)
-db <- read_csv("https://github.com/BioRemPP/biorempp_db/raw/main/biorempp_db/output_data/biorempp_database_v1.0.0.csv")
+db <- read_csv("https://github.com/BioRemPP/biorempp_db/raw/main/biorempp_db/biorempp_snakemake_version/results/database/biorempp_database_v1.0.0.csv")
 ```
 
 #### Python Integration
 
 ```python
 import pandas as pd
-url = "https://github.com/BioRemPP/biorempp_db/raw/main/biorempp_db/output_data/biorempp_database_v1.0.0.csv"
+url = "https://github.com/BioRemPP/biorempp_db/raw/main/biorempp_db/biorempp_snakemake_version/results/database/biorempp_database_v1.0.0.csv"
 db = pd.read_csv(url)
 ```
 
@@ -327,7 +327,7 @@ db = pd.read_csv(url)
 | **Agency compounds** | 9 environmental agencies | `docs/user-guide/input-data.md` |
 | **Manual curations** | Literature-derived (62 entries) | `docs/user-guide/input-data.md` |
 | **Compound classes** | Expert curation (384 compounds) | `docs/user-guide/input-data.md` |
-| **Enzyme lexicon** | Systematic literature review (210 terms) | `docs/user-guide/input-data.md` |
+| **Enzyme lexicon** | Systematic literature review (218 terms) | `docs/user-guide/input-data.md` |
 
 #### Processing Provenance
 

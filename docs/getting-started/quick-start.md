@@ -1,31 +1,40 @@
 # Quick Start Guide
 
-Get started with BioRemPP Database in under 5 minutes.
+Get started with BioRemPP Database in under 10 minutes.
 
 ---
 
 ## Objective
 
-This guide demonstrates a complete end-to-end execution of the BioRemPP Database generation pipeline, from cloning the repository to examining the output files. By the end of this quick start, you will have:
+This guide demonstrates a complete end-to-end execution of the BioRemPP Database
+generation pipeline using the Snakemake workflow, from cloning the repository to
+examining the output files. By the end of this quick start, you will have:
 
 - Cloned the BioRemPP Database repository
-- Executed the database generation pipeline
-- Generated the complete database (10,869 entries)
-- Validated the output files
+- Executed the Snakemake pipeline (via Docker or locally)
+- Generated the complete database (10,871 entries)
+- Validated the output with a dry-run and output checks
 - Explored basic database statistics
 
-**Estimated time:** 5 minutes
+**Estimated time:** ~10 minutes (first run, including Docker image build)
 
 ---
 
 ## Prerequisites
 
-Before starting, ensure you have:
+=== "Docker (Recommended)"
 
-- ✅ **R** ≥ 4.0.0 installed ([verify](requirements.md#check-r-version))
-- ✅ **6 R packages** installed: `readxl`, `dplyr`, `tidyr`, `stringr`, `readr`, `xlsx` ([install](installation.md#step-4-install-r-package-dependencies))
-- ✅ **Internet connection** for KEGG API access
-- ✅ **Git** installed (optional, needed only for cloning)
+    - ✅ **Docker** ≥ 20.10 and **Docker Compose** v2 installed
+    - ✅ **Internet connection** for KEGG API access and image build
+    - ✅ **Git** installed (optional, needed only for cloning)
+
+=== "Local (Snakemake + R)"
+
+    - ✅ **R** ≥ 4.3 installed ([verify](requirements.md#check-r-version))
+    - ✅ **Python** ≥ 3.8 with `snakemake==7.32.4` and `pulp==2.7.0`
+    - ✅ **R packages** installed: `readxl`, `dplyr`, `tidyr`, `stringr`, `readr`, `writexl`, `jsonlite`
+    - ✅ **Internet connection** for KEGG API access
+    - ✅ **Git** installed (optional, needed only for cloning)
 
 If prerequisites are not met, see [Installation Guide](installation.md).
 
@@ -37,180 +46,186 @@ If prerequisites are not met, see [Installation Guide](installation.md).
 
 Open a terminal (macOS/Linux) or PowerShell/Command Prompt (Windows):
 
-=== "Command Line (Git)"
+=== "Git"
 
     ```bash
-    # Clone repository
     git clone https://github.com/BioRemPP/biorempp_db.git
-    
-    # Navigate to project root directory
-    cd biorempp_db
+    cd biorempp_db/biorempp_snakemake_version
     ```
 
-=== "Manual Download (No Git)"
+=== "Manual Download"
 
     1. Visit [GitHub Repository](https://github.com/BioRemPP/biorempp_db)
     2. Click **Code** → **Download ZIP**
-    3. Extract ZIP file
-    4. Open terminal and navigate to extracted folder:
+    3. Extract the ZIP and navigate to the Snakemake directory:
        ```bash
-       cd path/to/biorempp_db
+       cd path/to/biorempp_db/biorempp_snakemake_version
        ```
 
-**Expected result:** You are now in the project root directory.
+**Expected result:** You are now inside `biorempp_snakemake_version/`, which
+contains the `Snakefile`, `config/`, and `workflow/` directories.
 
 ---
 
 ### Step 2: Verify Input Data
 
-Confirm that all required input files are present:
+Confirm that the required input files are present:
 
 ```bash
 ls -lh input_data/
 ```
 
-**Expected output:**
+**Expected output (6 files + `.gitkeep`):**
 
 ```
--rw-r--r-- 1 user group  17K  Dec 16 12:00 confirm_class_CURATED.xlsx
--rw-r--r-- 1 user group  30K  Dec 16 12:00 compostos_todasagencias.xlsx
--rw-r--r-- 1 user group 3.3K  Dec 16 12:00 enzymes_unique.txt
--rw-r--r-- 1 user group 425K  Dec 16 12:00 kegglistcompounds.xlsx
--rw-r--r-- 1 user group 1.6M  Dec 16 12:00 kegglistko.txt
--rw-r--r-- 1 user group  38K  Dec 16 12:00 missing_compounds_founds_curated.xlsx
+compostos_todasagencias.xlsx
+confirm_class_CURATED.xlsx
+enzymes_unique.txt
+kegglistcompounds.xlsx
+kegglistko.txt
+missing_compounds_founds_curated.xlsx
 ```
 
-✅ **Checkpoint:** All 6 files should be present (~2.2 MB total)
+!!! note
+    All six mandatory input files are present inside
+    `biorempp_snakemake_version/input_data/`. Copies also exist in the
+    repository root `input_data/` (configured via `paths.input_dir` in
+    `config/config.yaml`, default: `../input_data`).
+
+✅ **Checkpoint:** The two core input files should be present.
 
 ---
 
-### Step 3: Run the Database Generation Pipeline
+### Step 3: Dry-Run (Validate DAG)
 
-=== "Option A: RStudio (Recommended)"
+Before executing anything, verify the workflow graph resolves correctly:
 
-    1. **Open RStudio**
-    2. **File** → **Open File...** → Select `generate_database.R`
-    3. **Click "Source"** (or press `Ctrl+Shift+S` / `Cmd+Shift+S`)
-    4. **Wait 5 minutes** while pipeline executes
-
-=== "Option B: R Console"
-
-    ```r
-    # Launch R from terminal
-    R
-    
-    # Set working directory to project root
-    setwd("path/to/project/root")
-    
-    # Run pipeline
-    source("generate_database.R")
-    
-    # Wait for completion
-    ```
-
-=== "Option C: Command Line (Non-interactive)"
+=== "Docker"
 
     ```bash
-    # Execute pipeline directly
-    Rscript generate_database.R
+    docker compose -f env/docker-compose.yml run --rm snakemake \
+        snakemake --snakefile Snakefile --configfile config/config.yaml --dry-run
+    ```
+
+=== "Local"
+
+    ```bash
+    snakemake --dry-run
+    ```
+
+You should see a list of 19 jobs (18 concrete rules + the `all` target) that Snakemake plans to execute.
+If the dry-run prints errors, see [Troubleshooting](#troubleshooting) below.
+
+✅ **Checkpoint:** Dry-run completes with no errors and lists all planned jobs.
+
+---
+
+### Step 4: Run the Pipeline
+
+=== "Docker (Recommended)"
+
+    ```bash
+    # Build the image (first time only, ~2 min)
+    docker compose -f env/docker-compose.yml build
+
+    # Execute the full pipeline
+    docker compose -f env/docker-compose.yml run --rm snakemake
+    ```
+
+=== "Local (Snakemake)"
+
+    ```bash
+    snakemake --cores 2
+    ```
+
+=== "Windows (Helper Script)"
+
+    ```powershell
+    .\scripts\run_snakemake.bat
     ```
 
 **What happens during execution:**
 
+Snakemake executes 18 concrete rules (plus the `all` target = 19 jobs) in four layers:
+
+| Layer | Rules | Description |
+|-------|-------|-------------|
+| **Preflight** | `preflight_check_inputs` | Validates input files and config |
+| **Generation** | 7 rules | Loads local data, fetches KEGG API, merges, classifies, enriches |
+| **Analysis** | 9 rules | Produces JSON statistics (6 independent + 3 downstream) |
+| **Reporting** | `build_run_report` | Generates `workflow_summary.json` with SHA-256 checksums |
+
 ```
-================================================================================
-  BioRemPP Database Generator v1.0.0
-================================================================================
+Building DAG of jobs...
+Job stats:
+    job                         count
+    ------------------------  -------
+    all                             1
+    build_run_report                1
+    preflight_check_inputs          1
+    ...
+    19
 
-=== STEP 1: Loading Local Data Files ===
-✓ Loaded 18639 KEGG compounds from local file
-✓ Loaded 806 compounds from environmental agencies
-✓ Loaded 62 manually curated compounds
-✓ Loaded compound classifications for 384 compounds
-✓ Loaded 47421 KO entries from local file
-✓ Loaded 210 unique enzyme terms
+[... rule execution logs ...]
 
-=== STEP 2: Fetching Data from KEGG API ===
-✓ Fetched data from KEGG API: link/ko/ec
-✓ Fetched data from KEGG API: link/ko/reaction
-✓ Fetched data from KEGG API: link/compound/ec
-✓ Fetched data from KEGG API: link/cpd/reaction
-✓ Fetched data from KEGG API: list/cpd/
-
-=== STEP 3: Merging and Integrating Data ===
-✓ Created 120543 unique KO-compound relationships
-✓ Integrated 868 compound-KO relationships
-
-=== STEP 4: Adding Compound Classifications ===
-✓ Created 868 compound-class relationships
-✓ Classified 868 compound entries
-
-=== STEP 5: Sanitizing KO IDs and Adding Gene Information ===
-✓ Sanitized 868 KO identifiers
-✓ Prepared 22615 unique KO entries
-✓ Added gene information to 10869 entries
-⚠ Entries without gene match: 0
-
-=== STEP 6: Extracting Enzyme Activities ===
-✓ Built pattern with 210 enzyme terms
-✓ Extracted enzyme activities for 10869 entries
-✓ Cleaned gene annotations
-
-=== STEP 7: Saving Results ===
-✓ Saved database to: output_data/biorempp_database_v1.0.0.csv
-✓ Saved database to: output_data/biorempp_database_v1.0.0.xlsx
-
-================================================================================
-  Database Generation Complete!
-================================================================================
-
-Summary Statistics:
-  - Total entries: 10869
-  - Unique compounds: 384
-  - Unique KO entries: 1541
-  - Unique compound classes: 12
-  - Unique gene symbols: 1515
-  - Unique enzyme activities: 205
-
-Output files:
-  - output_data/biorempp_database_v1.0.0.csv
-  - output_data/biorempp_database_v1.0.0.xlsx
+19 of 19 steps (100%) done
+Complete log: .snakemake/log/2025-01-15T120000.snakemake.log
 ```
 
-**Estimated runtime:** 5 minutes
+**Estimated runtime:** ~5 minutes (depends on KEGG API response time)
 
 ---
 
-### Step 4: Verify Output Files
+### Step 5: Verify Output Files
 
-Check that database files were generated successfully:
+Check that the pipeline produced all expected artefacts:
 
 ```bash
-ls -lh output_data/
+ls -lh results/database/
+ls -lh results/analysis/
+ls results/metadata/
+ls results/reports/
 ```
 
-**Expected output:**
+**Expected structure:**
 
 ```
--rw-r--r-- 1 user group 1.3M  Dec 16 12:05 biorempp_database_v1.0.0.csv
--rw-r--r-- 1 user group 460K  Dec 16 12:05 biorempp_database_v1.0.0.xlsx
+results/
+├── database/
+│   ├── biorempp_database_v1.0.0.csv   (~1.3 MB)
+│   └── biorempp_database_v1.0.0.xlsx  (~460 KB)
+├── analysis/
+│   ├── basic_statistics.json
+│   ├── complete_analysis.json
+│   ├── compound_statistics.json
+│   ├── crosstab_statistics.json
+│   ├── database_metadata.json
+│   ├── enzyme_statistics.json
+│   ├── executive_summary.json
+│   ├── gene_statistics.json
+│   └── ko_statistics.json
+├── metadata/
+│   └── kegg_release.json
+└── reports/
+    └── workflow_summary.json
 ```
 
-✅ **Checkpoint:** Both files should exist with sizes matching above
+✅ **Checkpoint:** Both database files, 9 analysis JSONs, KEGG release metadata,
+and the workflow summary should all be present.
 
 ---
 
-### Step 5: Explore the Database
+### Step 6: Explore the Database
 
 Load the database into R for quick exploration:
 
 ```r
 # Load database
-db <- read.csv("output_data/biorempp_database_v1.0.0.csv")
+db <- read.csv("results/database/biorempp_database_v1.0.0.csv")
 
 # Quick inspection
 dim(db)
-# Expected: [1] 10869     8
+# Expected: [1] 10871     8
 
 colnames(db)
 # Expected: [1] "cpd" "compoundclass" "ko" "referenceAG" "compoundname" 
@@ -227,7 +242,7 @@ summary(db)
 
 ```r
 > dim(db)
-[1] 10869     8
+[1] 10871     8
 
 > head(db, 3)
      cpd compoundclass      ko referenceAG       compoundname genesymbol
@@ -249,8 +264,11 @@ summary(db)
 
 | File | Location | Size | Rows | Columns |
 |------|----------|------|------|---------|
-| **Main Database (CSV)** | `output_data/biorempp_database_v1.0.0.csv` | ~1.3 MB | 10,869 | 8 |
-| **Main Database (Excel)** | `output_data/biorempp_database_v1.0.0.xlsx` | ~460 KB | 10,869 | 8 |
+| **Main Database (CSV)** | `results/database/biorempp_database_v1.0.0.csv` | ~1.3 MB | 10,871 | 8 |
+| **Main Database (Excel)** | `results/database/biorempp_database_v1.0.0.xlsx` | ~460 KB | 10,871 | 8 |
+| **Analysis JSONs** (×9) | `results/analysis/*.json` | ~200 KB total | — | — |
+| **KEGG Release** | `results/metadata/kegg_release.json` | <1 KB | — | — |
+| **Workflow Summary** | `results/reports/workflow_summary.json` | ~2 KB | — | — |
 
 ### Database Schema
 
@@ -275,10 +293,10 @@ Verify the database integrity:
 
 ```r
 nrow(db)
-# Expected: 10869
+# Expected: 10871
 ```
 
-✅ **Pass:** Exactly 10,869 rows
+✅ **Pass:** Exactly 10,871 rows
 
 ---
 
@@ -302,9 +320,9 @@ sapply(db, function(x) length(unique(x)))
 
 # Expected:
 #              cpd compoundclass            ko   referenceAG 
-#              384            12          1541             9 
+#              384            12          1542             9 
 #     compoundname    genesymbol      genename enzyme_activity 
-#              384          1515          1541           205
+#              384          1516          1542           205
 ```
 
 ✅ **Pass:** Counts match expected database statistics
@@ -351,7 +369,7 @@ Now that you have generated the database, you can:
 1. **Analyze specific compounds**
    ```r
    # Find all entries for trichloroethene
-   db[db$compound name == "Trichloroethene", ]
+   db[db$compoundname == "Trichloroethene", ]
    ```
 
 2. **Filter by enzyme type**
@@ -368,14 +386,14 @@ Now that you have generated the database, you can:
 
 ### Run Statistical Analysis
 
-Generate comprehensive statistics (optional):
+The Snakemake pipeline **automatically** generates 9 JSON analysis files in
+`results/analysis/` as part of the Analysis layer. No separate command is needed.
+
+To view the executive summary:
 
 ```bash
-cd analysis
-Rscript analyze_database.R
+cat results/analysis/executive_summary.json | python -m json.tool
 ```
-
-This creates 9 JSON files in `analysis/output/` with detailed statistics.
 
 See: [Understanding Output](../user-guide/understanding-output.md)
 
@@ -384,15 +402,40 @@ See: [Understanding Output](../user-guide/understanding-output.md)
 
 ## Troubleshooting
 
-### Pipeline fails at KEGG API step
+### Dry-run fails with missing input files
 
-**Solution:** Check internet connectivity and retry. See [Common Installation Issues](installation.md#issue-3-kegg-api-connection-timeout).
+**Solution:** Ensure you are running from the `biorempp_snakemake_version/`
+directory and that `input_data/` contains the required files.
+See [Installation Guide](installation.md#post-installation-validation-checklist).
 
 ---
 
-### Output files not created
+### Docker build fails
 
-**Solution:** Verify write permissions for `output_data/` directory. See [Permission Issues](installation.md#issue-4-permission-denied-when-creating-output-files).
+**Solution:** Ensure Docker is running and you have internet access. Retry with:
+
+```bash
+docker compose -f env/docker-compose.yml build --no-cache
+```
+
+See [Installation — Docker Troubleshooting](installation.md#common-installation-issues-and-solutions).
+
+---
+
+### KEGG API timeout during pipeline execution
+
+**Solution:** KEGG API can be slow or rate-limited. Snakemake will only re-run
+the failed rule on retry. Simply re-execute the same command:
+
+```bash
+# Docker
+docker compose -f env/docker-compose.yml run --rm snakemake
+
+# Local
+snakemake --cores 2
+```
+
+Already-completed rules are skipped automatically.
 
 ---
 
@@ -400,11 +443,28 @@ See: [Understanding Output](../user-guide/understanding-output.md)
 
 **Possible causes:**
 
-- Updated KEGG data (database evolves over time)
+- Updated KEGG data (the database evolves over time)
 - Modified input files
 - Incomplete API responses
 
-**Solution:** Re-run pipeline or consult [Known Limitations](../validation/limitations.md).
+**Solution:** Re-run the pipeline or consult [Known Limitations](../validation/limitations.md).
+
+---
+
+## Post-Pipeline Validation
+
+After the Snakemake pipeline completes you can run the **biorempp-validation**
+module to verify all outputs automatically:
+
+```bash
+cd biorempp_validation
+pip install -e .
+python -m biorempp_validation.run_validation --config config/validation.yaml
+```
+
+See [Data Validation (GX) — Architecture](../validation-gx/architecture.md)
+for an overview and [Configuration Reference](../validation-gx/configuration.md)
+for customising paths and policy flags.
 
 ---
 

@@ -14,51 +14,81 @@ The User Guide provides practical instructions for researchers and bioinformatic
 - **Troubleshoot** common issues during execution
 - **Customize** input data for specific research needs (advanced users)
 
-This guide assumes you have already completed the [Installation](../getting-started/installation.md) and are familiar with basic R usage and bioinformatics concepts (KEGG identifiers, enzyme nomenclature, regulatory frameworks).
+This guide assumes you have already completed the [Installation](../getting-started/installation.md) and are familiar with Docker, basic command-line usage, and bioinformatics concepts (KEGG identifiers, enzyme nomenclature, regulatory frameworks).
 
 **This guide does NOT cover:**
 
 - Installation procedures (see [Getting Started](../getting-started/installation.md))
 - Technical implementation details (see [Technical Documentation](../technical/pipeline-architecture.md))
 - Database schema specifications (see [Database Reference](../database/schema.md))
-- Data integration workflows (see [Interoperability](../interoperability/r-integration.md))
+- Data integration workflows (see [Interoperability](../interoperability/r-python-integration.md))
 
 ---
 
 ## High-Level Workflow Overview
 
-The BioRemPP Database generation pipeline follows a seven-stage workflow that transforms fragmented data sources into a unified, FAIR-compliant database:
+The BioRemPP Database generation pipeline is orchestrated by **Snakemake 7.32.4** and follows a **4-layer architecture** (18 rules across 4 `.smk` modules) that transforms fragmented data sources into a unified, FAIR-compliant database:
 
 ```mermaid
 graph TD
-    A[Input Data Files<br/>6 local files] --> B[Stage 1:<br/>Load Local Data]
-    C[KEGG REST API<br/>Live queries] --> D[Stage 2:<br/>Fetch KEGG Data]
-    
-    B --> E[Stage 3:<br/>Merge & Integrate]
-    D --> E
-    
-    E --> F[Stage 4:<br/>Add Classifications]
-    F --> G[Stage 5:<br/>Sanitize & Enrich]
-    G --> H[Stage 6:<br/>Extract Enzymes]
-    H --> I[Stage 7:<br/>Save Results]
-    
-    I --> J[Output Files<br/>CSV + Excel + JSON]
-    
-    style A fill:#e3f2fd
-    style C fill:#e3f2fd
-    style J fill:#c8e6c9
+    subgraph Preflight ["00_preflight.smk"]
+        P1[preflight_check_inputs<br/>Validate inputs & config]
+    end
+
+    subgraph Generation ["10_generation.smk — 7 rules"]
+        FI[fetch_kegg_info<br/>kegg_release.json]
+        G1[load_local_data] --> G3[merge_relationships]
+        G2[fetch_kegg_data] --> G3
+        G3 --> G4[add_classifications]
+        G4 --> G5[enrich_gene_info]
+        G5 --> G6[extract_enzymes_export<br/>CSV + XLSX]
+        FI --> G6
+    end
+
+    subgraph Analysis ["20_analysis.smk — 9 rules"]
+        A1[basic_statistics]
+        A2[compound_statistics]
+        A3[ko_statistics]
+        A4[enzyme_statistics]
+        A5[gene_statistics]
+        A6[crosstab_statistics]
+        A7[database_metadata]
+        A8[executive_summary]
+        A9[complete_analysis]
+    end
+
+    subgraph Reporting ["90_reporting.smk"]
+        R1[build_run_report<br/>workflow_summary.json<br/>with SHA-256 checksums]
+    end
+
+    P1 --> G1
+    P1 --> G2
+    G6 --> A1 & A2 & A3 & A4 & A5 & A6
+    G6 --> A7
+    FI --> A7
+    A1 & A2 & A3 & A4 --> A8
+    A7 & A1 & A2 & A3 & A4 & A5 & A6 & A8 --> A9
+    G6 --> R1
+    A7 --> R1
+    A9 --> R1
+    FI --> R1
+
+    style Preflight fill:#fff3e0
+    style Generation fill:#e3f2fd
+    style Analysis fill:#e8f5e9
+    style Reporting fill:#f3e5f5
 ```
 
 ### Typical Execution Flow
 
-1. **User initiates pipeline** via R console, RStudio, or command line (`Rscript`)
-2. **Pipeline loads** 6 local input files from `input_data/` directory
-3. **Pipeline queries** KEGG REST API for compound-gene relationships (~50-100 MB data transfer)
-4. **Pipeline integrates** environmental agency lists with KEGG data
-5. **Pipeline enriches** data with gene information and enzyme activities
-6. **Pipeline validates** and sanitizes identifiers (KEGG Compound, KEGG Orthology)
-7. **Pipeline exports** final database to `output_data/` (CSV, Excel formats)
-8. **User examines** output files and optionally runs statistical analysis
+1. **User initiates pipeline** via Docker (recommended) or local Snakemake:
+    - **Docker:** `docker compose -f env/docker-compose.yml run --rm snakemake`
+    - **Local:** `snakemake --cores 2`
+2. **Preflight** validates input files and `config/config.yaml`
+3. **Generation** loads local input files, queries KEGG REST API (~50–100 MB data transfer), merges, classifies, enriches, and extracts enzymes
+4. **Analysis** — 6 base rules run in parallel from the CSV; `database_metadata` also needs `kegg_release.json`; `executive_summary` depends on 4 base statistics; `complete_analysis` merges all other analysis outputs
+5. **Reporting** generates `results/reports/workflow_summary.json` with SHA-256 checksums of all outputs
+6. **User examines** output files in `results/` (database, analysis, metadata, reports)
 
 **Total runtime:** ~5 minutes (typical configuration with stable internet connection)
 
@@ -119,7 +149,7 @@ The BioRemPP Database integrates four primary data source types:
 
 **Source:** Local file `input_data/enzymes_unique.txt`  
 **Update Frequency:** Manual updates based on systematic literature review  
-**Content:** 210+ standardized enzyme activity terms (e.g., "dioxygenase", "cytochrome P450", "dehydrogenase")
+**Content:** 218 standardized enzyme activity terms (e.g., "dioxygenase", "cytochrome P450", "dehydrogenase")
 
 **Integration Method:** Pattern matching against KEGG gene names using regular expressions
 
@@ -160,22 +190,24 @@ Users have control over the following aspects:
 
 #### Execution Parameters
 
-- **Working directory** — Pipeline location determines where outputs are saved
-- **R session settings** — Memory limits, timeout values, locale configurations
+- **Configuration file** — `config/config.yaml` controls version, paths, output formats, KEGG endpoints, and analysis parameters
+- **Snakemake options** — Number of cores (`--cores`), dry-run mode (`-n`), forced re-execution (`--forceall`)
+- **Docker settings** — Container resource limits and volume mounts (see `env/docker-compose.yml`)
 
 ---
 
 ### What is Fixed (Pipeline-Controlled)
 
-The following are determined by the pipeline and **cannot** be modified without editing source code:
+The following are determined by the pipeline configuration and shared R library, and **cannot** be modified without editing source code or contracts:
 
 #### Data Transformation Logic
 
-- KEGG API query endpoints and parameters
+- KEGG API query endpoints and parameters (defined in `config/config.yaml` and `workflow/lib/io_contracts.R`)
 - Data merging algorithms (EC-based, Reaction-based)
 - Identifier sanitization rules (regex patterns for K#####, C#####)
 - Enzyme activity extraction patterns
 - Field completeness validation
+- I/O contracts (`workflow/lib/io_contracts.R`: `REQUIRED_INPUT_FILES`, `EXPECTED_DATABASE_COLUMNS`, `KEGG_ENDPOINTS`)
 
 #### Output Schema
 
@@ -201,13 +233,15 @@ The following are determined by the pipeline and **cannot** be modified without 
 
 **Steps:**
 
-1. Ensure [Requirements](../getting-started/requirements.md) are met
-2. Clone repository and navigate to the project root directory
-3. Execute `source("generate_database.R")` in R
+1. Ensure [Requirements](../getting-started/requirements.md) are met (Docker installed)
+2. Clone repository and navigate to `biorempp_snakemake_version/`
+3. Run the pipeline:
+    - **Docker (recommended):** `docker compose -f env/docker-compose.yml run --rm snakemake`
+    - **Local:** `snakemake --cores 2`
 4. Wait ~5 minutes for completion
-5. Examine output files in `output_data/`
+5. Examine output files in `results/database/` (CSV + XLSX), `results/analysis/` (JSON), and `results/reports/`
 
-**Outcome:** Standard database with 10,869 entries, 100% field completeness
+**Outcome:** Standard database with 10,871 entries, 100% field completeness, plus 9 analysis JSON files and a workflow summary with SHA-256 checksums
 
 **Detailed instructions:** [Quick Start Guide](../getting-started/quick-start.md)
 
@@ -254,14 +288,16 @@ The following are determined by the pipeline and **cannot** be modified without 
 
 **User goal:** Generate statistical summaries and metadata for reporting
 
+!!! note "Analysis is automatic"
+    In the Snakemake workflow, all 9 analysis rules run **automatically** as part of the pipeline — there is no separate analysis step.
+
 **Steps:**
 
-1. Generate database using standard workflow
-2. Navigate to `analysis/` directory
-3. Execute `source("analyze_database.R")`
-4. Examine 9 JSON files in `analysis/output/`
+1. Run the pipeline as described in Scenario 1
+2. Examine 9 JSON files in `results/analysis/`
+3. Review the workflow summary in `results/reports/workflow_summary.json`
 
-**Outcome:** Comprehensive statistics (metadata, basic stats, compound/KO/enzyme/gene analysis, cross-tabulations, executive summary)
+**Outcome:** Comprehensive statistics (metadata, basic stats, compound/KO/enzyme/gene analysis, cross-tabulations, executive summary) with SHA-256 checksums for reproducibility
 
 **Detailed instructions:** [Understanding Output](understanding-output.md)
 
@@ -289,21 +325,9 @@ The following are determined by the pipeline and **cannot** be modified without 
 
 This User Guide is organized into the following sections:
 
-### [Running the Pipeline](running-pipeline.md)
-
-Complete instructions for executing the database generation workflow, including:
-
-- Execution methods (RStudio, R console, command line)
-- Monitoring pipeline progress
-- Interpreting console output and log messages
-- Execution time expectations
-- Stopping and resuming runs
-
----
-
 ### [Input Data Files](input-data.md)
 
-Detailed descriptions of the 6 required input files:
+Detailed descriptions of the required input files:
 
 - File specifications (format, schema, size)
 - Data provenance and update protocols
@@ -340,8 +364,9 @@ Solutions to common issues:
 
 After understanding this overview:
 
+1. **Run the pipeline:** Follow the [Quick Start Guide](../getting-started/quick-start.md) to generate the database
 2. **Examine outputs:** Read [Understanding Output](understanding-output.md) to interpret results
-3. **Integrate data:** See [Interoperability](../interoperability/r-integration.md) for usage examples
+3. **Integrate data:** See [Interoperability](../interoperability/r-python-integration.md) for R and Python usage examples
 4. **Explore database:** Consult [Database Reference](../database/schema.md) for schema details
 
 ---

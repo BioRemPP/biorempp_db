@@ -9,9 +9,9 @@ This guide provides solutions to common issues encountered when running the BioR
 When encountering errors:
 
 1. **Read the error message carefully** — Error messages often indicate the exact issue
-2. **Check prerequisites** — Verify R version, packages, and internet connectivity
-3. **Review recent changes** — Did you modify input files or update dependencies?
-4. **Consult logs** — Pipeline outputs detailed progress messages
+2. **Check prerequisites** — Verify Docker, Snakemake, R version, packages, and internet connectivity
+3. **Review recent changes** — Did you modify input files, config, or update dependencies?
+4. **Consult logs** — Check `.snakemake/log/` and `logs/` for detailed progress messages
 5. **Search GitHub Issues** — Others may have encountered similar problems
 6. **Report new issues** — If unresolved, create a GitHub issue with full error details
 
@@ -19,28 +19,30 @@ When encountering errors:
 
 ## Pipeline Execution Issues
 
-### Error: "Cannot open file 'generate_database.R'"
+### Error: "Snakemake cannot find Snakefile"
 
 **Symptom:**
 
 ```
-Error in file(filename, "r", encoding = encoding) : 
-  cannot open the connection
+Error: no Snakefile found, tried Snakefile, snakefile, workflow/Snakefile, workflow/snakefile.
 ```
 
-**Cause:** R working directory is not set to the project root directory
+**Cause:** You are not running Snakemake from the `biorempp_snakemake_version/` directory.
 
 **Solution:**
 
-```r
-# Check current directory
-getwd()
+```bash
+# Navigate to the correct directory
+cd biorempp_snakemake_version/
 
-# Set correct directory to project root
-setwd("path/to/project/root")
+# Verify Snakefile exists
+ls Snakefile
 
-# Verify file exists
-file.exists("generate_database.R")  # Should return TRUE
+# Run the pipeline
+snakemake --cores 2
+
+# Or via Docker
+docker compose -f env/docker-compose.yml run --rm snakemake
 ```
 
 ---
@@ -57,13 +59,21 @@ Error in library(dplyr) : there is no package called 'dplyr'
 
 **Solution:**
 
+!!! tip "Docker (Recommended)"
+    If you run the pipeline via Docker (`docker compose -f env/docker-compose.yml run --rm snakemake`), all R packages are pre-installed in the `rocker/tidyverse:4.3` image. You should not encounter this error.
+
+For local installs:
+
 ```r
 # Install missing package
 install.packages("dplyr")
 
 # Install all required packages at once
-install.packages(c("readxl", "dplyr", "tidyr", "stringr", "readr", "xlsx"))
+install.packages(c("readxl", "dplyr", "tidyr", "stringr", "readr", "writexl", "jsonlite"))
 ```
+
+!!! note
+    The Snakemake workflow uses `writexl` (not `xlsx`), so Java is **not** required by R for Excel output. Note that the Docker image does install `default-jdk` as a system dependency for other build purposes.
 
 ---
 
@@ -79,36 +89,40 @@ install.packages(c("readxl", "dplyr", "tidyr", "stringr", "readr", "xlsx"))
 
 **Solutions:**
 
-```r
-# Increase timeout
-options(timeout = 600)  # 10 minutes
+```bash
+# Re-run pipeline — Snakemake automatically resumes from where it left off
+snakemake --cores 2
 
-# Re-run pipeline
-source("generate_database.R")
+# Or via Docker
+docker compose -f env/docker-compose.yml run --rm snakemake
 ```
 
-If issue persists, run pipeline step-by-step:
+Check logs for details on what failed:
 
-```r
-# Source only function definitions (without executing)
-source("generate_database.R", local = TRUE)
+```bash
+# Snakemake's own logs
+ls -lt .snakemake/log/
 
-# Execute stages manually to identify failure point
-# Stage 1
-compounds_local <- load_kegg_compounds_local()
+# Rule-specific logs
+ls -lt logs/
+```
+
+If issue persists, run with verbose output to identify the failure point:
+
+```bash
+snakemake --cores 2 --verbose --printshellcmds
 ```
 
 ---
 
 ## KEGG API Connection Issues
 
-### Error: "Failed to fetch data from KEGG API"
+### Error: "Failed to fetch <endpoint> after 3 attempts"
 
 **Symptom:**
 
 ```
-Error in fetch_kegg_api: Failed to fetch data from KEGG API
-Timeout was reached
+Error: Failed to fetch link/ko/ec after 3 attempts: Timeout was reached
 ```
 
 **Cause:** Network connectivity issue or KEGG server unavailable
@@ -141,13 +155,19 @@ Sys.setenv(https_proxy = "https://proxy.company.com:8080")
 Sys.getenv("https_proxy")
 ```
 
-#### Increase Timeout
+#### Increase Timeout and Retry
 
-```r
-# Default timeout may be too short for slow connections
-options(timeout = 300)  # 5 minutes
-source("generate_database.R")
+Snakemake automatically skips completed rules on retry, so only failed steps will re-execute:
+
+```bash
+# Re-run — only failed/incomplete rules will execute
+snakemake --cores 2
+
+# Or via Docker
+docker compose -f env/docker-compose.yml run --rm snakemake
 ```
+
+The pipeline uses linear backoff (1 s, 2 s, 3 s) with a maximum of 3 retries per KEGG endpoint. If connections remain unstable, check your network and try again later.
 
 ---
 
@@ -173,37 +193,41 @@ Error: KEGG API returned HTTP 403 Forbidden
 
 ## Input Data Issues
 
-### Error: "File does not exist: input_data/X.xlsx"
+### Error: "File does not exist: input_data/X"
 
 **Symptom:**
 
 ```
-Error in read_excel("input_data/kegglistcompounds.xlsx") :
-  `path` does not exist: 'input_data/kegglistcompounds.xlsx'
+Error in read_excel(...) :
+  `path` does not exist: 'input_data/...'
 ```
 
 **Cause:** Missing input file or incorrect working directory
 
 **Solutions:**
 
-```r
-# Verify all input files exist
-list.files("input_data/")
+The Snakemake workflow expects all six input files inside `biorempp_snakemake_version/input_data/`:
 
-# Expected: 6 files
-# [1] "compostos_todasagencias.xlsx"            
-# [2] "confirm_class_CURATED.xlsx"              
-# [3] "enzymes_unique.txt"                      
-# [4] "kegglistcompounds.xlsx"                  
-# [5] "kegglistko.txt"                          
-# [6] "missing_compounds_founds_curated.xlsx"
+```bash
+ls input_data/
+# Expected (6 files + .gitkeep):
+#   compostos_todasagencias.xlsx
+#   confirm_class_CURATED.xlsx
+#   enzymes_unique.txt
+#   kegglistcompounds.xlsx
+#   kegglistko.txt
+#   missing_compounds_founds_curated.xlsx
 ```
 
-If files are missing:
+Copies also exist in the repository root `input_data/` (configured via
+`paths.input_dir` in `config/config.yaml`, default: `../input_data`).
+
+Verify paths match your `config/config.yaml` settings. If files are missing:
 
 - ✅ Re-clone repository (files may not have been downloaded)
 - ✅ Check Git LFS settings (large files may require LFS)
 - ✅ Download missing files manually from GitHub
+- ✅ Verify `config/config.yaml` input paths match your file locations
 
 ---
 
@@ -261,11 +285,11 @@ Compare your file against expected schema (see [Input Data Files](input-data.md)
 **Symptom:**
 
 ```
-Error in write.csv() : cannot open file 'output_data/biorempp_database_v1.0.0.csv':
+Error in write.csv() : cannot open file 'results/database/biorempp_database_v1.0.0.csv':
   Permission denied
 ```
 
-**Cause:** No write permissions for `output_data/` directory
+**Cause:** No write permissions for `results/` directory
 
 **Solutions:**
 
@@ -273,16 +297,22 @@ Error in write.csv() : cannot open file 'output_data/biorempp_database_v1.0.0.cs
     ```powershell
     # Run PowerShell as Administrator
     # Grant write permissions
-    icacls "output_data" /grant Users:F
+    icacls "results" /grant Users:F /T
     ```
 
 === "macOS/Linux"
     ```bash
     # Make directory writable
-    chmod u+w output_data/
+    chmod -R u+w results/
     
     # Or change ownership
-    sudo chown $USER output_data/
+    sudo chown -R $USER results/
+    ```
+
+!!! tip "Docker"
+    If running via Docker, permission issues may arise from container UID mismatch. Try:
+    ```bash
+    docker compose -f env/docker-compose.yml run --rm --user $(id -u):$(id -g) snakemake
     ```
 
 ---
@@ -313,59 +343,30 @@ memory.limit(size = 8000)
 
 4. **Run on server/HPC** with more RAM
 
-**Note:** Default dataset (~10,869 rows) requires <1 GB RAM; this error suggests other issues (infinite loop, memory leak). Report as GitHub issue if encountered with unmodified pipeline.
+5. **Docker memory limits:** If running via Docker, the container may have a default memory cap. Increase it:
+
+```bash
+# Run with explicit memory limit (e.g., 8 GB)
+docker compose -f env/docker-compose.yml run --rm --memory=8g snakemake
+```
+
+You can also set this in `env/docker-compose.yml`:
+
+```yaml
+services:
+  snakemake:
+    mem_limit: 8g
+```
+
+**Note:** Default dataset (~10,871 rows) requires <1 GB RAM; this error suggests other issues (infinite loop, memory leak). Report as GitHub issue if encountered with unmodified pipeline.
 
 ---
 
-### xlsx Package Fails (Java Error)
+### Note: No Java Required (writexl)
 
-**Symptom:**
+The Snakemake workflow uses the `writexl` R package for Excel output instead of the legacy `xlsx` package. This means **Java is not required by R** for Excel export. (Note: the Docker image does install `default-jdk` as a system dependency for other build purposes.)
 
-```
-Error: Java not found
-Cannot load rJava package
-```
-
-**Cause:** `xlsx` package requires Java, which is not installed
-
-**Solutions:**
-
-#### Option A: Install Java
-
-=== "Windows"
-    1. Download Java from https://www.java.com/download/
-    2. Install and restart R
-    3. Re-run pipeline
-
-=== "macOS"
-    ```bash
-    brew install openjdk
-    sudo R CMD javareconf
-    ```
-
-=== "Linux"
-    ```bash
-    sudo apt install default-jre default-jdk
-    sudo R CMD javareconf
-    ```
-
-#### Option B: Use writexl (No Java Required)
-
-Replace `xlsx` with `writexl` package:
-
-```r
-# Install writexl
-install.packages("writexl")
-
-# Modify generate_database.R (line ~730)
-# Replace:
-library(xlsx)
-write.xlsx(final_database, output_xlsx, row.names = FALSE)
-
-# With:
-library(writexl)
-write_xlsx(final_database, output_xlsx)
-```
+If you see any Java-related errors, they are unrelated to the BioRemPP pipeline. Verify you are running the current Snakemake-based workflow (not the legacy `generate_database.R` script — the initial monolithic script that served as the base for modularization into the Snakemake pipeline).
 
 ---
 
@@ -585,25 +586,30 @@ install.packages(c("curl", "httr", "readr"))
 
 Collect the following information:
 
-1. **R session info:**
-   ```r
-   sessionInfo()
+1. **Snakemake version:**
+   ```bash
+   snakemake --version
    ```
 
-2. **Package versions:**
-   ```r
-   installed.packages()[c("readxl", "dplyr", "tidyr", "stringr", "readr", "xlsx"), "Version"]
+2. **Docker version (if using Docker):**
+   ```bash
+   docker --version
+   docker compose version
    ```
 
-3. **Error message** (full text, including stack trace)
-
-4. **Operating system:**
-   ```r
-   Sys.info()["sysname"]
-   Sys.info()["release"]
+3. **R version:**
+   ```bash
+   R --version
    ```
 
-5. **Steps to reproduce** (if not standard pipeline execution)
+4. **Snakemake log file** — attach the latest log from `.snakemake/log/`:
+   ```bash
+   ls -lt .snakemake/log/ | head -5
+   ```
+
+5. **Error message** (full text, including stack trace)
+
+6. **Operating system and steps to reproduce** (if not standard pipeline execution)
 
 ### GitHub Issues
 
@@ -648,19 +654,29 @@ Collect the following information:
 2. **No gene match** — Compounds without any associated KO entries are excluded
 3. **Invalid Compound ID** — IDs not matching KEGG format (C#####) are filtered out
 
-**Solution:** Review [Input Data Files](input-data.md) and ensure all compounds have required metadata.
+**Solution:** Review [Input Data Files](input-data.md) and ensure all compounds have required metadata. The filtering logic is implemented in the R scripts under `workflow/scripts/` — see `io_contracts.R` for the input/output specifications of each pipeline stage.
 
 ---
 
 ### Can I run the pipeline offline?
 
-**No.** Pipeline requires internet access to query KEGG REST API. Offline execution is not supported in v1.0.0.
+**Partially.** The pipeline requires internet access to query the KEGG REST API during the initial data-fetching rules. However, Snakemake can skip already-completed rules if intermediate `.rds` files exist in the `work/` directory.
 
-**Future releases** may support cached KEGG data for offline use.
+If you have previously run the pipeline and cached intermediates (`work/kegg_data.rds`, `work/local_data.rds`, etc.), the KEGG API rules will not re-execute, allowing subsequent stages to run offline.
+
+```bash
+# Check if intermediate files exist
+ls work/*.rds
+
+# Run pipeline — completed rules are skipped automatically
+snakemake --cores 2
+```
+
+**For fully offline execution:** Run the pipeline once with internet access, then the cached `work/*.rds` files enable re-runs without network connectivity.
 
 ---
 
-### Why do row counts differ from expected 10,869?
+### Why do row counts differ from expected 10,871?
 
 **Possible reasons:**
 
@@ -675,7 +691,7 @@ Collect the following information:
 nrow(db)
 
 # Compare to expected
-expected <- 10869
+expected <- 10871
 if (nrow(db) != expected) {
   warning("Row count differs from expected: ", nrow(db), " vs ", expected)
 }

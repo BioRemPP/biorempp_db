@@ -8,12 +8,12 @@ This document provides quantitative characteristics of the BioRemPP Database v1.
 
 All statistics reported in this document are:
 
-- **Reproducible** — Derived from automated analysis scripts (`analysis/analyze_database.R`)
+- **Reproducible** — Derived from Snakemake analysis rules (9 parallel rules in `workflow/rules/20_analysis.smk`)
 - **Version-specific** — Correspond to BioRemPP Database v1.0.0 (December 2025)
-- **Verifiable** — Source data available in JSON format (`analysis/output/*.json`)
+- **Verifiable** — Source data available in JSON format (`results/analysis/*.json`)
 - **Objective** — Descriptive counts and distributions without biological interpretation
 
-**Data source:** BioRemPP Database v1.0.0 (`biorempp_database_v1.0.0.csv`)
+**Data source:** BioRemPP Database v1.0.0 (`results/database/biorempp_database_v1.0.0.csv`)
 
 **Analysis date:** December 2025
 
@@ -27,12 +27,12 @@ All statistics reported in this document are:
 
 | Metric | Value | Description |
 |--------|-------|-------------|
-| **Total entries** | 10,869 | Complete compound-gene-enzyme-agency relationships |
+| **Total entries** | 10,871 | Complete compound-gene-enzyme-agency relationships |
 | **Total columns** | 8 | Schema fields (cpd, compoundclass, ko, referenceAG, compoundname, genesymbol, genename, enzyme_activity) |
 | **Unique compounds** | 384 | Distinct chemical compounds (KEGG Compound IDs) |
-| **Unique KO entries** | 1,541 | Distinct KEGG Orthology functional groups |
-| **Unique gene symbols** | 1,515 | Distinct gene nomenclature identifiers |
-| **Unique gene names** | 1,420 | Distinct functional gene descriptions |
+| **Unique KO entries** | 1,542 | Distinct KEGG Orthology functional groups |
+| **Unique gene symbols** | 1,516 | Distinct gene nomenclature identifiers |
+| **Unique gene names** | 1,421 | Distinct functional gene descriptions |
 | **Unique enzyme activities** | 205 | Distinct enzyme activity classifications |
 | **Unique compound classes** | 12 | Chemical structural classifications |
 | **Unique reference agencies** | 9 | Environmental regulatory authorities |
@@ -141,7 +141,7 @@ Compounds with highest number of associated gene-enzyme relationships:
 
 ### KO Entry Statistics
 
-**Total unique KO entries:** 1,541
+**Total unique KO entries:** 1,542
 
 **Frequency distribution:**
 
@@ -190,12 +190,12 @@ Compounds with highest number of associated gene-enzyme relationships:
 
 ### Gene Symbol Statistics
 
-**Total unique gene symbols:** 1,515
+**Total unique gene symbols:** 1,516
 
 **Distribution characteristics:**
 
 - Gene symbols are quasi-unique (some KO groups share symbols for isoforms)
-- 1,420 unique gene names (functional descriptions)
+- 1,421 unique gene names (functional descriptions)
 - Gene symbols follow standard nomenclature (HUGO for human genes, organism-specific for microbial genes)
 
 ---
@@ -312,9 +312,9 @@ Compounds with highest number of associated gene-enzyme relationships:
 
 | Metric | v1.0.0 |
 |--------|--------|
-| Total entries | 10,869 |
+| Total entries | 10,871 |
 | Unique compounds | 384 |
-| Unique KO entries | 1,541 |
+| Unique KO entries | 1,542 |
 | Unique enzyme activities | 205 |
 | Compound classes | 12 |
 | Environmental agencies | 9 |
@@ -322,12 +322,12 @@ Compounds with highest number of associated gene-enzyme relationships:
 
 **Input data sources:**
 
-- `kegglistcompounds.xlsx` — 10,869 KEGG compounds
+- `kegglistcompounds.xlsx` — 10,871 KEGG compounds
 - `kegglistko.txt` — 47,421 KO entries
 - `compostos_todasagencias.xlsx` — 806 agency-classified compounds
 - `missing_compounds_founds_curated.xlsx` — 62 manual curations
 - `confirm_class_CURATED.xlsx` — 384 compound classifications
-- `enzymes_unique.txt` — 210 enzyme terms
+- `enzymes_unique.txt` — 218 enzyme terms
 
 ---
 
@@ -357,13 +357,10 @@ Compounds with highest number of associated gene-enzyme relationships:
 **All statistics are reproducible via:**
 
 ```r
-# Load database
-db <- read.csv("biorempp_database_v1.0.0.csv")
+# Run the full pipeline (analysis is executed automatically)
+# snakemake --cores 2
 
-# Run analysis
-source("analysis/analyze_database.R")
-
-# Output: 9 JSON files in analysis/output/
+# Output: 9 JSON files in results/analysis/
 ```
 
 **JSON output files:**
@@ -377,6 +374,17 @@ source("analysis/analyze_database.R")
 7. `database_metadata.json` — Schema and provenance
 8. `executive_summary.json` — High-level overview
 9. `complete_analysis.json` — Consolidated analysis
+
+---
+
+## Automated Statistics Validation
+
+Every statistic in these JSON files is independently recomputed and validated
+by the **biorempp-validation** module using Great Expectations.
+
+See [Reproducibility Checks](../validation-gx/reproducibility-checks.md) for
+details on the 15 exact-match boolean checks and the 12-metric
+cross-consistency validation.
 
 ---
 

@@ -71,7 +71,7 @@ BioRemPP Database is a **scientific resource** maintained to support bioremediat
 
 **Acceptable:**
 
-- **Bug fixes** — Correct errors in pipeline scripts
+- **Bug fixes** — Correct errors in pipeline scripts (`workflow/scripts/` and `workflow/lib/`)
 - **Performance improvements** — Optimize data processing without changing outputs
 - **Documentation improvements** — Add code comments or docstrings
 - **Test additions** — Add validation tests or reproducibility checks
@@ -131,6 +131,7 @@ BioRemPP Database is a **scientific resource** maintained to support bioremediat
 # Clone your fork
 git clone https://github.com/YOUR_USERNAME/biorempp_db.git
 cd biorempp_db
+cd biorempp_snakemake_version  # For code contributions
 ```
 
 ---
@@ -152,7 +153,7 @@ git checkout -b feature/add-pfas-compounds
 
 - Edit appropriate input files (e.g., `missing_compounds_founds_curated.xlsx`)
 - Document source of data (literature DOI, agency URL)
-- Re-generate database to validate changes
+- Re-run pipeline via Docker or Snakemake to validate changes
 
 **For documentation contributions:**
 
@@ -161,7 +162,7 @@ git checkout -b feature/add-pfas-compounds
 
 **For code contributions:**
 
-- Edit R scripts with clear comments
+- Edit scripts in `workflow/scripts/` or `workflow/lib/` with clear comments. Run `snakemake --dry-run` to verify DAG integrity.
 - Test changes to ensure reproducibility
 
 ---

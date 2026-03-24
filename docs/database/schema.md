@@ -25,7 +25,7 @@ The BioRemPP Database uses a **flat, denormalized schema** optimized for analyti
 
 **Alternative format:** Excel (.xlsx)
 
-**Rows:** 10,869 (as of v1.0.0)
+**Rows:** 10,871 (as of v1.0.0)
 
 **Columns:** 8
 
@@ -165,7 +165,7 @@ The BioRemPP Database uses a **flat, denormalized schema** optimized for analyti
 - ✅ Must exist in KEGG Orthology database
 - ✅ Case-sensitive (uppercase K required)
 
-**Cardinality:** 1,541 unique KO entries in v1.0.0
+**Cardinality:** 1,542 unique KO entries in v1.0.0
 
 ---
 
@@ -267,7 +267,7 @@ The BioRemPP Database uses a **flat, denormalized schema** optimized for analyti
 - ✅ Must be non-empty string
 - ✅ Should be extracted from KEGG KO annotation
 
-**Cardinality:** 1,515 unique gene symbols in v1.0.0
+**Cardinality:** 1,516 unique gene symbols in v1.0.0
 
 ---
 
@@ -283,7 +283,7 @@ The BioRemPP Database uses a **flat, denormalized schema** optimized for analyti
 
 **Controlled vocabulary:** No — Free text, sourced from KEGG
 
-**Uniqueness:** Quasi-unique — 1,541 unique gene names (one per KO group)
+**Uniqueness:** Quasi-unique — 1,542 unique gene names (one per KO group)
 
 **Purpose:** Provides expanded functional description of the gene, including enzyme class or biochemical role
 
@@ -298,7 +298,7 @@ The BioRemPP Database uses a **flat, denormalized schema** optimized for analyti
 - ✅ Must be non-empty string
 - ✅ Should correspond to KO ID via KEGG database
 
-**Cardinality:** 1,541 unique gene names in v1.0.0
+**Cardinality:** 1,542 unique gene names in v1.0.0
 
 ---
 
@@ -312,7 +312,7 @@ The BioRemPP Database uses a **flat, denormalized schema** optimized for analyti
 
 **Example:** `cytochrome P450`, `dioxygenase`, `monooxygenase`
 
-**Controlled vocabulary:** Yes — 210+ standardized enzyme activity terms
+**Controlled vocabulary:** Yes — 218 standardized enzyme activity terms
 
 **Uniqueness:** Not unique — Multiple genes share the same enzyme activity type
 
@@ -333,7 +333,7 @@ The BioRemPP Database uses a **flat, denormalized schema** optimized for analyti
 **Validation rules:**
 
 - ✅ Must be non-empty string
-- ✅ Should match one of 210 standardized terms (verified during pipeline execution)
+- ✅ Should match one of 218 standardized terms (verified during pipeline execution)
 - ✅ Fallback to `genename` if no enzyme term matches
 
 **Cardinality:** 205 unique enzyme activities in v1.0.0
@@ -460,7 +460,7 @@ all(db$referenceAG %in% valid_agencies)  # Should return TRUE
 
 | Version | Release Date | Total Rows | Changes |
 |---------|--------------|------------|---------|
-| **v1.0.0** | December 2025 | 10,869 | Initial release |
+| **v1.0.0** | December 2025 | 10,871 | Initial release |
 
 **Future versions** may include:
 
@@ -502,7 +502,7 @@ all(db$referenceAG %in% valid_agencies)  # Should return TRUE
     
     # Inspect schema
     str(db)
-    # tibble [10,869 × 8] (S3: spec_tbl_df/tbl_df/tbl/data.frame)
+    # tibble [10,871 × 8] (S3: spec_tbl_df/tbl_df/tbl/data.frame)
     #  $ cpd            : chr  "C00014" "C00014" "C00014" ...
     #  $ compoundclass  : chr  "Aliphatic" "Aliphatic" "Aliphatic" ...
     #  $ ko             : chr  "K00261" "K00262" "K00263" ...
@@ -524,18 +524,18 @@ all(db$referenceAG %in% valid_agencies)  # Should return TRUE
     # Inspect schema
     db.info()
     # <class 'pandas.core.frame.DataFrame'>
-    # RangeIndex: 10869 entries, 0 to 10868
+    # RangeIndex: 10871 entries, 0 to 10870
     # Data columns (total 8 columns):
     #  #   Column           Non-Null Count  Dtype 
     # ---  ------           --------------  ----- 
-    #  0   cpd              10869 non-null  object
-    #  1   compoundclass    10869 non-null  object
-    #  2   ko               10869 non-null  object
-    #  3   referenceAG      10869 non-null  object
-    #  4   compoundname     10869 non-null  object
-    #  5   genesymbol       10869 non-null  object
-    #  6   genename         10869 non-null  object
-    #  7   enzyme_activity  10869 non-null  object
+    #  0   cpd              10871 non-null  object
+    #  1   compoundclass    10871 non-null  object
+    #  2   ko               10871 non-null  object
+    #  3   referenceAG      10871 non-null  object
+    #  4   compoundname     10871 non-null  object
+    #  5   genesymbol       10871 non-null  object
+    #  6   genename         10871 non-null  object
+    #  7   enzyme_activity  10871 non-null  object
     ```
 
 ---
@@ -547,7 +547,7 @@ all(db$referenceAG %in% valid_agencies)  # Should return TRUE
 validate_schema <- function(db) {
   checks <- list(
     "8 columns" = ncol(db) == 8,
-    "10,869 rows" = nrow(db) == 10869,
+    "10,871 rows" = nrow(db) == 10871,
     "No missing values" = sum(is.na(db)) == 0,
     "Valid cpd format" = all(grepl("^C\\d{5}$", db$cpd)),
     "Valid ko format" = all(grepl("^K\\d{5}$", db$ko)),
@@ -572,6 +572,18 @@ validate_schema <- function(db) {
 # Run validation
 validate_schema(db)
 ```
+
+---
+
+## Schema Validation with Great Expectations
+
+The database schema is automatically validated after every pipeline run by the
+**biorempp-validation** module.  The `database_schema_critical` suite checks
+column ordering, null constraints, and domain vocabularies.
+
+See [Data Contracts](../validation-gx/data-contracts.md) for the full
+machine-enforced schema, and [Expectation Suites](../validation-gx/expectation-suites.md)
+for every expectation that guards the schema.
 
 ---
 

@@ -39,7 +39,7 @@ This reference documents the **provenance, scope, and role** of all data sources
 
 | Resource | Endpoint/File | Rows | Purpose |
 |----------|---------------|------|---------|
-| KEGG Compound | `https://rest.kegg.jp/list/cpd/` | 10,869 | Compound IDs and names |
+| KEGG Compound | `https://rest.kegg.jp/list/cpd/` | 10,871 | Compound IDs and names |
 | KEGG Orthology | `https://rest.kegg.jp/list/ko/` | 47,421 | KO IDs, gene symbols, gene names |
 | KO-EC links | `https://rest.kegg.jp/link/ko/ec` | Variable | Compound-gene relationships |
 | KO-Reaction links | `https://rest.kegg.jp/link/ko/reaction` | Variable | Compound-gene relationships |
@@ -164,7 +164,7 @@ This reference documents the **provenance, scope, and role** of all data sources
 
 **Description:** Curated lexicon of standardized enzyme activity terms for feature engineering from KEGG gene annotations.
 
-**Scope:** 210 unique enzyme terms.
+**Scope:** 218 unique enzyme terms.
 
 **Source:** Feature engineering from KEGG gene functional descriptions (accessible via KEGG API).
 
@@ -279,7 +279,7 @@ https://rest.kegg.jp/get/[KO_ID]
    - Add new compound-KO relationships to `missing_compounds_founds_curated.xlsx`
 
 4. **Re-generate database**
-   - Run `generate_database.R` script
+   - Run the Snakemake pipeline (`snakemake --cores 2` or via Docker)
    - Validate output statistics
 
 5. **Document changes**
@@ -310,13 +310,13 @@ https://rest.kegg.jp/get/[KO_ID]
 
 | Source | Type | Rows/Entries | Version/Date | Role |
 |--------|------|--------------|--------------|------|
-| **KEGG Compound** | External DB | 10,869 | Dec,25 | Compound IDs, names |
+| **KEGG Compound** | External DB | 10,871 | Dec,25 | Compound IDs, names |
 | **KEGG Orthology** | External DB | 47,421 | Dec,25 | KO IDs, gene symbols, names |
 | **KEGG API** | External API | Variable | Dec,25 | Compound-gene relationships |
 | **Environmental Agencies** | Curated lists | 806 | Dec 2025 | Priority pollutant scope |
 | **Manual curations** | Literature-derived | 62 | Dec 2025 | Gap-filling compound-KO links |
 | **Compound classes** | Expert curation | 384 | Dec 2025 | Chemical classifications |
-| **Enzyme lexicon** | Literature review | 210 | Dec 2025 | Enzyme activity extraction |
+| **Enzyme lexicon** | Literature review | 218 | Dec 2025 | Enzyme activity extraction |
 
 ---
 
