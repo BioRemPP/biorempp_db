@@ -6,26 +6,29 @@ This guide provides step-by-step instructions for setting up your environment to
 
 ## Overview
 
-The installation process prepares your system to execute the database generation pipeline, which:
+The installation process prepares your system to execute the Snakemake-based database generation pipeline, which:
 
+- Validates input data files (preflight checks)
 - Loads local input data files (KEGG compounds, environmental agency lists, curations, enzyme terms)
 - Fetches data from the KEGG REST API
-- Integrates and transforms data through a 7-stage R pipeline
-- Generates output files (CSV, Excel, JSON statistics)
+- Integrates and transforms data through a 7-step generation pipeline
+- Produces statistical analysis reports (9 JSON files)
+- Generates provenance reports with SHA-256 checksums
 
-**What you will install:**
+**Two installation paths are available:**
 
-- R (≥4.0.0) programming environment
-- 6 required R packages: `readxl`, `dplyr`, `tidyr`, `stringr`, `readr`, `xlsx`
-- BioRemPP Database repository and input data files
+| Path | What You Install | Best For |
+|------|-----------------|----------|
+| **Docker (Recommended)** | Docker + Docker Compose only | Most users, reproducibility |
+| **Local** | R, Python, Snakemake, R packages | Development, customization |
 
-**Estimated time:** 15-30 minutes (depending on download speeds and R package compilation)
+**Estimated time:** 10-15 minutes (Docker) or 20-30 minutes (local)
 
 ---
 
 ## Supported Operating Systems and Environments
 
-### Local Execution (Recommended for First-Time Users)
+### Local Execution
 
 | Platform | Status | Notes |
 |----------|--------|-------|
@@ -33,45 +36,122 @@ The installation process prepares your system to execute the database generation
 | **macOS** | ✅ Fully Supported | macOS 10.14+ (Mojave or newer) |
 | **Linux** | ✅ Fully Supported | Ubuntu 20.04+, Debian 10+, CentOS 8+, Fedora 34+ |
 
-**Recommended for:** Interactive exploration, initial testing, development, small-scale runs
-
-### Server/HPC Execution (For Production or Large-Scale Runs)
+### Containerized Execution (Recommended)
 
 | Environment | Status | Notes |
 |-------------|--------|-------|
-| **Linux HPC** | ✅ Supported | SLURM, PBS, SGE job schedulers |
-| **Cloud (AWS, GCP, Azure)** | ✅ Supported | R-compatible VMs or containers |
-| **Docker/Singularity** | ✅ Supported | Containerized deployment (future releases) |
-
-**Recommended for:** Batch processing, reproducible workflows, institutional compute clusters
+| **Docker** | ✅ Supported | Docker Desktop or Docker Engine |
+| **Docker Compose** | ✅ Supported | Included with Docker Desktop |
+| **HPC (Singularity)** | ✅ Supported | Convert Docker image to Singularity |
 
 ---
 
-## Installation Options
+## Option 1: Docker Installation (Recommended)
 
-### Option 1: Local Installation (Windows, macOS, Linux)
+Docker bundles R 4.3, Python 3, Snakemake 7.32.4, and all required packages into a single reproducible image based on `rocker/tidyverse:4.3`.
 
-#### Step 1: Install R
+### Step 1: Install Docker
+
+=== "Windows"
+
+    1. Download [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/)
+    2. Run the installer and follow the prompts
+    3. Restart your computer when prompted
+    4. Verify installation:
+       ```powershell
+       docker --version
+       docker compose version
+       ```
+
+=== "macOS"
+
+    1. Download [Docker Desktop for macOS](https://www.docker.com/products/docker-desktop/)
+    2. Open the `.dmg` file and drag Docker to Applications
+    3. Launch Docker Desktop
+    4. Verify installation:
+       ```bash
+       docker --version
+       docker compose version
+       ```
+
+=== "Linux (Ubuntu/Debian)"
+
+    ```bash
+    # Install Docker
+    sudo apt update
+    sudo apt install -y docker.io docker-compose-plugin
+    
+    # Add user to docker group (avoids sudo)
+    sudo usermod -aG docker $USER
+    newgrp docker
+    
+    # Verify installation
+    docker --version
+    docker compose version
+    ```
+
+### Step 2: Clone the Repository
+
+```bash
+git clone https://github.com/BioRemPP/biorempp_db.git
+cd biorempp_db
+```
+
+### Step 3: Build the Docker Image
+
+```bash
+cd biorempp_snakemake_version
+docker compose -f env/docker-compose.yml build
+```
+
+**Expected build time:** 5-10 minutes (downloads base image, installs R and Python packages)
+
+### Step 4: Verify Installation
+
+Run a dry-run to validate the pipeline DAG without executing:
+
+```bash
+docker compose -f env/docker-compose.yml run --rm snakemake snakemake -n --snakefile Snakefile --configfile config/config.yaml
+```
+
+**Expected output:** List of rules that would be executed, with no errors.
+
+### Step 5: Run the Pipeline
+
+```bash
+docker compose -f env/docker-compose.yml run --rm snakemake
+```
+
+This executes the command defined in `docker-compose.yml` (which overrides the Dockerfile `CMD`):
+
+```
+snakemake --snakefile Snakefile --configfile config/config.yaml --cores 2 --printshellcmds
+```
+
+**Results** are written to `biorempp_snakemake_version/results/`.
+
+---
+
+## Option 2: Local Installation (Without Docker)
+
+### Step 1: Install R
 
 **Required version:** R ≥ 4.0.0 (R 4.3.0+ recommended)
 
 === "Windows"
 
     1. Download R installer from [CRAN Windows](https://cran.r-project.org/bin/windows/base/)
-    2. Run the `.exe` installer (e.g., `R-4.3.2-win.exe`)
-    3. Follow installation wizard (default options are suitable)
-    4. Verify installation:
+    2. Run the `.exe` installer (default options are suitable)
+    3. Verify:
        ```powershell
        R --version
        ```
-       Expected output: `R version 4.3.2 (2023-10-31) -- "Eye Holes"`
 
 === "macOS"
 
     1. Download R installer from [CRAN macOS](https://cran.r-project.org/bin/macosx/)
-    2. Open the `.pkg` file (e.g., `R-4.3.2-arm64.pkg` for Apple Silicon or `R-4.3.2-x86_64.pkg` for Intel)
-    3. Follow installation wizard
-    4. Verify installation:
+    2. Open the `.pkg` file and follow the installation wizard
+    3. Verify:
        ```bash
        R --version
        ```
@@ -79,38 +159,37 @@ The installation process prepares your system to execute the database generation
 === "Linux (Ubuntu/Debian)"
 
     ```bash
-    # Add CRAN repository for latest R version
     sudo apt update
     sudo apt install -y software-properties-common
     sudo add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu $(lsb_release -cs)-cran40/'
-    
-    # Import CRAN GPG key
     wget -qO- https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc | sudo tee -a /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc
-    
-    # Install R
     sudo apt update
     sudo apt install -y r-base r-base-dev
-    
-    # Verify installation
     R --version
     ```
 
-=== "Linux (CentOS/RHEL)"
+### Step 2: Install Python and Snakemake
+
+=== "Windows"
+
+    1. Download Python from [python.org](https://www.python.org/downloads/)
+    2. During installation, check **"Add Python to PATH"**
+    3. Install Snakemake:
+       ```powershell
+       pip install snakemake==7.32.4 pulp==2.7.0
+       ```
+
+=== "macOS/Linux"
 
     ```bash
-    # Install EPEL repository
-    sudo yum install -y epel-release
+    # Using pip (or conda)
+    pip install snakemake==7.32.4 pulp==2.7.0
     
-    # Install R
-    sudo yum install -y R
-    
-    # Verify installation
-    R --version
+    # Verify
+    snakemake --version
     ```
 
-#### Step 2: Install System Dependencies (Linux Only)
-
-R packages may require system libraries for compilation:
+### Step 3: Install System Dependencies (Linux Only)
 
 === "Ubuntu/Debian"
 
@@ -144,25 +223,14 @@ R packages may require system libraries for compilation:
       libjpeg-turbo-devel
     ```
 
-#### Step 3: Clone the Repository
+### Step 4: Clone the Repository
 
 ```bash
-# Clone from GitHub
 git clone https://github.com/BioRemPP/biorempp_db.git
-
-# Navigate to database directory
 cd biorempp_db
 ```
 
-**Alternative (without Git):**
-
-1. Download ZIP from [GitHub Releases](https://github.com/BioRemPP/biorempp_db/releases)
-2. Extract archive
-3. Navigate to `biorempp_db/` directory
-
-#### Step 4: Install R Package Dependencies
-
-Open R console or RStudio and run:
+### Step 5: Install R Package Dependencies
 
 ```r
 # Install required packages from CRAN
@@ -172,114 +240,54 @@ install.packages(c(
   "tidyr",       # Data tidying
   "stringr",     # String operations
   "readr",       # Fast CSV reading
-  "xlsx"         # Write Excel files
+  "jsonlite",    # JSON I/O
+  "writexl"      # Write Excel files (no Java required)
 ))
 ```
-
-**Expected installation time:** 5-15 minutes (first-time installation with compilation)
 
 **Verify installation:**
 
 ```r
-# Check all packages load successfully
-packages <- c("readxl", "dplyr", "tidyr", "stringr", "readr", "xlsx")
+packages <- c("readxl", "dplyr", "tidyr", "stringr", "readr", "jsonlite", "writexl")
 sapply(packages, require, character.only = TRUE)
 ```
 
-Expected output: All values should be `TRUE`
-
----
-
-### Option 2: Server/HPC Installation
-
-For institutional compute clusters or cloud servers:
-
-#### Prerequisites
-
-- SSH access to server
-- R ≥ 4.0.0 installed (contact system administrator if not available)
-- Write permissions to home directory or project space
-
-#### Installation Steps
+### Step 6: Run the Pipeline
 
 ```bash
-# 1. SSH into server
-ssh username@hpc.institution.edu
-
-# 2. Load R module (if using module system)
-module load R/4.3.2
-
-# 3. Clone repository
-git clone https://github.com/BioRemPP/biorempp_db.git
-cd biorempp_db
-
-# 4. Install R packages (non-interactive)
-Rscript -e 'install.packages(c("readxl", "dplyr", "tidyr", "stringr", "readr", "xlsx"), repos="https://cloud.r-project.org")'
-
-# 5. Verify installation
-Rscript -e 'sapply(c("readxl", "dplyr", "tidyr", "stringr", "readr", "xlsx"), require, character.only=TRUE)'
-```
-
-#### HPC Job Submission Example (SLURM)
-
-Create `install_packages.sh`:
-
-```bash
-#!/bin/bash
-#SBATCH --job-name=biorempp_install
-#SBATCH --time=01:00:00
-#SBATCH --mem=4G
-#SBATCH --cpus-per-task=1
-
-module load R/4.3.2
-
-Rscript -e '
-  install.packages(
-    c("readxl", "dplyr", "tidyr", "stringr", "readr", "xlsx"),
-    repos = "https://cloud.r-project.org",
-    lib = "~/R/library"
-  )
-'
-```
-
-Submit job:
-
-```bash
-sbatch install_packages.sh
+cd biorempp_snakemake_version
+snakemake --snakefile Snakefile --configfile config/config.yaml --cores 2 --printshellcmds
 ```
 
 ---
 
-## Expected Directory Structure
-
-After successful installation, verify the following structure:
+## Expected Directory Structure After Installation
 
 ```
 biorempp_db/
-├── generate_database.R          # Main pipeline script
-├── README.md                     # Pipeline documentation
-├── database_info.md              # Database metadata
-├── input_data/                   # Input files (6 files)
-│   ├── kegglistcompounds.xlsx
-│   ├── compostos_todasagencias.xlsx
-│   ├── missing_compounds_founds_curated.xlsx
-│   ├── confirm_class_CURATED.xlsx
-│   ├── kegglistko.txt
-│   └── enzymes_unique.txt
-├── output_data/                  # Generated by pipeline (initially empty)
-├── analysis/                     # Analysis scripts
-│   ├── analyze_database.R
-│   ├── README.md
-│   └── output/                   # Analysis outputs (generated)
-└── docs/                         # Documentation (MkDocs)
-    ├── index.md
-    └── ...
+├── biorempp_snakemake_version/
+│   ├── Snakefile
+│   ├── config/
+│   │   └── config.yaml
+│   ├── env/
+│   │   ├── Dockerfile
+│   │   ├── docker-compose.yml
+│   │   ├── python-requirements.txt
+│   │   └── r-packages.txt
+│   ├── workflow/
+│   │   ├── lib/
+│   │   ├── rules/
+│   │   └── scripts/
+│   ├── work/                         # Created during execution
+│   └── results/                      # Created during execution
+├── input_data/                       # 6 mandatory input files
+├── docs/                             # MkDocs documentation
+└── mkdocs.yml
 ```
 
 **Verify input data files:**
 
 ```bash
-# Check that all input files exist
 ls -lh input_data/
 ```
 
@@ -289,68 +297,42 @@ Expected: 6 files totaling ~2.2 MB
 
 ## Post-Installation Validation Checklist
 
-Run these checks to confirm successful installation:
+### Docker Installation
 
-### ✅ Checklist
+- [ ] **Docker running:** `docker --version`
+- [ ] **Image built:** `docker compose -f env/docker-compose.yml build` completes without errors
+- [ ] **Dry run passes:** `docker compose -f env/docker-compose.yml run --rm snakemake snakemake -n` shows no errors
+- [ ] **Input files present:** 6 files in `input_data/`
 
-- [ ] **R installed and accessible**  
-      ```bash
-      R --version  # Should show R ≥ 4.0.0
-      ```
+### Local Installation
 
-- [ ] **All 6 R packages installed**  
-      ```r
-      sapply(c("readxl", "dplyr", "tidyr", "stringr", "readr", "xlsx"), 
-             packageVersion)
-      ```
-
-- [ ] **Repository cloned successfully**  
-      ```bash
-      ls biorempp_db/generate_database.R  # Should exist
-      ```
-
-- [ ] **All 6 input data files present**  
-      ```bash
-      ls biorempp_db/input_data/*.xlsx
-      ls biorempp_db/input_data/*.txt
-      ```
-
-- [ ] **Write permissions to output directory**  
-      ```bash
-      touch biorempp_db/output_data/test.txt
-      rm biorempp_db/output_data/test.txt
-      ```
-
-- [ ] **Internet connectivity for KEGG API**  
-      ```bash
-      curl -I https://rest.kegg.jp/list/pathway
-      # Should return HTTP/1.1 200 OK
-      ```
-
-### Quick Test Run
-
-Verify the pipeline can execute:
-
-```r
-# Open R in biorempp_db/ directory
-setwd("biorempp_db")
-
-# Load first few lines of main script (without running full pipeline)
-source("generate_database.R", echo = TRUE, max.deparse.length = 100)
-```
-
-If successful, you should see package loading messages and function definitions without errors.
+- [ ] **R installed:** `R --version` shows R ≥ 4.0.0
+- [ ] **Python installed:** `python --version` shows Python ≥ 3.8
+- [ ] **Snakemake installed:** `snakemake --version` shows 7.32.4
+- [ ] **R packages installed:** All 7 packages load in R
+- [ ] **Input files present:** 6 files in `input_data/`
+- [ ] **Dry run passes:** `snakemake -n --snakefile Snakefile --configfile config/config.yaml`
+- [ ] **KEGG API accessible:** `curl -I https://rest.kegg.jp/list/pathway` returns HTTP 200
 
 ---
 
 ## Common Installation Issues and Solutions
 
-### Issue 1: R Package Compilation Fails
+### Issue 1: Docker Build Fails with Network Error
 
-**Symptom:**
-```
-ERROR: compilation failed for package 'dplyr'
-```
+**Symptom:** `ERROR: failed to fetch...` during Docker build
+
+**Solution:**
+
+- Check internet connectivity
+- If behind a proxy, configure Docker proxy settings in `~/.docker/config.json`
+- Retry the build: `docker compose -f env/docker-compose.yml build --no-cache`
+
+---
+
+### Issue 2: R Package Compilation Fails (Local Install)
+
+**Symptom:** `ERROR: compilation failed for package 'dplyr'`
 
 **Cause:** Missing system development libraries (Linux)
 
@@ -368,168 +350,49 @@ ERROR: compilation failed for package 'dplyr'
 
 ---
 
-### Issue 2: `xlsx` Package Installation Fails (Java Dependency)
+### Issue 3: Snakemake Not Found
 
-**Symptom:**
+**Symptom:** `snakemake: command not found`
+
+**Solution:**
+
+```bash
+pip install snakemake==7.32.4 pulp==2.7.0
+
+# If installed but not on PATH
+python -m snakemake --version
 ```
-Error: Java not found
-```
-
-**Cause:** `xlsx` package requires Java Runtime Environment (JRE)
-
-**Solutions:**
-
-**Option A: Install Java**
-
-=== "Windows"
-    1. Download Java from [java.com](https://www.java.com/download/)
-    2. Install and restart R
-    3. Reinstall `xlsx`: `install.packages("xlsx")`
-
-=== "macOS"
-    ```bash
-    brew install openjdk
-    sudo R CMD javareconf
-    ```
-    Then in R: `install.packages("xlsx")`
-
-=== "Linux"
-    ```bash
-    # Ubuntu/Debian
-    sudo apt install -y default-jre default-jdk
-    sudo R CMD javareconf
-    
-    # CentOS/RHEL
-    sudo yum install -y java-11-openjdk java-11-openjdk-devel
-    sudo R CMD javareconf
-    ```
-
-**Option B: Use Alternative Package (No Java Required)**
-
-Replace `xlsx` with `writexl`:
-
-```r
-install.packages("writexl")
-```
-
-Then modify `generate_database.R` line 730:
-
-```r
-# Replace:
-library(xlsx)
-write.xlsx(final_database, output_xlsx, row.names = FALSE)
-
-# With:
-library(writexl)
-write_xlsx(final_database, output_xlsx)
-```
-
----
-
-### Issue 3: KEGG API Connection Timeout
-
-**Symptom:**
-```
-Error in fetch_kegg_api: Failed to fetch data from KEGG API
-```
-
-**Cause:** Firewall blocking HTTPS requests or temporary KEGG server issues
-
-**Solutions:**
-
-1. **Check internet connectivity:**
-   ```bash
-   curl https://rest.kegg.jp/list/pathway
-   ```
-
-2. **If behind corporate firewall:** Configure proxy in R
-   ```r
-   Sys.setenv(http_proxy = "http://proxy.company.com:8080")
-   Sys.setenv(https_proxy = "https://proxy.company.com:8080")
-   ```
-
-3. **Retry with increased timeout:**
-   Edit `generate_database.R`, add at top:
-   ```r
-   options(timeout = 300)  # Increase timeout to 5 minutes
-   ```
 
 ---
 
 ### Issue 4: Permission Denied When Creating Output Files
 
-**Symptom:**
-```
-Error: cannot open file 'output_data/biorempp_database_v1.0.0.csv'
-```
-
-**Cause:** No write permissions to output directory
+**Symptom:** `PermissionError` or `Error: cannot open file`
 
 **Solutions:**
 
 === "Windows"
-    1. Right-click `biorempp_db` folder
-    2. Properties → Security → Edit
-    3. Grant "Full Control" to your user account
+    Right-click the project folder → Properties → Security → Grant "Full Control" to your user
 
 === "macOS/Linux"
     ```bash
-    # Make output directory writable
-    chmod -R u+w biorempp_db/output_data/
-    
-    # Or change ownership
-    sudo chown -R $USER:$USER biorempp_db/
+    chmod -R u+w biorempp_snakemake_version/results/
+    chmod -R u+w biorempp_snakemake_version/work/
     ```
 
 ---
 
-### Issue 5: Out of Memory Error (Large Datasets)
+### Issue 5: Docker Compose Volume Mount Errors
 
-**Symptom:**
-```
-Error: cannot allocate vector of size X GB
-```
-
-**Cause:** Insufficient RAM for data processing
-
-**Solutions:**
-
-1. **Close other applications** to free memory
-
-2. **Increase R memory limit (Windows only):**
-   ```r
-   memory.limit(size = 16000)  # Set to 16 GB
-   ```
-
-3. **Process data in chunks** (modify pipeline to handle larger datasets)
-
-4. **Use HPC/server** with more RAM (recommended for production)
-
----
-
-### Issue 6: RStudio Not Finding R Installation
-
-**Symptom:** RStudio shows "R version not found"
+**Symptom:** Files not visible inside the container
 
 **Solution:**
 
-=== "Windows"
-    1. Tools → Global Options → General
-    2. R version → Change
-    3. Browse to R installation (e.g., `C:\Program Files\R\R-4.3.2`)
-
-=== "macOS"
-    ```bash
-    # Verify R location
-    which R
-    
-    # If not in PATH, add to ~/.zshrc or ~/.bash_profile:
-    export PATH="/usr/local/bin:$PATH"
-    ```
+- Ensure Docker Desktop has file sharing enabled for your project drive
+- On Windows, the project must be inside a shared directory (usually `C:\Users\`)
+- Verify the volume mount in `docker-compose.yml` points to the correct relative path
 
 ---
-
-
 
 ## Need Help?
 
@@ -539,6 +402,7 @@ Error: cannot allocate vector of size X GB
 When reporting installation issues, please include:
 
 - Operating system and version
-- R version (`R.version.string`)
-- Error messages (full text)
-- Output of `sessionInfo()`
+- Installation method (Docker or local)
+- Docker version or R/Python/Snakemake versions
+- Complete error messages
+- Output of `docker compose version` or `snakemake --version`

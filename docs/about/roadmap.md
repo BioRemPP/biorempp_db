@@ -21,13 +21,17 @@ This roadmap outlines **scientific intentions** for the BioRemPP project. Items 
 
 **Implemented:**
 
-- BioRemPP Database v1.0.0 (384 compounds, 1,541 KO entries)
+- BioRemPP Database v1.0.0 (384 compounds, 1,542 KO entries)
 - KEGG-based functional annotations
 - Environmental agency compound integration
 - Manual curations and chemical classifications
 - Comprehensive documentation (MkDocs)
 - R and Python interoperability
 - FAIR-compliant data release
+- Snakemake 7.32.4 workflow with 18 rules (Preflight, Generation, Analysis, Reporting)
+- Docker containerization (rocker/tidyverse:4.3)
+- Automated analysis layer (9 JSON statistical reports)
+- SHA-256 output checksums (workflow_summary.json)
 
 **Implemented Web Service:**
 
@@ -92,6 +96,7 @@ Each use case follows a standardized format:
 **Planned:**
 
 - Interactive examples using Jupyter notebooks or R Markdown
+- Snakemake profile templates for HPC/cluster execution
 - Expanded troubleshooting guide
 - Community-contributed case studies
 

@@ -37,20 +37,20 @@ This changelog follows [Semantic Versioning](https://semver.org/) principles:
 
 **Data sources:**
 
-- KEGG Compound (10,869 entries, Release Dec,25)
+- KEGG Compound (10,871 entries, Release Dec,25)
 - KEGG Orthology (47,421 entries, Release Dec,25)
 - Environmental agency compound lists (806 associations, 9 agencies)
 - Manual compound-KO curations (62 relationships)
 - Compound chemical classifications (384 compounds, 12 classes)
-- Enzyme activity lexicon (210 terms)
+- Enzyme activity lexicon (218 terms)
 
 **Database content:**
 
 - 384 unique compounds from environmental agencies
-- 1,541 unique KO entries
-- 10,869 total database entries
+- 1,542 unique KO entries
+- 10,871 total database entries
 - 12 standardized chemical classes
-- 210 enzyme activity terms
+- 218 enzyme activity terms
 
 **Schema:**
 
@@ -60,11 +60,16 @@ This changelog follows [Semantic Versioning](https://semver.org/) principles:
 
 **Pipeline features:**
 
+- **Snakemake 7.32.4 workflow** with 18 rules across 4 layers (Preflight, Generation, Analysis, Reporting)
+- **Docker containerization** via `rocker/tidyverse:4.3` for reproducible execution
 - Deterministic data processing (no stochastic components)
 - KEGG API integration with error handling
-- Identifier sanitization and normalization
+- Identifier sanitization and normalization via `io_contracts.R`
 - Deduplication of compound-KO pairs
 - Feature engineering for enzyme activity extraction
+- Automated analysis layer producing 9 JSON statistical reports
+- SHA-256 checksums in `workflow_summary.json` for output integrity
+- KEGG release metadata capture in `kegg_release.json`
 
 **Documentation:**
 
@@ -73,6 +78,9 @@ This changelog follows [Semantic Versioning](https://semver.org/) principles:
 - Data quality and validation documentation
 - Reproducibility guidelines
 - Interoperability documentation (R, Python, multi-omics)
+- Pipeline architecture and Snakemake rules reference
+- Configuration reference (`config/config.yaml`)
+- QC rules documentation
 
 #### Changed
 
@@ -99,6 +107,7 @@ N/A (initial release)
 - Bit-for-bit reproducible when using same KEGG reference files
 - KEGG API queries may vary if KEGG database updates between executions
 - Recommended to use local KEGG snapshots for exact reproduction
+- Docker containerization pins all dependencies for exact reproducibility.
 
 **Backward compatibility:** N/A (initial release)
 
@@ -161,7 +170,7 @@ N/A (initial release)
 - No organism-specific annotations (KO IDs are organism-independent)
 - No pathway completeness validation
 - No quantitative biodegradation data (kinetics, rates)
-- Enzyme activities extracted via pattern matching (210-term lexicon)
+- Enzyme activities extracted via pattern matching (218-term lexicon)
 
 ---
 

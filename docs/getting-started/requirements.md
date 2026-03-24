@@ -6,14 +6,32 @@ This page specifies the software, hardware, and data requirements for running th
 
 ## Software Requirements
 
-### Core Dependencies
+### Docker Execution (Recommended)
+
+The simplest way to run the pipeline is via Docker, which bundles all dependencies:
+
+| Software | Minimum Version | Purpose |
+|----------|----------------|---------|
+| **Docker** | 20.10+ | Container runtime |
+| **Docker Compose** | 2.0+ | Service orchestration |
+| **Git** | 2.0+ | Repository cloning (optional) |
+
+No other software installation is needed — R, Python, Snakemake, and all packages are included in the Docker image.
+
+### Local Execution (Without Docker)
+
+For running the pipeline directly on your system:
+
+#### Core Dependencies
 
 | Software | Minimum Version | Recommended Version | Purpose |
 |----------|----------------|---------------------|---------|
 | **R** | 4.0.0 | 4.3.0+ | Statistical computing environment |
+| **Python** | 3.8+ | 3.10+ | Snakemake workflow manager + reporting |
+| **Snakemake** | 7.32.4 | 7.32.4 | Pipeline orchestration |
 | **Git** | 2.0+ | Latest | Repository cloning (optional) |
 
-### R Package Dependencies
+#### R Package Dependencies
 
 | Package | Version | License | Purpose |
 |---------|---------|---------|---------|
@@ -22,9 +40,19 @@ This page specifies the software, hardware, and data requirements for running th
 | `tidyr` | ≥1.1.0 | MIT | Data tidying operations |
 | `stringr` | ≥1.4.0 | MIT | String processing and regex |
 | `readr` | ≥2.0.0 | MIT | Fast CSV reading/writing |
-| `xlsx` | ≥0.6.0 | GPL-3 | Excel file export (requires Java) |
+| `jsonlite` | ≥1.7.0 | MIT | JSON I/O for analysis outputs |
+| `writexl` | ≥1.4.0 | BSD-2 | Excel file export (no Java required) |
 
-**Alternative to `xlsx`:** `writexl` (≥1.4.0, no Java required)
+These packages are listed in `biorempp_snakemake_version/env/r-packages.txt`.
+
+#### Python Package Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `snakemake` | 7.32.4 | Workflow manager |
+| `pulp` | 2.7.0 | ILP scheduler (Snakemake dependency) |
+
+These packages are listed in `biorempp_snakemake_version/env/python-requirements.txt`.
 
 ### System Libraries (Linux Only)
 
@@ -35,7 +63,9 @@ Required for R package compilation:
     - libcurl4-openssl-dev
     - libssl-dev
     - libxml2-dev
+    - libdatrie-dev
     - build-essential
+    - default-jdk
     - r-base-dev
     ```
 
@@ -53,10 +83,9 @@ Required for R package compilation:
 
 | Software | Purpose | When Needed |
 |----------|---------|-------------|
-| **Java JRE** (≥8) | Excel export via `xlsx` package | If using `xlsx` (not `writexl`) |
-| **RStudio** (any version) | Interactive development environment | For GUI-based execution |
+| **RStudio** (any version) | Interactive development environment | For interactive R exploration |
 | **Pandoc** (≥2.0) | Documentation building | If building MkDocs locally |
-| **Python** (≥3.8) + MkDocs | Documentation generation | If building documentation site |
+| **MkDocs Material** | Documentation generation | If building documentation site |
 
 ---
 
@@ -68,7 +97,7 @@ Suitable for pipeline execution with default input data:
 
 | Resource | Minimum | Notes |
 |----------|---------|-------|
-| **RAM** | 4 GB | Sufficient for current dataset (10,869 entries) |
+| **RAM** | 4 GB | Sufficient for current dataset (10,871 entries) |
 | **Storage** | 500 MB | Pipeline + input data + outputs |
 | **CPU** | 1 core | Single-threaded execution |
 | **Network** | Required | KEGG API access (HTTPS) |
@@ -77,13 +106,13 @@ Suitable for pipeline execution with default input data:
 
 ### Recommended Configuration
 
-For comfortable execution and future scalability:
+For comfortable execution with Snakemake parallelism:
 
 | Resource | Recommended | Benefits |
 |-----------|-------------|----------|
 | **RAM** | 8 GB+ | Faster data processing, supports larger datasets |
 | **Storage** | 2 GB+ | Space for multiple pipeline runs, analysis outputs |
-| **CPU** | 2+ cores | Potential for future parallelization |
+| **CPU** | 2-4 cores | Parallel Snakemake execution (`--cores 4`) |
 | **Network** | Stable broadband | Faster KEGG API queries |
 
 **Estimated runtime:** 3-8 minutes on recommended configuration
@@ -96,7 +125,7 @@ For institutional compute clusters or large-scale batch processing:
 |----------|---------|----------|
 | **RAM** | 16-32 GB | Batch runs, extended datasets |
 | **Storage** | 10 GB+ | Multiple versions, analysis archives |
-| **CPU** | 8+ cores | Parallel processing (future releases) |
+| **CPU** | 8+ cores | Parallel Snakemake rules |
 | **Network** | Institutional | Reliable API access |
 
 ---
@@ -111,7 +140,7 @@ For institutional compute clusters or large-scale batch processing:
   - KO-EC and KO-Reaction links
   - Compound-EC and Compound-Reaction links
   - Compound list with names
-  - KO list with gene information
+  - KEGG release info (`info/kegg`)
 
 **Bandwidth requirements:**
 
@@ -129,18 +158,15 @@ For institutional compute clusters or large-scale batch processing:
 
 ### Offline Execution
 
-**Limited support:** Pipeline requires KEGG API for core functionality. Offline execution is **not supported** in v1.0.0.
+**Partial support:** The pipeline requires KEGG API access for the `fetch_kegg_data` and `fetch_kegg_info` rules. However, if intermediate files (`work/kegg_data.rds`, `results/metadata/kegg_release.json`) already exist from a previous run, Snakemake will skip the API-dependent rules and proceed with cached data.
 
-**Future releases** may support:
+**Workaround for offline environments:**
 
-- Cached KEGG data for offline execution
-- Pre-downloaded snapshot option
-- Local KEGG mirror integration
+1. Run the pipeline once on a machine with internet access
+2. Copy the `work/` directory (containing `.rds` intermediates) to the offline machine
+3. Snakemake will detect existing intermediates and skip API-dependent steps
 
-**Current workaround:**
-
-1. Run pipeline once with internet to cache API responses
-2. Modify pipeline to skip API calls and use cached data (advanced users only)
+See [Reproducibility](../validation/reproducibility.md) for details on managing KEGG API variability.
 
 ---
 
@@ -167,25 +193,26 @@ All files are included in the repository and do not require separate download.
 
 | File | Format | Approximate Size | Content |
 |------|--------|------------------|---------|
-| `biorempp_database_v1.0.0.csv` | CSV | ~1.3 MB | Main database (10,869 rows × 8 columns) |
-| `biorempp_database_v1.0.0.xlsx` | Excel | ~460 KB | Excel-formatted database |
-| `biorempp_db.csv` | CSV | ~1.1 MB | Alternative format output |
+| `results/database/biorempp_database_v1.0.0.csv` | CSV | ~1.3 MB | Main database (10,871 rows × 8 columns) |
+| `results/database/biorempp_database_v1.0.0.xlsx` | Excel | ~460 KB | Excel-formatted database |
 
-### Analysis Outputs (Optional)
+### Analysis Outputs (Automatic)
 
-Generated by `analysis/analyze_database.R`:
+Generated automatically by the Snakemake analysis layer:
 
 | File | Format | Size | Content |
 |------|--------|------|---------|
-| `database_metadata.json` | JSON | ~2 KB | Schema and provenance |
-| `basic_statistics.json` | JSON | <1 KB | Core metrics |
-| `compound_statistics.json` | JSON | ~1.5 KB | Compound analysis |
-| `ko_statistics.json` | JSON | <1 KB | KO analysis |
-| `enzyme_statistics.json` | JSON | ~1 KB | Enzyme analysis |
-| `gene_statistics.json` | JSON | ~1.4 KB | Gene analysis |
-| `crosstab_statistics.json` | JSON | ~1.8 KB | Cross-dimensional analysis |
-| `executive_summary.json` | JSON | <1 KB | Summary metrics |
-| `complete_analysis.json` | JSON | ~10 KB | Full analysis bundle |
+| `results/analysis/database_metadata.json` | JSON | ~2 KB | Schema and provenance |
+| `results/analysis/basic_statistics.json` | JSON | <1 KB | Core metrics |
+| `results/analysis/compound_statistics.json` | JSON | ~1.5 KB | Compound analysis |
+| `results/analysis/ko_statistics.json` | JSON | <1 KB | KO analysis |
+| `results/analysis/enzyme_statistics.json` | JSON | ~1 KB | Enzyme analysis |
+| `results/analysis/gene_statistics.json` | JSON | ~1.4 KB | Gene analysis |
+| `results/analysis/crosstab_statistics.json` | JSON | ~1.8 KB | Cross-dimensional analysis |
+| `results/analysis/executive_summary.json` | JSON | <1 KB | Summary metrics |
+| `results/analysis/complete_analysis.json` | JSON | ~10 KB | Full analysis bundle |
+| `results/metadata/kegg_release.json` | JSON | <1 KB | KEGG release version |
+| `results/reports/workflow_summary.json` | JSON | ~2 KB | SHA-256 checksums, provenance |
 
 **Total analysis outputs:** ~20 KB (9 JSON files)
 
@@ -345,7 +372,7 @@ R.version.string
 ### Check Installed Packages
 
 ```r
-installed.packages()[c("readxl", "dplyr", "tidyr", "stringr", "readr", "xlsx"), "Version"]
+installed.packages()[c("readxl", "dplyr", "tidyr", "stringr", "readr", "jsonlite", "writexl"), "Version"]
 ```
 
 ### Check System Memory
@@ -376,7 +403,7 @@ cat("R Version:\n")
 print(R.version.string)
 
 cat("\nRequired Packages:\n")
-packages <- c("readxl", "dplyr", "tidyr", "stringr", "readr", "xlsx")
+packages <- c("readxl", "dplyr", "tidyr", "stringr", "readr", "jsonlite", "writexl")
 for (pkg in packages) {
   installed <- requireNamespace(pkg, quietly = TRUE)
   cat(sprintf("  %s: %s\n", pkg, ifelse(installed, "✓ INSTALLED", "✗ MISSING")))

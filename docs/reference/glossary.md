@@ -45,11 +45,17 @@ Manual review and validation of data by domain experts. BioRemPP includes curate
 
 ## D
 
+**DAG (Directed Acyclic Graph)**  
+Graph structure used by Snakemake to determine the order of rule execution. Each node is a rule; edges represent input/output dependencies. Ensures no circular dependencies.
+
 **Deduplication**  
 Process of removing redundant or duplicate entries from a dataset. BioRemPP deduplicates compound-KO pairs and KEGG reference data.
 
 **Deterministic**  
 Property of a computational process that produces identical outputs when given identical inputs. BioRemPP pipeline is deterministic (no random or stochastic components).
+
+**Docker**  
+Containerization platform used to package the BioRemPP pipeline with all dependencies (R 4.3, Snakemake 7.32.4, R packages). Ensures reproducible execution across environments.
 
 ---
 
@@ -59,7 +65,7 @@ Property of a computational process that produces identical outputs when given i
 Enzyme Commission number; hierarchical classification system for enzymes based on chemical reactions catalyzed. BioRemPP uses EC numbers to link compounds and genes via KEGG.
 
 **Enzyme Activity**  
-Standardized term describing the catalytic function of an enzyme. BioRemPP extracts enzyme activities from KEGG gene names using a 210-term lexicon (e.g., `cytochrome P450`, `dioxygenase`).
+Standardized term describing the catalytic function of an enzyme. BioRemPP extracts enzyme activities from KEGG gene names using a 218-term lexicon (e.g., `cytochrome P450`, `dioxygenase`).
 
 **Environmental Agency**  
 International or national regulatory organization that classifies environmental pollutants. BioRemPP integrates compound lists from 9 agencies.
@@ -96,6 +102,9 @@ Unique code used to reference a specific entity in a database. BioRemPP uses KEG
 
 **Interoperability**  
 Ability of different systems or datasets to exchange and use information. BioRemPP achieves interoperability through standardized KEGG identifiers.
+
+**io_contracts.R**  
+Shared R library in `workflow/lib/` that defines constants for required input files, expected database columns, and KEGG API endpoints. Ensures consistency across all pipeline scripts.
 
 ---
 
@@ -172,6 +181,15 @@ Process of cleaning and standardizing data to remove errors or inconsistencies. 
 
 **Schema**  
 Formal specification of database structure, including column names, data types, and constraints. BioRemPP schema defines 8 columns with controlled vocabularies.
+
+**SHA-256 Checksum**  
+Cryptographic hash used by BioRemPP to verify output file integrity. Stored in `workflow_summary.json` by the `build_run_report` rule.
+
+**Snakemake**  
+Workflow management system (v7.32.4) used to orchestrate the BioRemPP pipeline. Defines rules with explicit inputs and outputs, enabling automatic dependency resolution, parallelism, and incremental re-execution.
+
+**Snakefile**  
+Entry-point configuration file for a Snakemake workflow. In BioRemPP, it includes rule modules from `workflow/rules/` and defines the `all` target rule.
 
 **Snapshot**  
 Static copy of a database at a specific point in time. BioRemPP uses KEGG snapshots (Dec,25) to ensure reproducibility.

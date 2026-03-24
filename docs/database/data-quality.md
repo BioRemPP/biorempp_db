@@ -17,6 +17,14 @@ The BioRemPP Database generation pipeline implements quality control measures to
 
 **Quality philosophy:** Prioritize data integrity and reproducibility over maximizing database size. Entries failing validation checks are excluded rather than retained with incomplete or inconsistent data.
 
+### Snakemake Workflow Infrastructure
+
+As of v1.0.0 the pipeline runs under **Snakemake 7.32.4**. In addition to the per-step quality controls described below, the workflow provides three cross-cutting integrity mechanisms:
+
+- **Preflight validation** — The `preflight_check_inputs` rule verifies that every required input file exists before any processing rule is executed.
+- **Shared contracts** — `workflow/lib/io_contracts.R` defines `REQUIRED_INPUT_FILES`, `EXPECTED_DATABASE_COLUMNS`, and `KEGG_ENDPOINTS` constants that are imported by every script, ensuring consistent validation across all pipeline steps.
+- **Output checksums** — SHA-256 hashes for every output artefact are recorded in `workflow_summary.json`, enabling downstream integrity verification.
+
 ---
 
 ## Validation and Consistency Checks
@@ -30,17 +38,19 @@ The BioRemPP Database generation pipeline implements quality control measures to
 **Implementation:**
 
 ```r
-# Compound IDs are cleaned during data loading
-unique_ko_cpd$cpd <- gsub("cpd:", "", unique_ko_cpd$cpd)
+# Compound IDs are cleaned during the merge step
+combined %>%
+  dplyr::distinct() %>%
+  dplyr::mutate(cpd = gsub("cpd:", "", cpd))
 ```
 
 **Enforcement:**
 
+- Deduplication via `distinct()` before prefix removal
 - Prefix removal: `cpd:C00001` → `C00001`
-- Format verification: Only C##### format retained
-- Invalid IDs: Excluded from final database
+- Format correctness relies on upstream KEGG API data quality (no explicit `^C\d{5}$` validation in code)
 
-**Source:** `generate_database.R`, lines 376-377
+**Source:** `workflow/scripts/generation/04_merge_relationships.R`
 
 ---
 
@@ -51,22 +61,24 @@ unique_ko_cpd$cpd <- gsub("cpd:", "", unique_ko_cpd$cpd)
 **Implementation:**
 
 ```r
-sanitized_data <- classified_compounds %>%
-  mutate(
+sanitized <- classified %>%
+  dplyr::mutate(
+    # Trim whitespace and coerce to character
+    ko = stringr::str_trim(as.character(ko)),
     # Remove "ko:" prefix
-    ko = str_remove(ko, regex("^ko\\s*:\\s*", ignore_case = TRUE)),
+    ko = stringr::str_remove(ko, stringr::regex("^ko\\s*:\\s*", ignore_case = TRUE)),
     # Extract K##### pattern
-    ko_k = str_extract(ko, regex("K\\d{5}", ignore_case = TRUE)),
+    ko_extracted = stringr::str_extract(ko, stringr::regex("K\\d{5}", ignore_case = TRUE)),
     # Standardize to K##### format
-    ko = if_else(
-      !is.na(ko_k),
-      str_c("K", str_extract(ko_k, "\\d{5}")),
+    ko = dplyr::if_else(
+      !is.na(ko_extracted),
+      paste0("K", stringr::str_extract(ko_extracted, "\\d{5}")),
       NA_character_
     )
   ) %>%
   # Remove rows with NA KO identifiers
-  filter(!is.na(ko)) %>%
-  select(-ko_k)
+  dplyr::filter(!is.na(ko)) %>%
+  dplyr::select(-ko_extracted)
 ```
 
 **Enforcement:**
@@ -76,7 +88,7 @@ sanitized_data <- classified_compounds %>%
 - Pattern extraction: Only K##### format retained
 - Invalid entries: Filtered out (excluded from database)
 
-**Source:** `generate_database.R`, lines 481-498
+**Source:** `workflow/scripts/generation/05_add_classifications.R`
 
 **Impact:** Entries with malformed KO IDs are excluded, ensuring 100% identifier consistency.
 
@@ -93,7 +105,7 @@ sanitized_data <- classified_compounds %>%
 - Agency compounds are merged with KEGG compound list via `cpd` column
 - Compounds without KEGG match are implicitly excluded during merge operation
 
-**Source:** `generate_database.R`, lines 420-428
+**Source:** `workflow/scripts/generation/04_merge_relationships.R`
 
 **Limitation:** Compounds classified by agencies but not present in KEGG (as of Dec,25) are excluded.
 
@@ -106,16 +118,16 @@ sanitized_data <- classified_compounds %>%
 **Implementation:**
 
 ```r
-compounds_with_genes <- sanitized_compounds %>%
-  filter(!is.na(ko), ko != "") %>%
-  mutate(ko = str_trim(str_to_upper(ko))) %>%
-  left_join(
+enriched <- classified_data %>%
+  dplyr::filter(!is.na(ko), ko != "") %>%
+  dplyr::mutate(ko = stringr::str_trim(stringr::str_to_upper(ko))) %>%
+  dplyr::left_join(
     kegg_reference %>%
-      filter(!is.na(ko), ko != "") %>%
-      mutate(ko = str_trim(str_to_upper(ko))),
+      dplyr::filter(!is.na(ko), ko != "") %>%
+      dplyr::mutate(ko = stringr::str_trim(stringr::str_to_upper(ko))),
     by = "ko"
   ) %>%
-  filter(
+  dplyr::filter(
     !is.na(genesymbol), genesymbol != "",
     !is.na(genename), genename != ""
   )
@@ -125,9 +137,8 @@ compounds_with_genes <- sanitized_compounds %>%
 
 - KO IDs without gene information are filtered out
 - Empty gene symbols or names cause exclusion
-- Pipeline reports count of excluded entries
 
-**Source:** `generate_database.R`, lines 545-557
+**Source:** `workflow/scripts/generation/06_enrich_gene_info.R`
 
 **Impact:** KO entries not present in KEGG KO reference (as of Dec,25) are excluded.
 
@@ -165,16 +176,16 @@ tidy_classes <- compound_classes %>%
     compoundclass = str_replace_all(compoundclass, " \\(repeated\\)", ""),
     compoundclass = str_replace_all(compoundclass, "Organometalic", "Organometallic")
   ) %>%
-  na.omit()
+  filter(!is.na(compoundclass), compoundclass != "")
 ```
 
 **Enforcement:**
 
 - Typo correction: `Organometalic` → `Organometallic`
 - Removal of annotation artifacts: `(repeated)` removed
-- NA values excluded
+- NA and empty-string values excluded
 
-**Source:** `generate_database.R`, lines 434-443
+**Source:** `workflow/scripts/generation/05_add_classifications.R`
 
 **Limitation:** No automated validation against controlled vocabulary; relies on manual curation quality.
 
@@ -182,26 +193,23 @@ tidy_classes <- compound_classes %>%
 
 #### Enzyme Activity Terms
 
-**Validation rule:** 210 standardized enzyme terms
+**Validation rule:** 218 standardized enzyme terms
 
 **Implementation:**
 
 ```r
-enzyme_terms <- readLines(file_path, warn = FALSE) %>%
-  str_trim() %>%
-  unique()
-
-# Remove empty strings
-enzyme_terms <- enzyme_terms[enzyme_terms != ""]
+terms <- readLines(file_path, warn = FALSE)
+terms <- trimws(terms)
+enzyme_terms <- unique(terms[terms != ""])
 ```
 
 **Enforcement:**
 
-- Whitespace trimming
+- Whitespace trimming (base R `trimws()`)
 - Deduplication
 - Empty line removal
 
-**Source:** `generate_database.R`, lines 238-246
+**Source:** `workflow/scripts/generation/01_load_local_data.R`
 
 **Fallback behavior:** If no enzyme term matches, full `genename` is used as `enzyme_activity`
 
@@ -226,13 +234,9 @@ filter(
 
 **Rationale:** Gene information is essential for functional interpretation; entries without this data provide limited value.
 
-**Impact:** Reported during pipeline execution:
+**Impact:** Rows without gene match are silently filtered — no explicit log message is emitted.
 
-```
-⚠ Entries without gene match: [count]
-```
-
-**Source:** `generate_database.R`, lines 553-556
+**Source:** `workflow/scripts/generation/06_enrich_gene_info.R`
 
 ---
 
@@ -245,12 +249,14 @@ filter(
 **Implementation:**
 
 ```r
-compounds_with_names <- merge(compounds, compound_list, by = "cpd")
+merged_compounds <- add_compound_names(integrated, kegg_data$compound_list)
+# where add_compound_names simply calls:
+# merge(compounds, compound_list, by = "cpd")
 ```
 
 **Rationale:** Compound names are required for human-readable reporting and interpretation.
 
-**Source:** `generate_database.R`, lines 424
+**Source:** `workflow/scripts/generation/04_merge_relationships.R`
 
 ---
 
@@ -263,16 +269,16 @@ compounds_with_names <- merge(compounds, compound_list, by = "cpd")
 **Implementation:**
 
 ```r
-classified_compounds <- merge(tidy_classes, compounds, by = "cpd") %>%
-  unique() %>%
-  arrange(ko)
+classified <- merge(tidy_classes, merged_compounds, by = "cpd") %>%
+  dplyr::distinct() %>%
+  dplyr::arrange(ko)
 ```
 
 **Rationale:** Chemical classification enables filtering and analysis by structural features; unclassified compounds are excluded to maintain data quality.
 
 **Impact:** Only compounds with manual expert classification are included in final database.
 
-**Source:** `generate_database.R`, lines 465-467
+**Source:** `workflow/scripts/generation/05_add_classifications.R`
 
 ---
 
@@ -285,11 +291,11 @@ classified_compounds <- merge(tidy_classes, compounds, by = "cpd") %>%
 **Implementation:**
 
 ```r
-compounds_with_enzymes <- compounds_with_genes %>%
-  mutate(
-    enzyme_activity = str_extract(genename, regex(enzyme_pattern, ignore_case = TRUE)),
+final_database <- enriched_data %>%
+  dplyr::mutate(
+    enzyme_activity = stringr::str_extract(genename, stringr::regex(enzyme_pattern, ignore_case = TRUE)),
     # Fallback to genename if no enzyme term found
-    enzyme_activity = if_else(is.na(enzyme_activity), genename, enzyme_activity)
+    enzyme_activity = dplyr::if_else(is.na(enzyme_activity), genename, enzyme_activity)
   )
 ```
 
@@ -297,7 +303,7 @@ compounds_with_enzymes <- compounds_with_genes %>%
 
 **Impact:** Some `enzyme_activity` values are long descriptive names rather than concise terms.
 
-**Source:** `generate_database.R`, lines 600-605
+**Source:** `workflow/scripts/generation/07_extract_enzymes_export.R`
 
 ---
 
@@ -313,16 +319,18 @@ compounds_with_enzymes <- compounds_with_genes %>%
 
 ```r
 # Combine both datasets
-combined_ko_cpd <- rbind(
+combined <- rbind(
   ko_ec_cpd[, c("ko", "cpd")],
   ko_reaction_cpd[, c("ko", "cpd")]
 )
 
 # Remove duplicates
-unique_ko_cpd <- unique(combined_ko_cpd)
+combined %>%
+  dplyr::distinct() %>%
+  dplyr::mutate(cpd = gsub("cpd:", "", cpd))
 ```
 
-**Source:** `generate_database.R`, lines 369-376
+**Source:** `workflow/scripts/generation/04_merge_relationships.R`
 
 **Impact:** Each unique KO-compound relationship appears only once, regardless of how many EC numbers or reactions link them.
 
@@ -337,21 +345,21 @@ unique_ko_cpd <- unique(combined_ko_cpd)
 **Implementation:**
 
 ```r
-kegg_reference <- ko_list %>%
-  transmute(
-    ko = str_trim(str_to_upper(ko)),
-    genesymbol = str_trim(genesymbol),
-    genename = str_trim(genename)
+kegg_reference <- local_data$ko_list %>%
+  dplyr::transmute(
+    ko = stringr::str_trim(stringr::str_to_upper(ko)),
+    genesymbol = stringr::str_trim(genesymbol),
+    genename = stringr::str_trim(genename)
   ) %>%
-  group_by(ko) %>%
-  summarise(
-    genesymbol = first(genesymbol),
-    genename = first(genename),
+  dplyr::group_by(ko) %>%
+  dplyr::summarise(
+    genesymbol = dplyr::first(genesymbol),
+    genename = dplyr::first(genename),
     .groups = "drop"
   )
 ```
 
-**Source:** `generate_database.R`, lines 514-524
+**Source:** `workflow/scripts/generation/06_enrich_gene_info.R`
 
 **Impact:** One gene symbol and name per KO ID; isoforms/variants are collapsed.
 
@@ -366,14 +374,14 @@ kegg_reference <- ko_list %>%
 **Implementation:**
 
 ```r
-cleaned_data <- compounds_with_enzymes %>%
-  mutate(
+final_database <- enriched_data %>%
+  dplyr::mutate(
     # Remove everything after comma in gene symbols
-    genesymbol = str_remove(genesymbol, ",.*$")
+    genesymbol = stringr::str_remove(genesymbol, ",.*$")
   )
 ```
 
-**Source:** `generate_database.R`, lines 623-627
+**Source:** `workflow/scripts/generation/07_extract_enzymes_export.R`
 
 **Impact:** Simplifies gene symbols to single canonical identifier.
 
@@ -388,14 +396,14 @@ cleaned_data <- compounds_with_enzymes %>%
 **Implementation:**
 
 ```r
-cleaned_data <- compounds_with_enzymes %>%
-  mutate(
+final_database <- enriched_data %>%
+  dplyr::mutate(
     # Remove EC numbers from gene names
-    genename = str_remove(genename, regex("\\s*\\[EC.*$", ignore_case = TRUE))
+    genename = stringr::str_remove(genename, stringr::regex("\\s*\\[EC.*$", ignore_case = TRUE))
   )
 ```
 
-**Source:** `generate_database.R`, lines 623-626
+**Source:** `workflow/scripts/generation/07_extract_enzymes_export.R`
 
 **Impact:** Gene names are cleaner and more consistent; EC information is not retained in final database.
 
@@ -410,15 +418,17 @@ cleaned_data <- compounds_with_enzymes %>%
 **Implementation:**
 
 ```r
-compound_list <- fetch_kegg_api("list/cpd/", c("cpd", "compoundname"))
+kegg_data$compound_list <- fetch_endpoint(
+  KEGG_ENDPOINTS$compound_list$endpoint,
+  KEGG_ENDPOINTS$compound_list$columns,
+  KEGG_ENDPOINTS$compound_list$sep
+)
 
 # Remove synonyms (everything after semicolon)
-if ("compoundname" %in% colnames(compound_list)) {
-  compound_list$compoundname <- sub(";.*$", "", compound_list$compoundname)
-}
+kegg_data$compound_list$compoundname <- sub(";.*$", "", kegg_data$compound_list$compoundname)
 ```
 
-**Source:** `generate_database.R`, lines 322-328
+**Source:** `workflow/scripts/generation/03_fetch_kegg_data.R`
 
 **Impact:** One canonical name per compound; synonyms are not retained.
 
@@ -480,7 +490,7 @@ if ("compoundname" %in% colnames(compound_list)) {
 
 **Impact:**
 
-- Row count (10,869) exceeds unique compound count (384)
+- Row count (10,871) exceeds unique compound count (384)
 - Aggregation required to count unique compounds per class
 - Potential for double-counting in naive analyses
 
@@ -578,7 +588,7 @@ if ("compoundname" %in% colnames(compound_list)) {
 
 Before using BioRemPP Database, users should:
 
-1. **Verify row count:** Expect 10,869 rows for v1.0.0
+1. **Verify row count:** Expect 10,871 rows for v1.0.0
 2. **Check for missing values:** Run `colSums(is.na(db))` → all zeros
 3. **Validate identifier formats:** Verify `cpd` and `ko` match regex patterns
 4. **Understand multi-class representation:** Use `distinct(cpd)` for unique compound counts
@@ -613,11 +623,30 @@ Before using BioRemPP Database, users should:
 1. Download latest KEGG reference files (`kegglistcompounds.xlsx`, `kegglistko.txt`)
 2. Review and update agency compound lists
 3. Add new manual curations from recent literature
-4. Re-run pipeline: `source("generate_database.R")`
+4. Re-run pipeline: `snakemake --cores all`
 5. Validate output against expected statistics
 6. Document changes in version control
 
 **Version control:** Use semantic versioning (v1.x.x for minor updates, v2.0.0 for schema changes)
+
+---
+
+## Automated Validation with Great Expectations
+
+Beyond the pipeline-level quality controls described above, the
+**biorempp-validation** module provides 71 automated expectations that verify
+schema integrity, domain-value contracts, cross-consistency, and exact-match
+reproducibility after every pipeline run.
+
+See the [Data Validation (GX)](../validation-gx/architecture.md) section,
+particularly:
+
+- [Data Contracts](../validation-gx/data-contracts.md) — column schema,
+  identifier formats, and closed vocabularies.
+- [Severity Policy](../validation-gx/severity-policy.md) — how critical vs.
+  warning failures are handled.
+- [Test Suite](../validation-gx/testing.md) — mutation-based tests that
+  verify each fault is detected.
 
 ---
 
