@@ -126,7 +126,8 @@ rule crosstab_statistics:
 rule database_metadata:
     input:
         csv = DATABASE_FILE,
-        kegg_info = join(RESULTS_DIR, "metadata", "kegg_release.json")
+        kegg_info = join(RESULTS_DIR, "metadata", "kegg_release.json"),
+        kegg_data = join(WORK_DIR, "kegg_data.rds")
     output:
         join(ANALYSIS_DIR, "database_metadata.json")
     params:
@@ -139,6 +140,7 @@ rule database_metadata:
             "Rscript workflow/scripts/analysis/07_metadata.R "
             "--input-csv {input.csv} "
             "--kegg-info {input.kegg_info} "
+            "--kegg-data {input.kegg_data} "
             "--output {output} "
             "--version {params.version} "
             "--config {params.config_file} "

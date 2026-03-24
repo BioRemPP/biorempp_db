@@ -52,6 +52,8 @@ def main() -> None:
 
     with Path(args.kegg_json).open("r", encoding="utf-8") as handle:
         kegg_info = json.load(handle)
+    with Path(args.metadata_json).open("r", encoding="utf-8") as handle:
+        metadata_info = json.load(handle)
 
     summary = {
         "pipeline": {
@@ -66,6 +68,7 @@ def main() -> None:
             "parsed_version": kegg_info.get("parsed_version"),
             "retrieved_at_utc": kegg_info.get("retrieved_at_utc"),
         },
+        "link_match": metadata_info.get("link_match", {}),
         "artifacts": {name: file_info(path) for name, path in files.items()},
     }
 
