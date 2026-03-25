@@ -12,39 +12,39 @@ kegg_data <- readRDS(args[["kegg-data"]])
 output_file <- args[["output"]]
 
 normalize_cpd <- function(value) {
-  cleaned <- stringr::str_trim(as.character(value))
+  cleaned <- normalize_na_text(value)
   cleaned <- stringr::str_remove(cleaned, stringr::regex("^cpd\\s*:\\s*", ignore_case = TRUE))
   extracted <- stringr::str_extract(cleaned, stringr::regex("C\\d{5}", ignore_case = TRUE))
-  dplyr::if_else(is.na(extracted), NA_character_, stringr::str_to_upper(extracted))
+  dplyr::if_else(is_na_like(extracted), NA_character_, stringr::str_to_upper(extracted))
 }
 
 normalize_ko <- function(value) {
-  cleaned <- stringr::str_trim(as.character(value))
+  cleaned <- normalize_na_text(value)
   cleaned <- stringr::str_remove(cleaned, stringr::regex("^ko\\s*:\\s*", ignore_case = TRUE))
   extracted <- stringr::str_extract(cleaned, stringr::regex("K\\d{5}", ignore_case = TRUE))
-  dplyr::if_else(is.na(extracted), NA_character_, stringr::str_to_upper(extracted))
+  dplyr::if_else(is_na_like(extracted), NA_character_, stringr::str_to_upper(extracted))
 }
 
 normalize_ec <- function(value) {
-  cleaned <- stringr::str_trim(as.character(value))
+  cleaned <- normalize_na_text(value)
   cleaned <- stringr::str_remove(cleaned, stringr::regex("^ec\\s*:\\s*", ignore_case = TRUE))
-  dplyr::if_else(cleaned == "" | is.na(cleaned), NA_character_, cleaned)
+  normalize_na_text(cleaned)
 }
 
 normalize_reaction <- function(value) {
-  cleaned <- stringr::str_trim(as.character(value))
+  cleaned <- normalize_na_text(value)
   cleaned <- stringr::str_remove(cleaned, stringr::regex("^rn\\s*:\\s*", ignore_case = TRUE))
   extracted <- stringr::str_extract(cleaned, stringr::regex("R\\d{5}", ignore_case = TRUE))
-  dplyr::if_else(is.na(extracted), NA_character_, stringr::str_to_upper(extracted))
+  dplyr::if_else(is_na_like(extracted), NA_character_, stringr::str_to_upper(extracted))
 }
 
 normalize_agency_compounds <- function(agency_compounds) {
   agency_compounds %>%
     dplyr::transmute(
       cpd = normalize_cpd(cpd),
-      referenceAG = stringr::str_trim(as.character(referenceAG))
+      referenceAG = normalize_na_text(referenceAG)
     ) %>%
-    dplyr::filter(!is.na(cpd), cpd != "", !is.na(referenceAG), referenceAG != "") %>%
+    dplyr::filter(!is.na(cpd), !is.na(referenceAG)) %>%
     dplyr::distinct()
 }
 
@@ -54,7 +54,7 @@ normalize_curated_compounds <- function(curated_compounds) {
       cpd = normalize_cpd(cpd),
       ko = normalize_ko(ko)
     ) %>%
-    dplyr::filter(!is.na(cpd), cpd != "", !is.na(ko), ko != "") %>%
+    dplyr::filter(!is.na(cpd), !is.na(ko)) %>%
     dplyr::distinct()
 }
 
@@ -257,9 +257,9 @@ add_compound_names <- function(compounds, compound_list) {
   normalized_compound_list <- compound_list %>%
     dplyr::transmute(
       cpd = normalize_cpd(cpd),
-      compoundname = stringr::str_trim(as.character(compoundname))
+      compoundname = normalize_na_text(compoundname)
     ) %>%
-    dplyr::filter(!is.na(cpd), cpd != "", !is.na(compoundname), compoundname != "") %>%
+    dplyr::filter(!is.na(cpd), !is.na(compoundname)) %>%
     dplyr::group_by(cpd) %>%
     dplyr::summarise(compoundname = dplyr::first(compoundname), .groups = "drop")
 

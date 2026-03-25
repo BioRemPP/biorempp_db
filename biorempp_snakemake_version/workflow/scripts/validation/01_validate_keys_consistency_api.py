@@ -13,8 +13,9 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+from common_normalization import is_na_like, load_na_markers
 
-NA_MARKERS = {"", "NA", "NAN", "<NA>", "NONE", "NULL"}
+NA_MARKERS = load_na_markers()
 
 PATTERNS = {
     "ko": re.compile(r"(?:ko:)?(K\d{5})", re.IGNORECASE),
@@ -25,11 +26,9 @@ PATTERNS = {
 
 
 def normalize_token(value, token_type):
-    if value is None:
+    if is_na_like(value, NA_MARKERS):
         return None
     text = str(value).strip()
-    if text.upper() in NA_MARKERS:
-        return None
     match = PATTERNS[token_type].search(text)
     if not match:
         return None
@@ -302,20 +301,6 @@ def analyze_na_consistency(db_rows, link_indices):
     }
 
 
-def sentinel(rows, cpd, ko):
-    subset = [r for r in rows if r["cpd"] == cpd and r["ko"] == ko]
-    return {
-        "cpd": cpd,
-        "ko": ko,
-        "rows": len(subset),
-        "ec_na_rows": sum(1 for r in subset if r["ec"] is None),
-        "reaction_na_rows": sum(1 for r in subset if r["reaction"] is None),
-        "both_na_rows": sum(1 for r in subset if r["ec"] is None and r["reaction"] is None),
-        "unique_ec_count": len({r["ec"] for r in subset if r["ec"] is not None}),
-        "unique_reaction_count": len({r["reaction"] for r in subset if r["reaction"] is not None}),
-    }
-
-
 def build_parser():
     parser = argparse.ArgumentParser(description="Validate key consistency for remaining NA values using KEGG API.")
     parser.add_argument("--database-csv", required=True)
@@ -388,10 +373,6 @@ def main():
             "both_na_incorrect_rule": "Pair fillable by ko_ec+ko_reaction or by reaction-ec bridge with pair sources",
         },
         "results": results,
-        "sentinel_cases": [
-            sentinel(db_rows, "C00230", "K20218"),
-            sentinel(db_rows, "C00038", "K00001"),
-        ],
     }
 
     output_path = Path(args.output)
