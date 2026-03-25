@@ -24,6 +24,7 @@ ANALYSIS_FILES = [
 ]
 
 KEGG_RELEASE = join(RESULTS_DIR, "metadata", "kegg_release.json")
+KEYS_CONSISTENCY_REPORT = join(RESULTS_DIR, "metadata", "keys_consistency_report.json")
 WORKFLOW_SUMMARY = join(RESULTS_DIR, "reports", "workflow_summary.json")
 
 localrules: all
@@ -33,10 +34,12 @@ rule all:
         DATABASE_CSV,
         DATABASE_XLSX,
         KEGG_RELEASE,
+        KEYS_CONSISTENCY_REPORT,
         WORKFLOW_SUMMARY,
         ANALYSIS_FILES
 
 include: "workflow/rules/00_preflight.smk"
 include: "workflow/rules/10_generation.smk"
 include: "workflow/rules/20_analysis.smk"
+include: "workflow/rules/30_validation.smk"
 include: "workflow/rules/90_reporting.smk"

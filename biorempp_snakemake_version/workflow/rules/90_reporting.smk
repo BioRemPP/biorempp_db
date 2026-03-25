@@ -6,7 +6,8 @@ rule build_run_report:
         xlsx = join(RESULTS_DIR, "database", OUTPUTS["database_xlsx"]),
         metadata = join(RESULTS_DIR, "analysis", "database_metadata.json"),
         complete = join(RESULTS_DIR, "analysis", "complete_analysis.json"),
-        kegg = join(RESULTS_DIR, "metadata", "kegg_release.json")
+        kegg = join(RESULTS_DIR, "metadata", "kegg_release.json"),
+        keys_consistency = join(RESULTS_DIR, "metadata", "keys_consistency_report.json")
     output:
         join(RESULTS_DIR, "reports", "workflow_summary.json")
     params:
@@ -22,6 +23,7 @@ rule build_run_report:
             "--metadata-json {input.metadata} "
             "--complete-json {input.complete} "
             "--kegg-json {input.kegg} "
+            "--keys-consistency-json {input.keys_consistency} "
             "--output {output} "
             "--version {params.version} "
             "--config {params.config_file} "
