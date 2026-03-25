@@ -107,8 +107,8 @@
       "cpd": 100,
       "compoundclass": 100,
       "ko": 100,
-      "ec": 90.774,
-      "reaction": 92.9226,
+      "ec": 99.2235,
+      "reaction": 98.2038,
       "referenceAG": 100,
       "compoundname": 100,
       "genesymbol": 100,
@@ -124,7 +124,8 @@
       "replicate_by_reference_ag": true,
       "ko_dense_priority": true,
       "synthetic_ec_reaction_cartesian": true,
-      "ko_fallback_pairing_for_non_resolvable": true
+      "ko_fallback_pairing_for_non_resolvable": true,
+      "compound_bridge_fallback": true
     },
     "coverage": {
       "kos": {
@@ -153,18 +154,18 @@
       "false_na_pairs_examples": []
     },
     "row_shapes": {
-      "dense": 37313,
-      "ec_only": 3076,
-      "reaction_only": 4032,
+      "dense": 120651,
+      "ec_only": 2150,
+      "reaction_only": 888,
       "both_na": 73
     },
     "row_provenance": {
-      "direct_compound_supported": 16923,
-      "ko_supported_only": 27498,
+      "direct_compound_supported": 98688,
+      "ko_supported_only": 25001,
       "unsupported": 73
     },
     "consistency_sentinels": {
-      "duplicate_full_rows": 31555,
+      "duplicate_full_rows": 74554,
       "resolvable_pair_count": 2249,
       "mixed_sparse_on_resolvable_pairs": 0,
       "mixed_sparse_on_resolvable_examples": []

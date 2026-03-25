@@ -1,0 +1,99 @@
+{
+  "generated_at_utc": "2026-03-25T00:50:44Z",
+  "input": {
+    "database_csv": "results/database/biorempp_database_v1.0.0.csv",
+    "config_file": "config/config.yaml"
+  },
+  "kegg_api": {
+    "base_url": "https://rest.kegg.jp",
+    "endpoints": {
+      "ko_ec": "https://rest.kegg.jp/link/ko/ec",
+      "ko_reaction": "https://rest.kegg.jp/link/ko/reaction",
+      "cpd_ec": "https://rest.kegg.jp/link/compound/ec",
+      "cpd_reaction": "https://rest.kegg.jp/link/cpd/reaction",
+      "ec_reaction": "https://rest.kegg.jp/link/ec/reaction"
+    }
+  },
+  "api_parse_stats": {
+    "ko_ec": {
+      "total_lines": 9998,
+      "parsed_pairs": 9998,
+      "swapped_orientation_lines": 9998,
+      "invalid_lines": 0
+    },
+    "ko_reaction": {
+      "total_lines": 12209,
+      "parsed_pairs": 12209,
+      "swapped_orientation_lines": 12209,
+      "invalid_lines": 0
+    },
+    "cpd_ec": {
+      "total_lines": 33618,
+      "parsed_pairs": 33618,
+      "swapped_orientation_lines": 33618,
+      "invalid_lines": 0
+    },
+    "cpd_reaction": {
+      "total_lines": 52320,
+      "parsed_pairs": 52320,
+      "swapped_orientation_lines": 52320,
+      "invalid_lines": 0
+    },
+    "ec_reaction": {
+      "total_lines": 10698,
+      "parsed_pairs": 10698,
+      "swapped_orientation_lines": 10698,
+      "invalid_lines": 0
+    }
+  },
+  "validation_policy": {
+    "source_of_truth": "KEGG REST API endpoints fetched at runtime",
+    "ec_na_incorrect_rule": "Reaction must be supported by pair sources and mappable to EC with pair EC support",
+    "reaction_na_incorrect_rule": "EC must be supported by pair sources and mappable to reaction with pair reaction support",
+    "both_na_incorrect_rule": "Pair fillable by ko_ec+ko_reaction or by reaction-ec bridge with pair sources"
+  },
+  "results": {
+    "totals": {
+      "rows_in_database": 123762,
+      "rows_with_any_na_in_ec_or_reaction": 3111,
+      "ec_na_rows": 888,
+      "reaction_na_rows": 2150,
+      "both_na_rows": 73
+    },
+    "classification_counts": {
+      "justified": 3111,
+      "incorrect": 0
+    },
+    "reason_counts": {
+      "ec_has_no_reaction_mapping_in_ec_reaction": 482,
+      "pair_has_no_ec_or_reaction_sources": 73,
+      "pair_has_no_ec_sources": 492,
+      "pair_has_no_reaction_sources": 1668,
+      "reaction_has_no_ec_mapping_in_ec_reaction": 396
+    },
+    "all_remaining_na_justified": true,
+    "incorrect_examples_limited": []
+  },
+  "sentinel_cases": [
+    {
+      "cpd": "C00230",
+      "ko": "K20218",
+      "rows": 136,
+      "ec_na_rows": 0,
+      "reaction_na_rows": 0,
+      "both_na_rows": 0,
+      "unique_ec_count": 17,
+      "unique_reaction_count": 2
+    },
+    {
+      "cpd": "C00038",
+      "ko": "K00001",
+      "rows": 26,
+      "ec_na_rows": 0,
+      "reaction_na_rows": 0,
+      "both_na_rows": 0,
+      "unique_ec_count": 1,
+      "unique_reaction_count": 13
+    }
+  ]
+}

@@ -3,13 +3,27 @@
     "name": "BioRemPP Snakemake Pipeline",
     "version": "1.0.0",
     "config_file": "config/config.yaml",
-    "generated_at_utc": "2026-03-25T00:27:41Z"
+    "generated_at_utc": "2026-03-25T00:50:44Z"
   },
   "kegg_reference": {
     "source_url": "https://rest.kegg.jp/info/kegg",
     "release_text": "kegg             Release 117.0+/02-18, Feb 26",
     "parsed_version": "117.0+",
     "retrieved_at_utc": "2026-02-17T22:19:58Z"
+  },
+  "keys_consistency": {
+    "all_remaining_na_justified": true,
+    "classification_counts": {
+      "justified": 3111,
+      "incorrect": 0
+    },
+    "totals": {
+      "rows_in_database": 123762,
+      "rows_with_any_na_in_ec_or_reaction": 3111,
+      "ec_na_rows": 888,
+      "reaction_na_rows": 2150,
+      "both_na_rows": 73
+    }
   },
   "link_match": {
     "policy": {
@@ -19,7 +33,8 @@
       "replicate_by_reference_ag": true,
       "ko_dense_priority": true,
       "synthetic_ec_reaction_cartesian": true,
-      "ko_fallback_pairing_for_non_resolvable": true
+      "ko_fallback_pairing_for_non_resolvable": true,
+      "compound_bridge_fallback": true
     },
     "coverage": {
       "kos": {
@@ -1979,18 +1994,18 @@
       "false_na_pairs_examples": []
     },
     "row_shapes": {
-      "dense": 37313,
-      "ec_only": 3076,
-      "reaction_only": 4032,
+      "dense": 120651,
+      "ec_only": 2150,
+      "reaction_only": 888,
       "both_na": 73
     },
     "row_provenance": {
-      "direct_compound_supported": 16923,
-      "ko_supported_only": 27498,
+      "direct_compound_supported": 98688,
+      "ko_supported_only": 25001,
       "unsupported": 73
     },
     "consistency_sentinels": {
-      "duplicate_full_rows": 31555,
+      "duplicate_full_rows": 74554,
       "resolvable_pair_count": 2249,
       "mixed_sparse_on_resolvable_pairs": 0,
       "mixed_sparse_on_resolvable_examples": []
@@ -1999,28 +2014,33 @@
   "artifacts": {
     "database_csv": {
       "path": "results/database/biorempp_database_v1.0.0.csv",
-      "size_bytes": 6315911,
-      "sha256": "1e35c452c13f7867f9c940e808a4bf27ee74974724ccdab0c802f0b23f58a43b"
+      "size_bytes": 17187791,
+      "sha256": "336a184e3863487462c798cfdfc6f9ff8aad5df4f9e748ef84622cb9e02b5fef"
     },
     "database_xlsx": {
       "path": "results/database/biorempp_database_v1.0.0.xlsx",
-      "size_bytes": 1733245,
-      "sha256": "3718c3d29e8a33768c8273ac78b8d6176d3766761210a00b9e0771cd9b2f900b"
+      "size_bytes": 4639233,
+      "sha256": "40b7ba0bba3a665ff0b344912f08f540228a70efcc7cde7fafc1e9aa4c7babc5"
     },
     "database_metadata_json": {
       "path": "results/analysis/database_metadata.json",
-      "size_bytes": 24547,
-      "sha256": "a41e3101144b368af771719833122b0b92a91e46cf3b3863d9ebc7a7acafd2a1"
+      "size_bytes": 24588,
+      "sha256": "7d425a7c18c92b223526464d2898fb3ddadbcc442eca0a25a950e846febc588a"
     },
     "complete_analysis_json": {
       "path": "results/analysis/complete_analysis.json",
-      "size_bytes": 60215,
-      "sha256": "afc7d1976277a4a1b38db9c74e633c7c11ef9e7259017a1cd299a7bfb584cedc"
+      "size_bytes": 60361,
+      "sha256": "d43f1dceaf622ddd08783de0ed0d7ca68aa4764146f357bd610fec7f5ae6a7ea"
     },
     "kegg_release_json": {
       "path": "results/metadata/kegg_release.json",
       "size_bytes": 1136,
       "sha256": "db3245cfa8af01d02ba003d5ca98cb05bdfbc6a595be912405f2d3133eb862dd"
+    },
+    "keys_consistency_json": {
+      "path": "results/metadata/keys_consistency_report.json",
+      "size_bytes": 2875,
+      "sha256": "9b1ff10cf8502c55d4a6e4db685f2a93282808a856c30ab4f3fb8bc661cc2410"
     }
   }
 }

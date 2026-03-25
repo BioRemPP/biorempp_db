@@ -1,6 +1,6 @@
 {
   "overview": {
-    "total_entries": 44494,
+    "total_entries": 123762,
     "unique_compounds": 384,
     "unique_ko_entries": 1543,
     "unique_enzyme_activities": 206,
@@ -10,7 +10,7 @@
     "most_represented_class": "Aromatic",
     "compounds_in_top_class": 123,
     "most_frequent_enzyme": "cytochrome P450",
-    "enzyme_frequency": 13837,
+    "enzyme_frequency": 17729,
     "total_classes": 12
   },
   "coverage": {
