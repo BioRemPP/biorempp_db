@@ -12,34 +12,34 @@ kegg_info <- read_json_file(args[["kegg-info"]])
 kegg_data <- readRDS(args[["kegg-data"]])
 
 normalize_cpd <- function(value) {
-  cleaned <- stringr::str_trim(as.character(value))
+  cleaned <- normalize_na_text(value)
   cleaned <- stringr::str_remove(cleaned, stringr::regex("^cpd\\s*:\\s*", ignore_case = TRUE))
   extracted <- stringr::str_extract(cleaned, stringr::regex("C\\d{5}", ignore_case = TRUE))
-  dplyr::if_else(is.na(extracted), NA_character_, stringr::str_to_upper(extracted))
+  dplyr::if_else(is_na_like(extracted), NA_character_, stringr::str_to_upper(extracted))
 }
 
 normalize_ko <- function(value) {
-  cleaned <- stringr::str_trim(as.character(value))
+  cleaned <- normalize_na_text(value)
   cleaned <- stringr::str_remove(cleaned, stringr::regex("^ko\\s*:\\s*", ignore_case = TRUE))
   extracted <- stringr::str_extract(cleaned, stringr::regex("K\\d{5}", ignore_case = TRUE))
-  dplyr::if_else(is.na(extracted), NA_character_, stringr::str_to_upper(extracted))
+  dplyr::if_else(is_na_like(extracted), NA_character_, stringr::str_to_upper(extracted))
 }
 
 normalize_ec <- function(value) {
-  cleaned <- stringr::str_trim(as.character(value))
+  cleaned <- normalize_na_text(value)
   cleaned <- stringr::str_remove(cleaned, stringr::regex("^ec\\s*:\\s*", ignore_case = TRUE))
-  dplyr::if_else(cleaned == "" | is.na(cleaned), NA_character_, cleaned)
+  normalize_na_text(cleaned)
 }
 
 normalize_reaction <- function(value) {
-  cleaned <- stringr::str_trim(as.character(value))
+  cleaned <- normalize_na_text(value)
   cleaned <- stringr::str_remove(cleaned, stringr::regex("^rn\\s*:\\s*", ignore_case = TRUE))
   extracted <- stringr::str_extract(cleaned, stringr::regex("R\\d{5}", ignore_case = TRUE))
-  dplyr::if_else(is.na(extracted), NA_character_, stringr::str_to_upper(extracted))
+  dplyr::if_else(is_na_like(extracted), NA_character_, stringr::str_to_upper(extracted))
 }
 
 sorted_unique <- function(values) {
-  unique_values <- unique(values[!is.na(values) & values != ""])
+  unique_values <- unique(values[is_present_value(values)])
   sort(unique_values)
 }
 
@@ -98,7 +98,7 @@ compute_completeness <- function(database) {
   completeness <- list()
   for (column_name in colnames(database)) {
     column_values <- database[[column_name]]
-    missing <- is.na(column_values) | trimws(as.character(column_values)) == ""
+    missing <- is_na_like(column_values)
     completeness[[column_name]] <- (1 - sum(missing) / nrow(database)) * 100
   }
   completeness
@@ -140,10 +140,12 @@ build_link_match <- function(database, links) {
 
   pair_summary <- db_norm %>%
     dplyr::mutate(
-      dense = !is.na(ec) & ec != "" & !is.na(reaction) & reaction != "",
-      ec_only = !is.na(ec) & ec != "" & (is.na(reaction) | reaction == ""),
-      reaction_only = (is.na(ec) | ec == "") & !is.na(reaction) & reaction != "",
-      both_na = (is.na(ec) | ec == "") & (is.na(reaction) | reaction == "")
+      has_ec = is_present_value(ec),
+      has_reaction = is_present_value(reaction),
+      dense = has_ec & has_reaction,
+      ec_only = has_ec & !has_reaction,
+      reaction_only = !has_ec & has_reaction,
+      both_na = !has_ec & !has_reaction
     ) %>%
     dplyr::group_by(cpd, ko) %>%
     dplyr::summarise(
@@ -164,11 +166,13 @@ build_link_match <- function(database, links) {
       )
     )
 
+  has_ec <- is_present_value(db_norm$ec)
+  has_reaction <- is_present_value(db_norm$reaction)
   row_shape_counts <- list(
-    dense = as.integer(sum(!is.na(db_norm$ec) & db_norm$ec != "" & !is.na(db_norm$reaction) & db_norm$reaction != "")),
-    ec_only = as.integer(sum(!is.na(db_norm$ec) & db_norm$ec != "" & (is.na(db_norm$reaction) | db_norm$reaction == ""))),
-    reaction_only = as.integer(sum((is.na(db_norm$ec) | db_norm$ec == "") & !is.na(db_norm$reaction) & db_norm$reaction != "")),
-    both_na = as.integer(sum((is.na(db_norm$ec) | db_norm$ec == "") & (is.na(db_norm$reaction) | db_norm$reaction == "")))
+    dense = as.integer(sum(has_ec & has_reaction)),
+    ec_only = as.integer(sum(has_ec & !has_reaction)),
+    reaction_only = as.integer(sum(!has_ec & has_reaction)),
+    both_na = as.integer(sum(!has_ec & !has_reaction))
   )
 
   false_na_pairs <- pair_summary %>%
@@ -189,8 +193,8 @@ build_link_match <- function(database, links) {
 
   row_provenance <- db_norm %>%
     dplyr::mutate(
-      has_ec = !is.na(ec) & ec != "",
-      has_reaction = !is.na(reaction) & reaction != "",
+      has_ec = is_present_value(ec),
+      has_reaction = is_present_value(reaction),
       dense = has_ec & has_reaction,
       cpd_ec_key = paste(cpd, ec, sep = "|"),
       cpd_reaction_key = paste(cpd, reaction, sep = "|"),

@@ -13,8 +13,9 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
+from common_normalization import is_na_like, load_na_markers
 
-NA_MARKERS = {"", "NA", "NAN", "<NA>", "NONE", "NULL"}
+NA_MARKERS = load_na_markers()
 
 PATTERNS = {
     "ko": re.compile(r"(?:ko:)?(K\d{5})", re.IGNORECASE),
@@ -25,11 +26,9 @@ PATTERNS = {
 
 
 def normalize_token(value, token_type):
-    if value is None:
+    if is_na_like(value, NA_MARKERS):
         return None
     text = str(value).strip()
-    if text.upper() in NA_MARKERS:
-        return None
     match = PATTERNS[token_type].search(text)
     if not match:
         return None
@@ -391,19 +390,6 @@ def build_policy_metrics(rows, link_sets, max_examples):
     }
 
 
-def build_sentinel(rows, cpd, ko):
-    subset = [row for row in rows if row["cpd"] == cpd and row["ko"] == ko]
-    return {
-        "cpd": cpd,
-        "ko": ko,
-        "rows": len(subset),
-        "dense_rows": sum(1 for row in subset if row["ec"] is not None and row["reaction"] is not None),
-        "ec_na_rows": sum(1 for row in subset if row["ec"] is None),
-        "reaction_na_rows": sum(1 for row in subset if row["reaction"] is None),
-        "both_na_rows": sum(1 for row in subset if row["ec"] is None and row["reaction"] is None),
-    }
-
-
 def parse_args():
     parser = argparse.ArgumentParser(description="Policy-aware links ground-truth validation against KEGG API.")
     parser.add_argument("--database-csv", required=True)
@@ -478,10 +464,6 @@ def main():
         },
         "pair_level_validation": pair_validation,
         "policy_aware_metrics": policy_metrics,
-        "sentinel_cases": [
-            build_sentinel(db_rows, "C00230", "K20218"),
-            build_sentinel(db_rows, "C00038", "K00001"),
-        ],
     }
 
     output_path = Path(args.output)
