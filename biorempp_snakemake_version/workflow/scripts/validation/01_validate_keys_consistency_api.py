@@ -3,6 +3,8 @@
 import argparse
 import csv
 import json
+import os
+import random
 import re
 import time
 import urllib.error
@@ -37,7 +39,39 @@ def normalize_token(value, token_type):
     return token
 
 
-def fetch_text(base_url, endpoint, max_retries=3, timeout=60):
+def read_int_env(name, default, min_value=1):
+    raw = os.getenv(name, str(default))
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+    return value if value >= min_value else default
+
+
+def read_float_env(name, default, min_value=0.0):
+    raw = os.getenv(name, str(default))
+    try:
+        value = float(raw)
+    except ValueError:
+        return default
+    return value if value >= min_value else default
+
+
+RETRY_MAX = read_int_env("BIOREMPP_API_MAX_RETRIES", 6, min_value=1)
+REQUEST_TIMEOUT = read_int_env("BIOREMPP_API_TIMEOUT_SECONDS", 90, min_value=1)
+BACKOFF_BASE = read_float_env("BIOREMPP_API_BACKOFF_BASE_SECONDS", 1.0, min_value=0.1)
+BACKOFF_MAX = read_float_env("BIOREMPP_API_BACKOFF_MAX_SECONDS", 30.0, min_value=0.1)
+BACKOFF_JITTER = read_float_env("BIOREMPP_API_BACKOFF_JITTER_RATIO", 0.25, min_value=0.0)
+
+
+def compute_backoff_seconds(attempt):
+    exponential = BACKOFF_BASE * (2 ** (attempt - 1))
+    capped = min(BACKOFF_MAX, exponential)
+    jitter_multiplier = random.uniform(1 - BACKOFF_JITTER, 1 + BACKOFF_JITTER)
+    return max(0.1, capped * jitter_multiplier)
+
+
+def fetch_text(base_url, endpoint, max_retries=RETRY_MAX, timeout=REQUEST_TIMEOUT):
     url = base_url.rstrip("/") + "/" + endpoint.lstrip("/")
     last_error = None
     for attempt in range(1, max_retries + 1):
@@ -47,7 +81,12 @@ def fetch_text(base_url, endpoint, max_retries=3, timeout=60):
         except (urllib.error.URLError, TimeoutError) as err:
             last_error = err
             if attempt < max_retries:
-                time.sleep(attempt)
+                sleep_seconds = compute_backoff_seconds(attempt)
+                print(
+                    f"[WARN] Fetch failed for {url} at attempt {attempt}/{max_retries} "
+                    f"({err}). Retrying in {sleep_seconds:.2f}s."
+                )
+                time.sleep(sleep_seconds)
     raise RuntimeError(f"Failed to fetch endpoint after {max_retries} attempts: {url} | {last_error}")
 
 
