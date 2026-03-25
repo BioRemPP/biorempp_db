@@ -7,7 +7,7 @@
   "top_20_enzyme_class_combinations": {
     "compound_classes": ["Polyaromatic", "Polyaromatic", "Aromatic", "Aromatic", "Nitrogen-containing", "Aliphatic", "Chlorinated", "Chlorinated", "Aliphatic", "Chlorinated", "Aromatic", "Aromatic", "Chlorinated", "Nitrogen-containing", "Halogenated", "Chlorinated", "Chlorinated", "Aliphatic", "Aliphatic", "Polyaromatic"],
     "enzymes": ["cytochrome P450", "dioxygenase", "cytochrome P450", "dioxygenase", "cytochrome P450", "cytochrome P450", "cytochrome P450", "S-transferase", "dehydrogenase", "dioxygenase", "monooxygenase", "dehydrogenase", "dehydrogenase", "dioxygenase", "cytochrome P450", "dehalogenase", "isomerase", "S-transferase", "dehalogenase", "dehydrogenase"],
-    "counts": [3615, 3523, 2918, 2700, 2116, 2101, 1643, 1339, 1067, 1061, 909, 584, 541, 540, 510, 504, 499, 480, 424, 419]
+    "counts": [3879, 3481, 2918, 2641, 2196, 2101, 1690, 1339, 1067, 1035, 888, 584, 541, 534, 510, 504, 499, 480, 424, 419]
   },
   "top_10_classes_by_ko_diversity": {
     "compound_classes": ["Nitrogen-containing", "Aliphatic", "Aromatic", "Chlorinated", "Polyaromatic", "Inorganic", "Sulfur-containing", "Metal", "Organophosphorus", "Organometallic"],

@@ -139,8 +139,24 @@ build_ko_complete <- function(links) {
     dplyr::distinct()
 }
 
+build_ko_fallback_dense <- function(links, ko_complete) {
+  complete_kos <- ko_complete %>% dplyr::distinct(ko)
+
+  ko_ec_fallback <- links$ko_ec %>%
+    dplyr::anti_join(complete_kos, by = "ko")
+
+  ko_reaction_fallback <- links$ko_reaction %>%
+    dplyr::anti_join(complete_kos, by = "ko")
+
+  ko_ec_fallback %>%
+    dplyr::inner_join(ko_reaction_fallback, by = "ko", relationship = "many-to-many") %>%
+    dplyr::transmute(ko, ec, reaction) %>%
+    dplyr::distinct()
+}
+
 expand_keys_with_consistent_mapping <- function(key_universe, links) {
   ko_complete <- build_ko_complete(links)
+  ko_fallback_dense <- build_ko_fallback_dense(links, ko_complete)
 
   dense_rows <- key_universe %>%
     dplyr::inner_join(ko_complete, by = "ko", relationship = "many-to-many") %>%
@@ -153,12 +169,23 @@ expand_keys_with_consistent_mapping <- function(key_universe, links) {
   non_dense_keys <- key_universe %>%
     dplyr::anti_join(dense_keys, by = c("cpd", "ko", "referenceAG"))
 
-  ec_rows <- non_dense_keys %>%
+  fallback_dense_rows <- non_dense_keys %>%
+    dplyr::inner_join(ko_fallback_dense, by = "ko", relationship = "many-to-many") %>%
+    dplyr::transmute(cpd, ko, ec, reaction, referenceAG) %>%
+    dplyr::distinct()
+
+  fallback_dense_keys <- fallback_dense_rows %>%
+    dplyr::distinct(cpd, ko, referenceAG)
+
+  residual_keys <- non_dense_keys %>%
+    dplyr::anti_join(fallback_dense_keys, by = c("cpd", "ko", "referenceAG"))
+
+  ec_rows <- residual_keys %>%
     dplyr::inner_join(links$ko_ec, by = "ko", relationship = "many-to-many") %>%
     dplyr::transmute(cpd, ko, ec, reaction = NA_character_, referenceAG) %>%
     dplyr::distinct()
 
-  reaction_rows <- non_dense_keys %>%
+  reaction_rows <- residual_keys %>%
     dplyr::inner_join(links$ko_reaction, by = "ko", relationship = "many-to-many") %>%
     dplyr::transmute(cpd, ko, ec = NA_character_, reaction, referenceAG) %>%
     dplyr::distinct()
@@ -169,7 +196,7 @@ expand_keys_with_consistent_mapping <- function(key_universe, links) {
   ) %>%
     dplyr::distinct()
 
-  unsupported_rows <- non_dense_keys %>%
+  unsupported_rows <- residual_keys %>%
     dplyr::anti_join(partial_supported_keys, by = c("cpd", "ko", "referenceAG")) %>%
     dplyr::mutate(
       ec = NA_character_,
@@ -178,13 +205,15 @@ expand_keys_with_consistent_mapping <- function(key_universe, links) {
     dplyr::select(cpd, ko, ec, reaction, referenceAG) %>%
     dplyr::distinct()
 
-  rows <- dplyr::bind_rows(dense_rows, ec_rows, reaction_rows, unsupported_rows) %>%
+  rows <- dplyr::bind_rows(dense_rows, fallback_dense_rows, ec_rows, reaction_rows, unsupported_rows) %>%
     dplyr::distinct()
 
   list(
     rows = rows,
     ko_complete = ko_complete,
+    ko_fallback_dense = ko_fallback_dense,
     dense_rows = dense_rows,
+    fallback_dense_rows = fallback_dense_rows,
     partial_ec_rows = ec_rows,
     partial_reaction_rows = reaction_rows,
     unsupported_rows = unsupported_rows
@@ -216,13 +245,15 @@ merged_compounds <- add_compound_names(expanded$rows, kegg_data$compound_list)
 
 log_message(
   sprintf(
-    "Universe keys: %d | Direct EC keys: %d | Direct reaction keys: %d | Curated keys: %d | KO complete tuples: %d | Dense rows: %d | Partial EC rows: %d | Partial reaction rows: %d | Unsupported rows: %d | Merged rows: %d",
+    "Universe keys: %d | Direct EC keys: %d | Direct reaction keys: %d | Curated keys: %d | KO complete tuples: %d | KO fallback tuples: %d | Dense rows: %d | Fallback dense rows: %d | Partial EC rows: %d | Partial reaction rows: %d | Unsupported rows: %d | Merged rows: %d",
     nrow(universe$key_universe),
     nrow(universe$direct_ec_keys),
     nrow(universe$direct_reaction_keys),
     nrow(universe$curated_keys),
     nrow(expanded$ko_complete),
+    nrow(expanded$ko_fallback_dense),
     nrow(expanded$dense_rows),
+    nrow(expanded$fallback_dense_rows),
     nrow(expanded$partial_ec_rows),
     nrow(expanded$partial_reaction_rows),
     nrow(expanded$unsupported_rows),
