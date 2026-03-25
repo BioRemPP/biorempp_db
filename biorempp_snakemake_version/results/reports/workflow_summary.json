@@ -3,7 +3,7 @@
     "name": "BioRemPP Snakemake Pipeline",
     "version": "1.0.0",
     "config_file": "config/config.yaml",
-    "generated_at_utc": "2026-03-24T23:51:16Z"
+    "generated_at_utc": "2026-03-25T00:27:41Z"
   },
   "kegg_reference": {
     "source_url": "https://rest.kegg.jp/info/kegg",
@@ -18,7 +18,8 @@
       "reference_ag_join_key": false,
       "replicate_by_reference_ag": true,
       "ko_dense_priority": true,
-      "synthetic_ec_reaction_cartesian": false
+      "synthetic_ec_reaction_cartesian": true,
+      "ko_fallback_pairing_for_non_resolvable": true
     },
     "coverage": {
       "kos": {
@@ -1978,18 +1979,18 @@
       "false_na_pairs_examples": []
     },
     "row_shapes": {
-      "dense": 34928,
-      "ec_only": 3319,
-      "reaction_only": 5931,
+      "dense": 37313,
+      "ec_only": 3076,
+      "reaction_only": 4032,
       "both_na": 73
     },
     "row_provenance": {
-      "direct_compound_supported": 16863,
-      "ko_supported_only": 27315,
+      "direct_compound_supported": 16923,
+      "ko_supported_only": 27498,
       "unsupported": 73
     },
     "consistency_sentinels": {
-      "duplicate_full_rows": 31379,
+      "duplicate_full_rows": 31555,
       "resolvable_pair_count": 2249,
       "mixed_sparse_on_resolvable_pairs": 0,
       "mixed_sparse_on_resolvable_examples": []
@@ -1998,23 +1999,23 @@
   "artifacts": {
     "database_csv": {
       "path": "results/database/biorempp_database_v1.0.0.csv",
-      "size_bytes": 6265546,
-      "sha256": "e27fd7a61a0c5d1e6e2c8890bff0fe6f85be5856ac0d383854edfcc9852e298d"
+      "size_bytes": 6315911,
+      "sha256": "1e35c452c13f7867f9c940e808a4bf27ee74974724ccdab0c802f0b23f58a43b"
     },
     "database_xlsx": {
       "path": "results/database/biorempp_database_v1.0.0.xlsx",
-      "size_bytes": 1717102,
-      "sha256": "575f21e4b102d935e43379f3b6984c4048fc24a75430b11da2ac0af73b8687f0"
+      "size_bytes": 1733245,
+      "sha256": "3718c3d29e8a33768c8273ac78b8d6176d3766761210a00b9e0771cd9b2f900b"
     },
     "database_metadata_json": {
       "path": "results/analysis/database_metadata.json",
-      "size_bytes": 24495,
-      "sha256": "0ac04637f1ce9c1b4f3d8af990e52d6888c51c9a6ddab76d2c4bf5be869ae626"
+      "size_bytes": 24547,
+      "sha256": "a41e3101144b368af771719833122b0b92a91e46cf3b3863d9ebc7a7acafd2a1"
     },
     "complete_analysis_json": {
       "path": "results/analysis/complete_analysis.json",
-      "size_bytes": 60163,
-      "sha256": "05b12b2d343645a15542630389359e5d78696939e46696d51a741c6d82b91c66"
+      "size_bytes": 60215,
+      "sha256": "afc7d1976277a4a1b38db9c74e633c7c11ef9e7259017a1cd299a7bfb584cedc"
     },
     "kegg_release_json": {
       "path": "results/metadata/kegg_release.json",

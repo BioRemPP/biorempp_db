@@ -2,14 +2,14 @@
   "total_unique_enzymes": 206,
   "top_30_enzymes": {
     "enzyme_names": ["cytochrome P450", "dioxygenase", "dehydrogenase", "S-transferase", "monooxygenase", "isomerase", "reductase", "dehalogenase", "oxidase", "nucleotidase", "synthase", "phospholipase", "peroxidase", "carboxylesterase", "lyase", "hydrolase", "decarboxylase", "ligase", "glucuronosyltransferase", "phosphatase", "lipase", "phosphodiesterase", "methyltransferase", "hydroxylase", "demethylase", "cyclase", "sulfotransferase", "hydratase", "peroxiredoxin", "kinase"],
-    "frequencies": [13399, 8183, 3652, 3475, 1752, 1358, 1304, 1005, 692, 610, 507, 402, 385, 362, 294, 293, 284, 283, 260, 247, 215, 208, 189, 184, 180, 171, 165, 162, 158, 151],
+    "frequencies": [13837, 8039, 3652, 3475, 1717, 1358, 1304, 1005, 692, 610, 505, 402, 385, 362, 294, 293, 284, 283, 260, 247, 215, 208, 189, 184, 180, 171, 165, 162, 158, 151],
     "unique_compounds": [35, 88, 106, 13, 74, 18, 53, 31, 28, 3, 33, 4, 30, 12, 23, 26, 23, 12, 6, 10, 8, 4, 16, 13, 6, 4, 23, 8, 8, 16],
     "unique_ko": [36, 74, 165, 7, 83, 16, 91, 5, 53, 5, 102, 14, 9, 4, 29, 31, 21, 17, 1, 43, 13, 3, 15, 13, 28, 35, 12, 8, 10, 28]
   },
   "enzyme_frequency_summary": {
     "min_frequency": 1,
-    "max_frequency": 13399,
-    "mean_frequency": 214.8107,
+    "max_frequency": 13837,
+    "mean_frequency": 215.9903,
     "median_frequency": 14
   }
 }

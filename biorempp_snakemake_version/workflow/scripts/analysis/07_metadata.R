@@ -204,7 +204,7 @@ build_link_match <- function(database, links) {
         TRUE ~ FALSE
       ),
       is_ko_supported = dplyr::case_when(
-        dense ~ ko_complete_key %in% ko_complete_keys,
+        dense ~ (ko_complete_key %in% ko_complete_keys) | ((ko_ec_key %in% ko_ec_keys) & (ko_reaction_key %in% ko_reaction_keys)),
         has_ec ~ ko_ec_key %in% ko_ec_keys,
         has_reaction ~ ko_reaction_key %in% ko_reaction_keys,
         TRUE ~ ko %in% ko_supported
@@ -248,7 +248,8 @@ build_link_match <- function(database, links) {
       reference_ag_join_key = FALSE,
       replicate_by_reference_ag = TRUE,
       ko_dense_priority = TRUE,
-      synthetic_ec_reaction_cartesian = FALSE
+      synthetic_ec_reaction_cartesian = TRUE,
+      ko_fallback_pairing_for_non_resolvable = TRUE
     ),
     coverage = list(
       kos = list(

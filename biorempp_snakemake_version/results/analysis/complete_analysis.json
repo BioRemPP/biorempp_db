@@ -3,7 +3,7 @@
     "database_info": {
       "name": "BioRemPP Database",
       "version": "1.0.0",
-      "generation_date": "2026-03-24",
+      "generation_date": "2026-03-25",
       "description": "Comprehensive biological remediation database integrating KEGG data, environmental agency compound lists, manual curations, and enzyme classifications"
     },
     "data_sources": {
@@ -108,8 +108,8 @@
         "cpd": 100,
         "compoundclass": 100,
         "ko": 100,
-        "ec": 86.4319,
-        "reaction": 92.3346,
+        "ec": 90.774,
+        "reaction": 92.9226,
         "referenceAG": 100,
         "compoundname": 100,
         "genesymbol": 100,
@@ -124,7 +124,8 @@
         "reference_ag_join_key": false,
         "replicate_by_reference_ag": true,
         "ko_dense_priority": true,
-        "synthetic_ec_reaction_cartesian": false
+        "synthetic_ec_reaction_cartesian": true,
+        "ko_fallback_pairing_for_non_resolvable": true
       },
       "coverage": {
         "kos": {
@@ -2084,18 +2085,18 @@
         "false_na_pairs_examples": []
       },
       "row_shapes": {
-        "dense": 34928,
-        "ec_only": 3319,
-        "reaction_only": 5931,
+        "dense": 37313,
+        "ec_only": 3076,
+        "reaction_only": 4032,
         "both_na": 73
       },
       "row_provenance": {
-        "direct_compound_supported": 16863,
-        "ko_supported_only": 27315,
+        "direct_compound_supported": 16923,
+        "ko_supported_only": 27498,
         "unsupported": 73
       },
       "consistency_sentinels": {
-        "duplicate_full_rows": 31379,
+        "duplicate_full_rows": 31555,
         "resolvable_pair_count": 2249,
         "mixed_sparse_on_resolvable_pairs": 0,
         "mixed_sparse_on_resolvable_examples": []
@@ -2103,7 +2104,7 @@
     }
   },
   "basic_stats": {
-    "total_entries": 44251,
+    "total_entries": 44494,
     "total_columns": 10,
     "column_names": [
       "cpd",
@@ -2208,15 +2209,15 @@
         "Cypermethrin"
       ],
       "frequencies": [
-        3636,
-        1624,
+        3624,
+        1848,
         1602,
-        1596,
-        1260,
-        1162,
-        993,
+        1590,
+        1251,
+        1160,
+        990,
         906,
-        850,
+        840,
         834,
         816,
         714,
@@ -2248,20 +2249,20 @@
         "K14580",
         "K04097",
         "K14578",
-        "K14581",
         "K23790",
         "K00799",
         "K13299",
+        "K14581",
         "K07413",
         "K07415",
         "K07410",
         "K07418",
         "K07412",
+        "K17719",
         "K07424",
         "K01563",
         "K17690",
-        "K17718",
-        "K17712"
+        "K17718"
       ],
       "frequencies": [
         1806,
@@ -2270,20 +2271,20 @@
         1372,
         1210,
         1184,
-        1156,
         1122,
         1100,
         1092,
+        1088,
         1032,
         990,
         946,
         946,
         774,
+        648,
         602,
         595,
         576,
-        576,
-        448
+        576
       ],
       "unique_compounds_per_ko": [
         24,
@@ -2292,18 +2293,18 @@
         26,
         13,
         17,
-        16,
         12,
         11,
         12,
+        16,
         24,
         10,
         24,
         24,
         24,
+        3,
         24,
         17,
-        19,
         19,
         19
       ]
@@ -2311,7 +2312,7 @@
     "ko_frequency_summary": {
       "min_frequency": 1,
       "max_frequency": 1806,
-      "mean_frequency": 28.6785,
+      "mean_frequency": 28.836,
       "median_frequency": 4
     },
     "compounds_per_ko_summary": {
@@ -2357,17 +2358,17 @@
         "kinase"
       ],
       "frequencies": [
-        13399,
-        8183,
+        13837,
+        8039,
         3652,
         3475,
-        1752,
+        1717,
         1358,
         1304,
         1005,
         692,
         610,
-        507,
+        505,
         402,
         385,
         362,
@@ -2455,8 +2456,8 @@
     },
     "enzyme_frequency_summary": {
       "min_frequency": 1,
-      "max_frequency": 13399,
-      "mean_frequency": 214.8107,
+      "max_frequency": 13837,
+      "mean_frequency": 215.9903,
       "median_frequency": 14
     }
   },
@@ -2471,20 +2472,20 @@
         "nahAd",
         "HPGDS",
         "nahAb",
-        "nahAa",
         "GSTP",
         "GST",
         "GSTK1",
+        "nahAa",
         "CYP2C",
         "CYP2E1",
         "CYP1B1",
         "CYP2J",
         "CYP2B",
+        "CYP2C9",
         "CYP3A",
         "dhaA",
         "CYP2C8",
-        "CYP3A5",
-        "CYP2D6"
+        "CYP3A5"
       ],
       "frequencies": [
         1806,
@@ -2493,20 +2494,20 @@
         1372,
         1210,
         1184,
-        1156,
         1122,
         1100,
         1092,
+        1088,
         1032,
         990,
         946,
         946,
         774,
+        648,
         602,
         595,
         576,
-        576,
-        448
+        576
       ]
     },
     "top_20_genenames": {
@@ -2517,20 +2518,20 @@
         "naphthalene 1,2-dioxygenase subunit beta",
         "prostaglandin-H2 D-isomerase / glutathione transferase",
         "naphthalene 1,2-dioxygenase ferredoxin component",
-        "naphthalene 1,2-dioxygenase ferredoxin reductase component",
         "glutathione S-transferase P",
         "glutathione S-transferase",
         "glutathione S-transferase kappa 1",
+        "naphthalene 1,2-dioxygenase ferredoxin reductase component",
         "cytochrome P450 family 2 subfamily C",
         "cytochrome P450 family 2 subfamily E1",
         "cytochrome P450 family 1 subfamily B1",
         "cytochrome P450 family 2 subfamily J",
         "cytochrome P450 family 2 subfamily B",
+        "cytochrome P450 family 2 subfamily C9",
         "cytochrome P450 family 3 subfamily A",
         "haloalkane dehalogenase",
         "cytochrome P450 family 2 subfamily C8",
-        "cytochrome P450 family 3 subfamily A5",
-        "cytochrome P450 family 2 subfamily D6"
+        "cytochrome P450 family 3 subfamily A5"
       ],
       "frequencies": [
         1806,
@@ -2539,20 +2540,20 @@
         1372,
         1210,
         1184,
-        1156,
         1122,
         1100,
         1092,
+        1088,
         1032,
         990,
         946,
         946,
         774,
+        648,
         602,
         595,
         576,
-        576,
-        448
+        576
       ]
     }
   },
@@ -2671,20 +2672,20 @@
         "dehydrogenase"
       ],
       "counts": [
-        3615,
-        3523,
+        3879,
+        3481,
         2918,
-        2700,
-        2116,
+        2641,
+        2196,
         2101,
-        1643,
+        1690,
         1339,
         1067,
-        1061,
-        909,
+        1035,
+        888,
         584,
         541,
-        540,
+        534,
         510,
         504,
         499,
@@ -2722,7 +2723,7 @@
   },
   "executive_summary": {
     "overview": {
-      "total_entries": 44251,
+      "total_entries": 44494,
       "unique_compounds": 384,
       "unique_ko_entries": 1543,
       "unique_enzyme_activities": 206,
@@ -2732,7 +2733,7 @@
       "most_represented_class": "Aromatic",
       "compounds_in_top_class": 123,
       "most_frequent_enzyme": "cytochrome P450",
-      "enzyme_frequency": 13399,
+      "enzyme_frequency": 13837,
       "total_classes": 12
     },
     "coverage": {
