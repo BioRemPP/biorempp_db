@@ -3,7 +3,7 @@
     "name": "BioRemPP Snakemake Pipeline",
     "version": "1.0.0",
     "config_file": "config/config.yaml",
-    "generated_at_utc": "2026-03-25T00:50:44Z"
+    "generated_at_utc": "2026-03-25T01:11:23Z"
   },
   "kegg_reference": {
     "source_url": "https://rest.kegg.jp/info/kegg",
@@ -24,6 +24,12 @@
       "reaction_na_rows": 2150,
       "both_na_rows": 73
     }
+  },
+  "links_groundtruth_policy": {
+    "dense_total": 120651,
+    "strict5_rate_percent": 2.4168883805355943,
+    "policy_union_rate_percent": 100.0,
+    "no_policy_support": 0
   },
   "link_match": {
     "policy": {
@@ -2041,6 +2047,11 @@
       "path": "results/metadata/keys_consistency_report.json",
       "size_bytes": 2875,
       "sha256": "9b1ff10cf8502c55d4a6e4db685f2a93282808a856c30ab4f3fb8bc661cc2410"
+    },
+    "links_groundtruth_policy_json": {
+      "path": "results/metadata/links_groundtruth_policy_report.json",
+      "size_bytes": 227954,
+      "sha256": "d78d4b5a24b875c98a906954039cde838a93adaff63710e2feba890cc47ffd33"
     }
   }
 }
