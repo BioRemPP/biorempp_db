@@ -11,8 +11,42 @@ require_cli_args(args, c("output", "config", "base-url"))
 output_file <- args[["output"]]
 base_url <- sub("/$", "", args[["base-url"]])
 
-fetch_endpoint_raw <- function(endpoint, sep = "\t", max_retries = 3) {
+read_int_env <- function(name, default) {
+  raw <- Sys.getenv(name, as.character(default))
+  value <- suppressWarnings(as.integer(raw))
+  if (is.na(value) || value < 1) {
+    return(default)
+  }
+  value
+}
+
+read_num_env <- function(name, default, min_value = 0) {
+  raw <- Sys.getenv(name, as.character(default))
+  value <- suppressWarnings(as.numeric(raw))
+  if (is.na(value) || value < min_value) {
+    return(default)
+  }
+  value
+}
+
+compute_backoff_seconds <- function(attempt, base_seconds, max_seconds, jitter_ratio) {
+  exponential <- base_seconds * (2^(attempt - 1))
+  capped <- min(max_seconds, exponential)
+  jitter <- stats::runif(1, min = 1 - jitter_ratio, max = 1 + jitter_ratio)
+  max(0.1, capped * jitter)
+}
+
+RETRY_MAX <- read_int_env("BIOREMPP_API_MAX_RETRIES", 6)
+REQUEST_TIMEOUT <- read_int_env("BIOREMPP_API_TIMEOUT_SECONDS", 90)
+BACKOFF_BASE <- read_num_env("BIOREMPP_API_BACKOFF_BASE_SECONDS", 1.0)
+BACKOFF_MAX <- read_num_env("BIOREMPP_API_BACKOFF_MAX_SECONDS", 30.0)
+BACKOFF_JITTER <- read_num_env("BIOREMPP_API_BACKOFF_JITTER_RATIO", 0.25)
+
+fetch_endpoint_raw <- function(endpoint, sep = "\t", max_retries = RETRY_MAX) {
   url <- paste0(base_url, "/", endpoint)
+  previous_timeout <- getOption("timeout")
+  options(timeout = REQUEST_TIMEOUT)
+  on.exit(options(timeout = previous_timeout), add = TRUE)
 
   for (attempt in seq_len(max_retries)) {
     result <- tryCatch(
@@ -31,7 +65,24 @@ fetch_endpoint_raw <- function(endpoint, sep = "\t", max_retries = 3) {
         if (attempt == max_retries) {
           stop(sprintf("Failed to fetch %s after %d attempts: %s", endpoint, max_retries, e$message), call. = FALSE)
         }
-        Sys.sleep(attempt)
+        sleep_seconds <- compute_backoff_seconds(
+          attempt = attempt,
+          base_seconds = BACKOFF_BASE,
+          max_seconds = BACKOFF_MAX,
+          jitter_ratio = BACKOFF_JITTER
+        )
+        log_message(
+          sprintf(
+            "Fetch failed for %s at attempt %d/%d (%s). Retrying in %.2f seconds.",
+            endpoint,
+            attempt,
+            max_retries,
+            e$message,
+            sleep_seconds
+          ),
+          "WARN"
+        )
+        Sys.sleep(sleep_seconds)
         NULL
       }
     )
