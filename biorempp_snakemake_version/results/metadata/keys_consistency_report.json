@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-03-25T11:06:55Z",
+  "generated_at_utc": "2026-03-25T11:32:31Z",
   "input": {
     "database_csv": "biorempp_snakemake_version/results/database/biorempp_database_v1.0.0.csv",
     "config_file": "biorempp_snakemake_version/config/config.yaml"
@@ -73,27 +73,5 @@
     },
     "all_remaining_na_justified": true,
     "incorrect_examples_limited": []
-  },
-  "sentinel_cases": [
-    {
-      "cpd": "C00230",
-      "ko": "K20218",
-      "rows": 136,
-      "ec_na_rows": 0,
-      "reaction_na_rows": 0,
-      "both_na_rows": 0,
-      "unique_ec_count": 17,
-      "unique_reaction_count": 2
-    },
-    {
-      "cpd": "C00038",
-      "ko": "K00001",
-      "rows": 26,
-      "ec_na_rows": 0,
-      "reaction_na_rows": 0,
-      "both_na_rows": 0,
-      "unique_ec_count": 1,
-      "unique_reaction_count": 13
-    }
-  ]
+  }
 }
