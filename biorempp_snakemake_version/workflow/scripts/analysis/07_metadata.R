@@ -249,7 +249,8 @@ build_link_match <- function(database, links) {
       replicate_by_reference_ag = TRUE,
       ko_dense_priority = TRUE,
       synthetic_ec_reaction_cartesian = TRUE,
-      ko_fallback_pairing_for_non_resolvable = TRUE
+      ko_fallback_pairing_for_non_resolvable = TRUE,
+      compound_bridge_fallback = TRUE
     ),
     coverage = list(
       kos = list(
