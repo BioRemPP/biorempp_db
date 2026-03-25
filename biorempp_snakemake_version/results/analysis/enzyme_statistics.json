@@ -1,15 +1,15 @@
 {
   "total_unique_enzymes": 206,
   "top_30_enzymes": {
-    "enzyme_names": ["cytochrome P450", "dioxygenase", "dehydrogenase", "S-transferase", "monooxygenase", "isomerase", "reductase", "dehalogenase", "oxidase", "nucleotidase", "synthase", "phospholipase", "peroxidase", "carboxylesterase", "lyase", "hydrolase", "decarboxylase", "ligase", "glucuronosyltransferase", "phosphatase", "lipase", "phosphodiesterase", "methyltransferase", "hydroxylase", "demethylase", "cyclase", "sulfotransferase", "hydratase", "peroxiredoxin", "kinase"],
-    "frequencies": [13837, 8039, 3652, 3475, 1717, 1358, 1304, 1005, 692, 610, 505, 402, 385, 362, 294, 293, 284, 283, 260, 247, 215, 208, 189, 184, 180, 171, 165, 162, 158, 151],
-    "unique_compounds": [35, 88, 106, 13, 74, 18, 53, 31, 28, 3, 33, 4, 30, 12, 23, 26, 23, 12, 6, 10, 8, 4, 16, 13, 6, 4, 23, 8, 8, 16],
-    "unique_ko": [36, 74, 165, 7, 83, 16, 91, 5, 53, 5, 102, 14, 9, 4, 29, 31, 21, 17, 1, 43, 13, 3, 15, 13, 28, 35, 12, 8, 10, 28]
+    "enzyme_names": ["cytochrome P450", "dioxygenase", "hydrolase", "dehydrogenase", "reductase", "demethylase", "oxidase", "transglutaminase", "monooxygenase", "S-transferase", "lyase", "deaminase", "synthase", "ammonia-lyase", "cyclotransferase", "deiminase", "gamma-glutamyltransferase", "cyclodeaminase", "chemotaxis", "mimosinase", "isomerase", "hydroxylase", "nitrogenase", "dehalogenase", "peroxidase", "amidase", "lysophospholipase", "amidohydrolase", "aminohydrolase", "arylacetonitrilase"],
+    "frequencies": [17729, 11414, 7818, 7029, 6314, 6273, 5852, 5824, 4438, 3922, 3583, 3136, 2541, 2524, 1666, 1664, 1664, 1656, 1655, 1652, 1358, 1196, 1118, 1109, 999, 943, 906, 841, 828, 826],
+    "unique_compounds": [35, 88, 26, 106, 53, 6, 28, 2, 74, 13, 23, 7, 33, 3, 4, 1, 2, 1, 2, 1, 18, 13, 3, 31, 30, 8, 3, 2, 1, 1],
+    "unique_ko": [36, 74, 31, 165, 91, 28, 53, 7, 83, 7, 29, 32, 102, 18, 2, 8, 2, 4, 3, 2, 16, 13, 8, 5, 9, 11, 7, 7, 2, 1]
   },
   "enzyme_frequency_summary": {
     "min_frequency": 1,
-    "max_frequency": 13837,
-    "mean_frequency": 215.9903,
-    "median_frequency": 14
+    "max_frequency": 17729,
+    "mean_frequency": 600.7864,
+    "median_frequency": 27
   }
 }

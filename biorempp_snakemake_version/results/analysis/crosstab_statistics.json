@@ -5,9 +5,9 @@
     "compound_counts": [73, 58, 56, 54, 45, 40, 37, 36, 36, 36, 33, 32, 32, 30, 30, 28, 28, 28, 25, 25]
   },
   "top_20_enzyme_class_combinations": {
-    "compound_classes": ["Polyaromatic", "Polyaromatic", "Aromatic", "Aromatic", "Nitrogen-containing", "Aliphatic", "Chlorinated", "Chlorinated", "Aliphatic", "Chlorinated", "Aromatic", "Aromatic", "Chlorinated", "Nitrogen-containing", "Halogenated", "Chlorinated", "Chlorinated", "Aliphatic", "Aliphatic", "Polyaromatic"],
-    "enzymes": ["cytochrome P450", "dioxygenase", "cytochrome P450", "dioxygenase", "cytochrome P450", "cytochrome P450", "cytochrome P450", "S-transferase", "dehydrogenase", "dioxygenase", "monooxygenase", "dehydrogenase", "dehydrogenase", "dioxygenase", "cytochrome P450", "dehalogenase", "isomerase", "S-transferase", "dehalogenase", "dehydrogenase"],
-    "counts": [3879, 3481, 2918, 2641, 2196, 2101, 1690, 1339, 1067, 1035, 888, 584, 541, 534, 510, 504, 499, 480, 424, 419]
+    "compound_classes": ["Nitrogen-containing", "Aliphatic", "Nitrogen-containing", "Nitrogen-containing", "Aliphatic", "Nitrogen-containing", "Polyaromatic", "Nitrogen-containing", "Nitrogen-containing", "Nitrogen-containing", "Aromatic", "Aromatic", "Polyaromatic", "Nitrogen-containing", "Nitrogen-containing", "Nitrogen-containing", "Chlorinated", "Aliphatic", "Aliphatic", "Nitrogen-containing"],
+    "enzymes": ["hydrolase", "demethylase", "transglutaminase", "oxidase", "cytochrome P450", "reductase", "cytochrome P450", "dioxygenase", "lyase", "deaminase", "dioxygenase", "cytochrome P450", "dioxygenase", "dehydrogenase", "ammonia-lyase", "cytochrome P450", "cytochrome P450", "dehydrogenase", "monooxygenase", "synthase"],
+    "counts": [7422, 6045, 5782, 5388, 5180, 5126, 4107, 3769, 3365, 3112, 3003, 2994, 2844, 2723, 2517, 2262, 2129, 1976, 1774, 1697]
   },
   "top_10_classes_by_ko_diversity": {
     "compound_classes": ["Nitrogen-containing", "Aliphatic", "Aromatic", "Chlorinated", "Polyaromatic", "Inorganic", "Sulfur-containing", "Metal", "Organophosphorus", "Organometallic"],
