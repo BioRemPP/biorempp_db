@@ -31,6 +31,7 @@ def main() -> None:
     parser.add_argument("--complete-json", required=True)
     parser.add_argument("--kegg-json", required=True)
     parser.add_argument("--keys-consistency-json", required=True)
+    parser.add_argument("--links-groundtruth-policy-json", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--version", required=True)
     parser.add_argument("--config", required=True)
@@ -46,6 +47,7 @@ def main() -> None:
         "complete_analysis_json": Path(args.complete_json),
         "kegg_release_json": Path(args.kegg_json),
         "keys_consistency_json": Path(args.keys_consistency_json),
+        "links_groundtruth_policy_json": Path(args.links_groundtruth_policy_json),
     }
 
     for file_path in files.values():
@@ -58,6 +60,10 @@ def main() -> None:
         metadata_info = json.load(handle)
     with Path(args.keys_consistency_json).open("r", encoding="utf-8") as handle:
         keys_consistency_info = json.load(handle)
+    with Path(args.links_groundtruth_policy_json).open("r", encoding="utf-8") as handle:
+        links_groundtruth_policy_info = json.load(handle)
+
+    policy_metrics = links_groundtruth_policy_info.get("policy_aware_metrics", {})
 
     summary = {
         "pipeline": {
@@ -78,6 +84,12 @@ def main() -> None:
             ),
             "classification_counts": keys_consistency_info.get("results", {}).get("classification_counts", {}),
             "totals": keys_consistency_info.get("results", {}).get("totals", {}),
+        },
+        "links_groundtruth_policy": {
+            "dense_total": policy_metrics.get("dense_total"),
+            "strict5_rate_percent": policy_metrics.get("strict5_rate_percent"),
+            "policy_union_rate_percent": policy_metrics.get("policy_union_rate_percent"),
+            "no_policy_support": policy_metrics.get("no_policy_support"),
         },
         "link_match": metadata_info.get("link_match", {}),
         "artifacts": {name: file_info(path) for name, path in files.items()},
