@@ -2,8 +2,8 @@
   "metadata": {
     "database_info": {
       "name": "BioRemPP Database",
-      "version": "1.0.0",
-      "generation_date": "2026-03-25",
+      "version": "1.1.0",
+      "generation_date": "2026-03-27",
       "description": "Comprehensive biological remediation database integrating KEGG data, environmental agency compound lists, manual curations, and enzyme classifications"
     },
     "data_sources": {
@@ -2130,6 +2130,8 @@
       "cpd": 0,
       "compoundclass": 0,
       "ko": 0,
+      "ec": 961,
+      "reaction": 2223,
       "referenceAG": 0,
       "compoundname": 0,
       "genesymbol": 0,
