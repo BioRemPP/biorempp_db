@@ -1,8 +1,9 @@
 {
-  "generated_at_utc": "2026-03-25T11:32:31Z",
+  "generated_at_utc": "2026-03-27T13:43:46Z",
   "input": {
-    "database_csv": "biorempp_snakemake_version/results/database/biorempp_database_v1.0.0.csv",
-    "config_file": "biorempp_snakemake_version/config/config.yaml"
+    "database_csv": "results/database/biorempp_database_v1.1.0.csv",
+    "csv_delimiter": ";",
+    "config_file": "config/config.yaml"
   },
   "kegg_api": {
     "base_url": "https://rest.kegg.jp",
@@ -16,15 +17,15 @@
   },
   "api_parse_stats": {
     "ko_ec": {
-      "total_lines": 9998,
-      "parsed_pairs": 9998,
-      "swapped_orientation_lines": 9998,
+      "total_lines": 10003,
+      "parsed_pairs": 10003,
+      "swapped_orientation_lines": 10003,
       "invalid_lines": 0
     },
     "ko_reaction": {
-      "total_lines": 12209,
-      "parsed_pairs": 12209,
-      "swapped_orientation_lines": 12209,
+      "total_lines": 12212,
+      "parsed_pairs": 12212,
+      "swapped_orientation_lines": 12212,
       "invalid_lines": 0
     },
     "cpd_ec": {
