@@ -25,7 +25,12 @@ def build_analysis_critical_df(
     complete = analysis_payloads["complete_analysis"]
 
     missing_values = basic.get("missing_values", {})
-    all_missing_zero = all(float(value) == 0 for value in missing_values.values()) if missing_values else False
+    optional_na_columns = {"ec", "reaction"}
+    all_missing_zero = (
+        all(float(value) == 0 for key, value in missing_values.items() if key not in optional_na_columns)
+        if missing_values
+        else False
+    )
 
     row = {
         "basic_required_keys_present": _has_keys(

@@ -6,12 +6,14 @@ source("workflow/lib/io_contracts.R")
 load_required_packages(c("dplyr", "stringr", "writexl"))
 
 args <- parse_cli_args()
-require_cli_args(args, c("enriched-data", "local-data", "output-csv", "output-xlsx", "config"))
+require_cli_args(args, c("enriched-data", "local-data", "output-csv", "output-xlsx", "csv-sep", "csv-quote", "config"))
 
 enriched_data <- readRDS(args[["enriched-data"]])
 local_data <- readRDS(args[["local-data"]])
 output_csv <- args[["output-csv"]]
 output_xlsx <- args[["output-xlsx"]]
+csv_sep <- args[["csv-sep"]]
+csv_quote <- tolower(args[["csv-quote"]]) %in% c("1", "true", "yes", "y")
 
 build_enzyme_pattern <- function(enzyme_terms) {
   escaped_terms <- gsub("([\\^$.|?*+(){}\\[\\]\\\\])", "\\\\\\1", enzyme_terms, perl = TRUE)
@@ -32,7 +34,7 @@ final_database <- enriched_data %>%
 
 ensure_parent_dir(output_csv)
 ensure_parent_dir(output_xlsx)
-write.csv(final_database, output_csv, row.names = FALSE)
+write_database_csv(final_database, output_csv, sep = csv_sep, quote = csv_quote)
 
 writexl::write_xlsx(final_database, output_xlsx)
 

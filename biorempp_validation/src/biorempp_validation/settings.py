@@ -14,6 +14,7 @@ class ValidationSettings:
     fail_on_warning: bool
     generate_data_docs: bool
     strict_exact: bool
+    csv_delimiter: str
     input_results_root: Path
     output_dir: Path
     expectations_dir: Path
@@ -43,13 +44,15 @@ def load_settings(config_path: str | Path) -> ValidationSettings:
     paths = cfg["paths"]
     policy = cfg["policy"]
     db_contract = cfg["database_contract"]
+    csv_cfg = cfg.get("csv", {})
 
     return ValidationSettings(
-        version=str(cfg.get("version", "1.0.0")),
+        version=str(cfg.get("version", "1.1.0")),
         fail_on_critical=bool(policy.get("fail_on_critical", True)),
         fail_on_warning=bool(policy.get("fail_on_warning", False)),
         generate_data_docs=bool(policy.get("generate_data_docs", True)),
         strict_exact=bool(cfg.get("strict_exact", False)),
+        csv_delimiter=str(csv_cfg.get("delimiter", ",")),
         input_results_root=_resolve_from_project_root(project_root, paths["input_results_root"]),
         output_dir=_resolve_from_project_root(project_root, paths["output_dir"]),
         expectations_dir=_resolve_from_project_root(project_root, paths["expectations_dir"]),

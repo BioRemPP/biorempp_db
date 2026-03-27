@@ -5,9 +5,9 @@ source("workflow/lib/utils.R")
 load_required_packages(c("dplyr", "jsonlite"))
 
 args <- parse_cli_args()
-require_cli_args(args, c("input-csv", "output", "config"))
+require_cli_args(args, c("input-csv", "csv-sep", "output", "config"))
 
-db <- read.csv(args[["input-csv"]], stringsAsFactors = FALSE)
+db <- read_database_csv(args[["input-csv"]], sep = args[["csv-sep"]])
 
 class_agency_crosstab <- db %>%
   dplyr::group_by(compoundclass, referenceAG) %>%

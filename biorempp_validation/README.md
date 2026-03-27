@@ -3,7 +3,7 @@
 This project provides a standalone validation layer for BioRemPP outputs using Great Expectations.
 
 It validates:
-- Final database CSV contract (`v1.0.0`)
+- Final database CSV contract (`v1.1.0`, delimiter `;`)
 - Analysis JSON artifacts
 - KEGG release traceability metadata
 
@@ -70,9 +70,10 @@ Important:
 - This path is resolved relative to `biorempp_validation/` project root.
 - It does **not** read from `input_data/`.
 - This keeps behavior consistent with the Snakemake pipeline outputs.
+- CSV delimiter is configured in `config/validation.yaml` (`csv.delimiter`, default `;`).
 
 Expected files under that results root:
-- `database/biorempp_database_v1.0.0.csv`
+- `database/biorempp_database_v1.1.0.csv`
 - `analysis/basic_statistics.json`
 - `analysis/compound_statistics.json`
 - `analysis/ko_statistics.json`

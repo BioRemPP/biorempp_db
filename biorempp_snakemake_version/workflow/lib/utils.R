@@ -111,3 +111,29 @@ normalize_na_text <- function(values, na_markers = NA_MARKERS) {
   text[is_na_like(values, na_markers = na_markers)] <- NA_character_
   text
 }
+
+read_database_csv <- function(path, sep = ",") {
+  read.csv(
+    file = path,
+    stringsAsFactors = FALSE,
+    sep = sep,
+    quote = "\"",
+    check.names = FALSE,
+    na.strings = c("NA", "<NA>", "")
+  )
+}
+
+write_database_csv <- function(dataframe, path, sep = ",", quote = TRUE) {
+  ensure_parent_dir(path)
+  write.table(
+    x = dataframe,
+    file = path,
+    sep = sep,
+    quote = quote,
+    qmethod = "double",
+    row.names = FALSE,
+    col.names = TRUE,
+    na = "NA",
+    fileEncoding = "UTF-8"
+  )
+}

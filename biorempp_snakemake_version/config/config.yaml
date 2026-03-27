@@ -1,4 +1,4 @@
-version: "1.0.0"
+version: "1.1.0"
 
 paths:
   input_dir: "../input_data"
@@ -7,8 +7,10 @@ paths:
   logs_dir: "logs"
 
 outputs:
-  database_csv: "biorempp_database_v1.0.0.csv"
-  database_xlsx: "biorempp_database_v1.0.0.xlsx"
+  database_csv: "biorempp_database_v1.1.0.csv"
+  database_xlsx: "biorempp_database_v1.1.0.xlsx"
+  database_csv_delimiter: ";"
+  database_csv_quote: true
 
 kegg:
   base_url: "https://rest.kegg.jp"

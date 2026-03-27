@@ -1,4 +1,4 @@
-version: "1.0.0"
+version: "1.1.0"
 
 policy:
   fail_on_critical: true
@@ -6,6 +6,9 @@ policy:
   generate_data_docs: true
 
 strict_exact: true
+
+csv:
+  delimiter: ";"
 
 paths:
   # Relative to biorempp_validation/ project root.
@@ -15,7 +18,7 @@ paths:
   checkpoints_dir: great_expectations/checkpoints
 
 required_files:
-  - database/biorempp_database_v1.0.0.csv
+  - database/biorempp_database_v1.1.0.csv
   - analysis/basic_statistics.json
   - analysis/compound_statistics.json
   - analysis/ko_statistics.json
@@ -32,6 +35,8 @@ database_contract:
     - cpd
     - compoundclass
     - ko
+    - ec
+    - reaction
     - referenceAG
     - compoundname
     - genesymbol

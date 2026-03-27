@@ -139,10 +139,10 @@ def parse_link_payload(payload, left_type, right_type):
     return pairs, stats
 
 
-def load_database_rows(csv_path):
+def load_database_rows(csv_path, csv_delimiter):
     rows = []
     with open(csv_path, "r", encoding="utf-8", newline="") as handle:
-        reader = csv.DictReader(handle)
+        reader = csv.DictReader(handle, delimiter=csv_delimiter)
         required = {"cpd", "ko", "ec", "reaction"}
         missing = [col for col in required if col not in reader.fieldnames]
         if missing:
@@ -393,6 +393,7 @@ def build_policy_metrics(rows, link_sets, max_examples):
 def parse_args():
     parser = argparse.ArgumentParser(description="Policy-aware links ground-truth validation against KEGG API.")
     parser.add_argument("--database-csv", required=True)
+    parser.add_argument("--csv-delimiter", required=True)
     parser.add_argument("--base-url", required=True)
     parser.add_argument("--ko-ec-endpoint", required=True)
     parser.add_argument("--ko-reaction-endpoint", required=True)
@@ -408,7 +409,7 @@ def parse_args():
 def main():
     args = parse_args()
 
-    db_rows = load_database_rows(args.database_csv)
+    db_rows = load_database_rows(args.database_csv, args.csv_delimiter)
 
     ko_ec_payload, ko_ec_url = fetch_text(args.base_url, args.ko_ec_endpoint)
     ko_reaction_payload, ko_reaction_url = fetch_text(args.base_url, args.ko_reaction_endpoint)
@@ -437,6 +438,7 @@ def main():
         "generated_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "input": {
             "database_csv": args.database_csv,
+            "csv_delimiter": args.csv_delimiter,
             "config_file": args.config,
         },
         "kegg_api": {

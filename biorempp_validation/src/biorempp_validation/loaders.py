@@ -20,8 +20,8 @@ def load_json(path: Path) -> dict[str, Any]:
         return json.load(handle)
 
 
-def load_database_csv(path: Path) -> pd.DataFrame:
-    return pd.read_csv(path)
+def load_database_csv(path: Path, sep: str = ",") -> pd.DataFrame:
+    return pd.read_csv(path, sep=sep)
 
 
 def load_analysis_payloads(results_root: Path) -> dict[str, dict[str, Any]]:
