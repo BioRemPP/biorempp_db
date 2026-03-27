@@ -5,9 +5,9 @@ source("workflow/lib/utils.R")
 load_required_packages(c("dplyr", "jsonlite"))
 
 args <- parse_cli_args()
-require_cli_args(args, c("input-csv", "output", "top-n", "config"))
+require_cli_args(args, c("input-csv", "csv-sep", "output", "top-n", "config"))
 
-db <- read.csv(args[["input-csv"]], stringsAsFactors = FALSE)
+db <- read_database_csv(args[["input-csv"]], sep = args[["csv-sep"]])
 top_n <- as.integer(args[["top-n"]])
 
 ko_frequency <- db %>%

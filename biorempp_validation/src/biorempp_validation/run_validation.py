@@ -53,6 +53,7 @@ def _apply_config_overrides_to_suite_payloads(
 ) -> None:
     db_critical = suite_payloads["database_critical"]
     db_warning = suite_payloads["database_warning"]
+    analysis_critical = suite_payloads["analysis_json_critical"]
     analysis_warning = suite_payloads["analysis_json_warning"]
     expected_reference_agencies = list(settings.expected_reference_agencies)
     expected_compound_classes = list(settings.expected_compound_classes)
@@ -62,6 +63,14 @@ def _apply_config_overrides_to_suite_payloads(
             expectation["kwargs"]["column_list"] = settings.expected_columns
         if expectation.get("type") == "expect_compound_columns_to_be_unique":
             expectation["kwargs"]["column_list"] = settings.expected_columns
+
+    for expectation in analysis_critical.get("expectations", []):
+        if expectation.get("type") == "expect_column_values_to_be_between":
+            kwargs = expectation.get("kwargs", {})
+            if kwargs.get("column") == "basic_total_columns":
+                expected_column_count = len(settings.expected_columns)
+                kwargs["min_value"] = expected_column_count
+                kwargs["max_value"] = expected_column_count
 
     thresholds = settings.drift_thresholds
     if settings.strict_exact:
@@ -246,6 +255,15 @@ def _build_missing_files_outputs(output_dir: Path, missing_files: list[str]) -> 
     _write_json(output_dir / "validation_summary.json", summary)
 
 
+def _resolve_database_csv_relative_path(required_files: list[str]) -> str:
+    candidates = [item for item in required_files if item.startswith("database/") and item.endswith(".csv")]
+    if not candidates:
+        raise KeyError("No database CSV file declared in required_files.")
+    if len(candidates) > 1:
+        raise ValueError(f"Multiple database CSV files declared in required_files: {candidates}")
+    return candidates[0]
+
+
 def run(settings: ValidationSettings) -> int:
     output_dir = settings.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -256,7 +274,11 @@ def run(settings: ValidationSettings) -> int:
         _build_missing_files_outputs(output_dir=output_dir, missing_files=missing_files)
         return 1
 
-    database_csv = load_database_csv(resolved_paths["database/biorempp_database_v1.0.0.csv"])
+    database_csv_relative_path = _resolve_database_csv_relative_path(settings.required_files)
+    database_csv = load_database_csv(
+        resolved_paths[database_csv_relative_path],
+        sep=settings.csv_delimiter,
+    )
     analysis_payloads = load_analysis_payloads(settings.input_results_root)
     kegg_release = load_json(resolved_paths["metadata/kegg_release.json"])
 

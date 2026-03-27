@@ -7,6 +7,7 @@ rule validate_keys_consistency:
         join(RESULTS_DIR, "metadata", "keys_consistency_report.json")
     params:
         config_file = "config/config.yaml",
+        csv_delimiter = OUTPUTS["database_csv_delimiter"],
         base_url = config["kegg"]["base_url"],
         ko_ec_endpoint = config["kegg"]["endpoints"]["ko_ec_links"],
         ko_reaction_endpoint = config["kegg"]["endpoints"]["ko_reaction_links"],
@@ -19,6 +20,7 @@ rule validate_keys_consistency:
         (
             "python3 workflow/scripts/validation/01_validate_keys_consistency_api.py "
             "--database-csv {input.csv} "
+            "--csv-delimiter \"{params.csv_delimiter}\" "
             "--base-url {params.base_url} "
             "--ko-ec-endpoint {params.ko_ec_endpoint} "
             "--ko-reaction-endpoint {params.ko_reaction_endpoint} "
@@ -38,6 +40,7 @@ rule validate_links_groundtruth_policy:
         join(RESULTS_DIR, "metadata", "links_groundtruth_policy_report.json")
     params:
         config_file = "config/config.yaml",
+        csv_delimiter = OUTPUTS["database_csv_delimiter"],
         base_url = config["kegg"]["base_url"],
         ko_ec_endpoint = config["kegg"]["endpoints"]["ko_ec_links"],
         ko_reaction_endpoint = config["kegg"]["endpoints"]["ko_reaction_links"],
@@ -50,6 +53,7 @@ rule validate_links_groundtruth_policy:
         (
             "python3 workflow/scripts/validation/02_validate_links_groundtruth_policy_api.py "
             "--database-csv {input.csv} "
+            "--csv-delimiter \"{params.csv_delimiter}\" "
             "--base-url {params.base_url} "
             "--ko-ec-endpoint {params.ko_ec_endpoint} "
             "--ko-reaction-endpoint {params.ko_reaction_endpoint} "

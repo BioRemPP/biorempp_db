@@ -132,7 +132,9 @@ rule extract_enzymes_export:
         csv = join(RESULTS_DIR, "database", OUTPUTS["database_csv"]),
         xlsx = join(RESULTS_DIR, "database", OUTPUTS["database_xlsx"])
     params:
-        config_file = "config/config.yaml"
+        config_file = "config/config.yaml",
+        csv_sep = OUTPUTS["database_csv_delimiter"],
+        csv_quote = OUTPUTS["database_csv_quote"]
     log:
         join(PATHS["logs_dir"], "extract_enzymes_export.log")
     shell:
@@ -142,6 +144,8 @@ rule extract_enzymes_export:
             "--local-data {input.local_data} "
             "--output-csv {output.csv} "
             "--output-xlsx {output.xlsx} "
+            "--csv-sep \"{params.csv_sep}\" "
+            "--csv-quote \"{params.csv_quote}\" "
             "--config {params.config_file} "
             "> {log} 2>&1"
         )
