@@ -1,7 +1,7 @@
 {
   "total_entries": 123762,
-  "total_columns": 10,
-  "column_names": ["cpd", "compoundclass", "ko", "ec", "reaction", "referenceAG", "compoundname", "genesymbol", "genename", "enzyme_activity"],
+  "total_columns": 11,
+  "column_names": ["cpd", "compoundclass", "ko", "ec", "reaction", "reaction_description", "referenceAG", "compoundname", "genesymbol", "genename", "enzyme_activity"],
   "unique_compounds": 384,
   "unique_ko_entries": 1543,
   "unique_compound_classes": 12,
@@ -15,6 +15,7 @@
     "ko": 0,
     "ec": 961,
     "reaction": 2223,
+    "reaction_description": 2223,
     "referenceAG": 0,
     "compoundname": 0,
     "genesymbol": 0,

@@ -3,7 +3,7 @@
     "name": "BioRemPP Snakemake Pipeline",
     "version": "1.1.0",
     "config_file": "config/config.yaml",
-    "generated_at_utc": "2026-03-27T13:45:03Z"
+    "generated_at_utc": "2026-04-05T00:39:17Z"
   },
   "kegg_reference": {
     "source_url": "https://rest.kegg.jp/info/kegg",
@@ -30,6 +30,12 @@
     "strict5_rate_percent": 2.4168883805355943,
     "policy_union_rate_percent": 100.0,
     "no_policy_support": 0
+  },
+  "reaction_description_coverage": {
+    "rows_with_reaction": 121539,
+    "rows_with_reaction_description": 121539,
+    "fill_rate_percent": 100.0,
+    "unmatched_reaction_id_count": 0
   },
   "link_match": {
     "policy": {
@@ -2015,28 +2021,33 @@
       "resolvable_pair_count": 2249,
       "mixed_sparse_on_resolvable_pairs": 0,
       "mixed_sparse_on_resolvable_examples": []
+    },
+    "reaction_description": {
+      "with_reaction_rows": 121539,
+      "with_reaction_description_rows": 121539,
+      "unmatched_reaction_id_count": 0
     }
   },
   "artifacts": {
     "database_csv": {
       "path": "results/database/biorempp_database_v1.1.0.csv",
-      "size_bytes": 17187791,
-      "sha256": "18619291d9491d04784dd4a877c33d5345098dde5e3264bce34a940f0b5da253"
+      "size_bytes": 32637859,
+      "sha256": "918d8597e08021ca063a6e2fe34160e05c2085affa4f7b3a99b4a12eb61fbdf9"
     },
     "database_xlsx": {
       "path": "results/database/biorempp_database_v1.1.0.xlsx",
-      "size_bytes": 4639233,
-      "sha256": "c9d73e16e99a1ea8d3575f7fff168abcadeda7b82c08f30d4078803d5ca3c7d5"
+      "size_bytes": 7036362,
+      "sha256": "1990fc98fb7013b4fa22f8c10bca76734fd434badc017ee8cc5226821beebd5b"
     },
     "database_metadata_json": {
       "path": "results/analysis/database_metadata.json",
-      "size_bytes": 24588,
-      "sha256": "e72df37f871c164421606d08050a901448e1c557521408f00c30382965ba5612"
+      "size_bytes": 25074,
+      "sha256": "294b59763673929ba50e7ea5ad12b40dfdb0eedb2303a7bfd6b218096e5ec210"
     },
     "complete_analysis_json": {
       "path": "results/analysis/complete_analysis.json",
-      "size_bytes": 60402,
-      "sha256": "d69f1ec94b4875c69802631bc565637ada1be4bdb9298c1c7c0ad7c17d1eab56"
+      "size_bytes": 60978,
+      "sha256": "3602b34a568b92999780f79a98555f6463cfc1d20822492f0d1b9b453301e74a"
     },
     "kegg_release_json": {
       "path": "results/metadata/kegg_release.json",
@@ -2046,12 +2057,12 @@
     "keys_consistency_json": {
       "path": "results/metadata/keys_consistency_report.json",
       "size_bytes": 2447,
-      "sha256": "3f794ad36312226a9f3c099f8cb4f50bc4597e09466edf70bd0a6ea8a3e92bab"
+      "sha256": "f91a02fc9c36010a9ee8d44f745b2ddf459fafe1ca4876d8ec2c26ad3563b1f0"
     },
     "links_groundtruth_policy_json": {
       "path": "results/metadata/links_groundtruth_policy_report.json",
-      "size_bytes": 227567,
-      "sha256": "179ce923e0c4024c717cb593ce287ad8278f49f20026de946028545ebccae93c"
+      "size_bytes": 227600,
+      "sha256": "09527ddfa0efc5a5cc79277eea80a2a7f031fb31f503c42715c328dd377852fa"
     }
   }
 }
