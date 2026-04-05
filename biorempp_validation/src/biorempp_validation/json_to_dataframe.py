@@ -11,6 +11,7 @@ def _has_keys(payload: dict[str, Any], required_keys: list[str]) -> bool:
 
 
 def build_analysis_critical_df(
+    database_df: pd.DataFrame,
     analysis_payloads: dict[str, dict[str, Any]],
     expected_columns: list[str],
 ) -> pd.DataFrame:
@@ -25,7 +26,17 @@ def build_analysis_critical_df(
     complete = analysis_payloads["complete_analysis"]
 
     missing_values = basic.get("missing_values", {})
-    optional_na_columns = {"ec", "reaction"}
+    optional_na_columns = {"ec", "reaction", "reaction_description"}
+    reaction_description_consistent_with_reaction = bool(
+        (
+            (database_df["reaction"].isna() | (database_df["reaction"].astype(str).str.strip().str.upper() == "NA"))
+            | (
+                ~database_df["reaction_description"].isna()
+                & (database_df["reaction_description"].astype(str).str.strip() != "")
+                & (database_df["reaction_description"].astype(str).str.strip().str.upper() != "NA")
+            )
+        ).all()
+    ) if {"reaction", "reaction_description"}.issubset(database_df.columns) else False
     all_missing_zero = (
         all(float(value) == 0 for key, value in missing_values.items() if key not in optional_na_columns)
         if missing_values
@@ -67,6 +78,7 @@ def build_analysis_critical_df(
         "basic_total_columns": int(basic.get("total_columns", -1)),
         "basic_expected_columns_match": list(basic.get("column_names", [])) == expected_columns,
         "basic_all_missing_values_zero": all_missing_zero,
+        "reaction_description_consistent_with_reaction": reaction_description_consistent_with_reaction,
     }
     return pd.DataFrame([row])
 
@@ -95,6 +107,14 @@ def build_analysis_warning_df(analysis_payloads: dict[str, dict[str, Any]]) -> p
         "enzyme_top_n": len(enzyme.get("top_30_enzymes", {}).get("enzyme_names", [])),
         "executive_text_fields_non_empty": executive_text_fields_non_empty,
         "crosstab_required_sections_present": crosstab_required_sections_present,
+        "reaction_description_fill_rate_percent": (
+            float(
+                analysis_payloads.get("database_metadata", {})
+                .get("data_quality", {})
+                .get("completeness", {})
+                .get("reaction_description", 0.0)
+            )
+        ),
     }
     return pd.DataFrame([row])
 

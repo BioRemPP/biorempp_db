@@ -79,6 +79,13 @@ build_link_tables <- function(bundle) {
         reaction = normalize_reaction(reaction)
       ) %>%
       dplyr::filter(!is.na(ec), !is.na(reaction)) %>%
+      dplyr::distinct(),
+    reaction_list = bundle$reaction_list %>%
+      dplyr::transmute(
+        reaction = normalize_reaction(reaction),
+        reaction_description = normalize_na_text(reaction_description_raw)
+      ) %>%
+      dplyr::filter(!is.na(reaction), !is.na(reaction_description)) %>%
       dplyr::distinct()
   )
 }
@@ -110,7 +117,8 @@ build_link_match <- function(database, links) {
       cpd = normalize_cpd(cpd),
       ko = normalize_ko(ko),
       ec = normalize_ec(ec),
-      reaction = normalize_reaction(reaction)
+      reaction = normalize_reaction(reaction),
+      reaction_description = normalize_na_text(reaction_description)
     ) %>%
     dplyr::filter(!is.na(cpd), !is.na(ko))
 
@@ -285,6 +293,15 @@ build_link_match <- function(database, links) {
       resolvable_pair_count = nrow(resolvable_pairs),
       mixed_sparse_on_resolvable_pairs = nrow(mixed_sparse_on_resolvable),
       mixed_sparse_on_resolvable_examples = utils::head(mixed_sparse_on_resolvable, 50)
+    ),
+    reaction_description = list(
+      with_reaction_rows = as.integer(sum(is_present_value(db_norm$reaction))),
+      with_reaction_description_rows = as.integer(sum(is_present_value(db_norm$reaction_description))),
+      unmatched_reaction_id_count = as.integer({
+        reaction_ids_in_db <- sort(unique(db_norm$reaction[is_present_value(db_norm$reaction)]))
+        reaction_ids_with_description <- sort(unique(links$reaction_list$reaction))
+        length(setdiff(reaction_ids_in_db, reaction_ids_with_description))
+      })
     )
   )
 }
@@ -313,6 +330,12 @@ metadata <- list(
       ko = list(name = "ko", type = "character", description = "KEGG Orthology identifier", example = "K00001"),
       ec = list(name = "ec", type = "character", description = "Enzyme Commission identifier", example = "1.1.1.1"),
       reaction = list(name = "reaction", type = "character", description = "KEGG reaction identifier", example = "R00623"),
+      reaction_description = list(
+        name = "reaction_description",
+        type = "character",
+        description = "KEGG reaction textual description and equation",
+        example = "polyphosphate polyphosphohydrolase; Polyphosphate + n H2O <=> (n+1) Oligophosphate"
+      ),
       referenceAG = list(name = "referenceAG", type = "character", description = "Reference environmental agency", example = "EPA"),
       compoundname = list(name = "compoundname", type = "character", description = "Compound name", example = "Water"),
       genesymbol = list(name = "genesymbol", type = "character", description = "Gene symbol", example = "ADH1"),

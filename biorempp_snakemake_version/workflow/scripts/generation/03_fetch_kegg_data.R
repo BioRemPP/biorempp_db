@@ -160,6 +160,36 @@ canonicalize_link_endpoint <- function(endpoint_name, data_frame) {
     return(canonical)
   }
 
+  if (endpoint_name == "reaction_list") {
+    col_a_is_reaction <- all_values_match(col_a, KEGG_VALUE_PATTERNS$reaction)
+    col_b_is_reaction <- all_values_match(col_b, KEGG_VALUE_PATTERNS$reaction)
+
+    if (col_a_is_reaction && !col_b_is_reaction) {
+      canonical <- data.frame(reaction = col_a, reaction_description_raw = col_b, stringsAsFactors = FALSE)
+    } else if (col_b_is_reaction && !col_a_is_reaction) {
+      canonical <- data.frame(reaction = col_b, reaction_description_raw = col_a, stringsAsFactors = FALSE)
+    } else {
+      stop(
+        sprintf(
+          "Endpoint %s has invalid orientation/content for columns reaction/reaction_description_raw. Sample: '%s' | '%s'.",
+          endpoint_name,
+          as.character(col_a[[1]]),
+          as.character(col_b[[1]])
+        ),
+        call. = FALSE
+      )
+    }
+
+    reaction_description <- trimws(as.character(canonical$reaction_description_raw))
+    if (any(is.na(reaction_description) | reaction_description == "")) {
+      stop(
+        sprintf("Endpoint %s has empty reaction descriptions.", endpoint_name),
+        call. = FALSE
+      )
+    }
+    return(canonical)
+  }
+
   if (length(expected_columns) != 2) {
     stop(sprintf("Endpoint %s expected 2 canonical columns.", endpoint_name), call. = FALSE)
   }
@@ -224,6 +254,7 @@ kegg_data <- list(
   compound_ec_links = fetch_and_normalize_endpoint("compound_ec_links"),
   compound_reaction_links = fetch_and_normalize_endpoint("compound_reaction_links"),
   ec_reaction_links = fetch_and_normalize_endpoint("ec_reaction_links"),
+  reaction_list = fetch_and_normalize_endpoint("reaction_list"),
   compound_list = fetch_and_normalize_endpoint("compound_list")
 )
 

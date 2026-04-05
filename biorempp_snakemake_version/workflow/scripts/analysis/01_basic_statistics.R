@@ -26,6 +26,7 @@ stats <- list(
     ko = sum(is.na(db$ko)),
     ec = sum(is.na(db$ec)),
     reaction = sum(is.na(db$reaction)),
+    reaction_description = sum(is.na(db$reaction_description)),
     referenceAG = sum(is.na(db$referenceAG)),
     compoundname = sum(is.na(db$compoundname)),
     genesymbol = sum(is.na(db$genesymbol)),
