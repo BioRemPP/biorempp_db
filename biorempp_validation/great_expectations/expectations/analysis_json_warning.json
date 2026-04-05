@@ -58,6 +58,16 @@
       },
       "severity": "warning",
       "meta": {}
+    },
+    {
+      "type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "reaction_description_fill_rate_percent",
+        "min_value": 0,
+        "max_value": 100
+      },
+      "severity": "warning",
+      "meta": {}
     }
   ],
   "meta": {

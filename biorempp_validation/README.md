@@ -6,6 +6,7 @@ It validates:
 - Final database CSV contract (`v1.1.0`, delimiter `;`)
 - Analysis JSON artifacts
 - KEGG release traceability metadata
+- Reaction textual annotation consistency (`reaction` vs `reaction_description`)
 
 Validation policy is hybrid:
 - `critical`: blocks the run (`exit 1`)

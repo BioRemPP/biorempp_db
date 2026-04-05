@@ -13,13 +13,15 @@ rule build_run_report:
         join(RESULTS_DIR, "reports", "workflow_summary.json")
     params:
         config_file = "config/config.yaml",
-        version = config["version"]
+        version = config["version"],
+        csv_delimiter = OUTPUTS["database_csv_delimiter"]
     log:
         join(PATHS["logs_dir"], "build_run_report.log")
     shell:
         (
             "python3 workflow/scripts/reporting/build_run_report.py "
             "--database-csv {input.csv} "
+            "--database-csv-delimiter \"{params.csv_delimiter}\" "
             "--database-xlsx {input.xlsx} "
             "--metadata-json {input.metadata} "
             "--complete-json {input.complete} "

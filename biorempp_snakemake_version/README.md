@@ -165,6 +165,7 @@ By default, this command reads inputs from `../input_data` (repository root).
 CSV contract:
 - delimiter: `;`
 - quoted fields: enabled (`"..."`)
+- includes `reaction_description` with KEGG equation text (from `list/reaction`, preserving `<=>`)
 
 ### Analysis outputs
 

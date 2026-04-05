@@ -15,6 +15,7 @@ EXPECTED_DATABASE_COLUMNS <- c(
   "ko",
   "ec",
   "reaction",
+  "reaction_description",
   "referenceAG",
   "compoundname",
   "genesymbol",
@@ -28,6 +29,7 @@ KEGG_ENDPOINTS <- list(
   compound_ec_links = list(endpoint = "link/compound/ec", columns = c("cpd", "ec"), sep = "\t"),
   compound_reaction_links = list(endpoint = "link/cpd/reaction", columns = c("cpd", "reaction"), sep = "\t"),
   ec_reaction_links = list(endpoint = "link/ec/reaction", columns = c("ec", "reaction"), sep = "\t"),
+  reaction_list = list(endpoint = "list/reaction", columns = c("reaction", "reaction_description_raw"), sep = "\t"),
   compound_list = list(endpoint = "list/cpd/", columns = c("cpd", "compoundname"), sep = "\t")
 )
 

@@ -283,6 +283,7 @@ def run(settings: ValidationSettings) -> int:
     kegg_release = load_json(resolved_paths["metadata/kegg_release.json"])
 
     analysis_critical_df = build_analysis_critical_df(
+        database_df=database_csv,
         analysis_payloads=analysis_payloads,
         expected_columns=settings.expected_columns,
     )

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import csv
 import hashlib
 import json
 from datetime import datetime, timezone
@@ -26,6 +27,7 @@ def file_info(path: Path) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build Snakemake workflow summary report")
     parser.add_argument("--database-csv", required=True)
+    parser.add_argument("--database-csv-delimiter", required=True)
     parser.add_argument("--database-xlsx", required=True)
     parser.add_argument("--metadata-json", required=True)
     parser.add_argument("--complete-json", required=True)
@@ -63,6 +65,25 @@ def main() -> None:
     with Path(args.links_groundtruth_policy_json).open("r", encoding="utf-8") as handle:
         links_groundtruth_policy_info = json.load(handle)
 
+    reaction_rows = 0
+    reaction_description_filled = 0
+    unmatched_reaction_ids: set[str] = set()
+    with Path(args.database_csv).open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter=args.database_csv_delimiter)
+        for row in reader:
+            reaction = (row.get("reaction") or "").strip()
+            reaction_description = (row.get("reaction_description") or "").strip()
+            if reaction and reaction.upper() != "NA":
+                reaction_rows += 1
+                if reaction_description and reaction_description.upper() != "NA":
+                    reaction_description_filled += 1
+                else:
+                    unmatched_reaction_ids.add(reaction)
+
+    reaction_description_fill_rate_percent = (
+        round((reaction_description_filled / reaction_rows) * 100, 4) if reaction_rows else 0.0
+    )
+
     policy_metrics = links_groundtruth_policy_info.get("policy_aware_metrics", {})
 
     summary = {
@@ -90,6 +111,12 @@ def main() -> None:
             "strict5_rate_percent": policy_metrics.get("strict5_rate_percent"),
             "policy_union_rate_percent": policy_metrics.get("policy_union_rate_percent"),
             "no_policy_support": policy_metrics.get("no_policy_support"),
+        },
+        "reaction_description_coverage": {
+            "rows_with_reaction": reaction_rows,
+            "rows_with_reaction_description": reaction_description_filled,
+            "fill_rate_percent": reaction_description_fill_rate_percent,
+            "unmatched_reaction_id_count": len(unmatched_reaction_ids),
         },
         "link_match": metadata_info.get("link_match", {}),
         "artifacts": {name: file_info(path) for name, path in files.items()},

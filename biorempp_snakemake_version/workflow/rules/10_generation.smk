@@ -127,6 +127,7 @@ rule extract_enzymes_export:
     input:
         enriched_data = join(WORK_DIR, "enriched_compounds.rds"),
         local_data = join(WORK_DIR, "local_data.rds"),
+        kegg_data = join(WORK_DIR, "kegg_data.rds"),
         kegg_info = join(RESULTS_DIR, "metadata", "kegg_release.json")
     output:
         csv = join(RESULTS_DIR, "database", OUTPUTS["database_csv"]),
@@ -142,6 +143,7 @@ rule extract_enzymes_export:
             "Rscript workflow/scripts/generation/07_extract_enzymes_export.R "
             "--enriched-data {input.enriched_data} "
             "--local-data {input.local_data} "
+            "--kegg-data {input.kegg_data} "
             "--output-csv {output.csv} "
             "--output-xlsx {output.xlsx} "
             "--csv-sep \"{params.csv_sep}\" "

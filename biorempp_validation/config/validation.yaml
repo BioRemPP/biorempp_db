@@ -37,6 +37,7 @@ database_contract:
     - ko
     - ec
     - reaction
+    - reaction_description
     - referenceAG
     - compoundname
     - genesymbol
