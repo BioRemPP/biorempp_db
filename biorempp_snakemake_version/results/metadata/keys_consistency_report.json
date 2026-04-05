@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-03-27T13:43:46Z",
+  "generated_at_utc": "2026-04-05T00:39:17Z",
   "input": {
     "database_csv": "results/database/biorempp_database_v1.1.0.csv",
     "csv_delimiter": ";",
@@ -17,21 +17,21 @@
   },
   "api_parse_stats": {
     "ko_ec": {
-      "total_lines": 10003,
-      "parsed_pairs": 10003,
-      "swapped_orientation_lines": 10003,
+      "total_lines": 10010,
+      "parsed_pairs": 10010,
+      "swapped_orientation_lines": 10010,
       "invalid_lines": 0
     },
     "ko_reaction": {
-      "total_lines": 12212,
-      "parsed_pairs": 12212,
-      "swapped_orientation_lines": 12212,
+      "total_lines": 12222,
+      "parsed_pairs": 12222,
+      "swapped_orientation_lines": 12222,
       "invalid_lines": 0
     },
     "cpd_ec": {
-      "total_lines": 33618,
-      "parsed_pairs": 33618,
-      "swapped_orientation_lines": 33618,
+      "total_lines": 33620,
+      "parsed_pairs": 33620,
+      "swapped_orientation_lines": 33620,
       "invalid_lines": 0
     },
     "cpd_reaction": {
@@ -41,9 +41,9 @@
       "invalid_lines": 0
     },
     "ec_reaction": {
-      "total_lines": 10698,
-      "parsed_pairs": 10698,
-      "swapped_orientation_lines": 10698,
+      "total_lines": 10699,
+      "parsed_pairs": 10699,
+      "swapped_orientation_lines": 10699,
       "invalid_lines": 0
     }
   },

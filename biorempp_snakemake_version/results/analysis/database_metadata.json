@@ -2,7 +2,7 @@
   "database_info": {
     "name": "BioRemPP Database",
     "version": "1.1.0",
-    "generation_date": "2026-03-27",
+    "generation_date": "2026-04-05",
     "description": "Comprehensive biological remediation database integrating KEGG data, environmental agency compound lists, manual curations, and enzyme classifications"
   },
   "data_sources": {
@@ -70,6 +70,12 @@
         "description": "KEGG reaction identifier",
         "example": "R00623"
       },
+      "reaction_description": {
+        "name": "reaction_description",
+        "type": "character",
+        "description": "KEGG reaction textual description and equation",
+        "example": "polyphosphate polyphosphohydrolase; Polyphosphate + n H2O <=> (n+1) Oligophosphate"
+      },
       "referenceAG": {
         "name": "referenceAG",
         "type": "character",
@@ -109,6 +115,7 @@
       "ko": 100,
       "ec": 99.2235,
       "reaction": 98.2038,
+      "reaction_description": 98.2038,
       "referenceAG": 100,
       "compoundname": 100,
       "genesymbol": 100,
@@ -169,6 +176,11 @@
       "resolvable_pair_count": 2249,
       "mixed_sparse_on_resolvable_pairs": 0,
       "mixed_sparse_on_resolvable_examples": []
+    },
+    "reaction_description": {
+      "with_reaction_rows": 121539,
+      "with_reaction_description_rows": 121539,
+      "unmatched_reaction_id_count": 0
     }
   }
 }
