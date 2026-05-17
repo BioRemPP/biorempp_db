@@ -1,110 +1,115 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-03-24
+**Analysis Date:** 2026-05-17
 
 ## Test Framework
 
 **Runner:**
-- pytest 8.x (from `pyproject.toml`: `"pytest>=8.0,<9.0"`)
-- Config: `biorempp_validation/pyproject.toml` specifies `testpaths = ["tests"]`
+- `pytest` >= 8.0, < 9.0
+- Declared in `biorempp_validation/pyproject.toml` under `[project.optional-dependencies] dev`
+- Config: `[tool.pytest.ini_options]` in `biorempp_validation/pyproject.toml`
 
 **Assertion Library:**
-- Python built-in `assert` statements (no additional assertion library)
+- pytest built-in `assert` statements only — no separate assertion library
 
 **Run Commands:**
 ```bash
-pytest tests/                  # Run all tests
-pytest tests/ -v              # Run with verbose output
-pytest tests/ --collect-only  # List tests without running
+# From biorempp_validation/ directory
+pip install -e ".[dev]"        # install package + test deps
+pytest                         # run all tests (uses testpaths = ["tests"])
+pytest -v                      # verbose output
+pytest tests/test_happy_path.py  # run specific file
 ```
+
+**No coverage configuration detected.** No `pytest-cov` or coverage thresholds defined.
+
+---
 
 ## Test File Organization
 
-**Location:**
-- Co-located in separate `tests/` directory (not alongside source)
-- Tests are in: `biorempp_validation/tests/`
-- Source code in: `biorempp_validation/src/biorempp_validation/`
+**Location:** `biorempp_validation/tests/` — all tests are co-located in a single flat directory, separate from source
 
 **Naming:**
-- Pattern: `test_<feature>.py`
-- Examples:
-  - `test_happy_path.py` - Happy path scenario
-  - `test_schema_break.py` - Schema contract violations
-  - `test_kegg_metadata.py` - KEGG metadata validation
-  - `test_missing_files.py` - Missing file handling
-  - `test_warning_only_drift.py` - Warning-level drift with policy
+- All test files: `test_<scenario>.py`
+- All test functions: `test_<what_and_condition>()`
 
-**Structure:**
+**Directory structure:**
 ```
-biorempp_validation/tests/
-├── conftest.py               # Shared fixtures
-├── test_happy_path.py
-├── test_schema_break.py
-├── test_kegg_metadata.py
-├── test_missing_files.py
-└── test_warning_only_drift.py
+biorempp_validation/
+├── tests/
+│   ├── conftest.py                 # shared fixtures
+│   ├── test_happy_path.py          # full valid pipeline passes
+│   ├── test_missing_files.py       # missing required file triggers critical failure
+│   ├── test_schema_break.py        # dropped DB column triggers critical failure
+│   ├── test_kegg_metadata.py       # missing KEGG metadata field triggers critical failure
+│   └── test_warning_only_drift.py  # warning threshold breach with fail_on_warning=True
 ```
+
+---
+
+## Test Types
+
+### Integration Tests (all 5 test files)
+
+All tests are **end-to-end integration tests** that exercise the full `run_validation.main()` function against real filesystem artifacts. There are **no unit tests** for individual modules (`loaders.py`, `consistency_checks.py`, `json_to_dataframe.py`, `report_builder.py`, `gx_context.py`, `settings.py`).
+
+Each test:
+1. Copies the real pipeline results from `biorempp_snakemake_version/results/` into `tmp_path`
+2. Mutates the data to simulate the failure scenario
+3. Calls `main(["--config", str(config_path)])` and checks the exit code
+4. Reads the generated `validation_summary.json` and asserts on its content
+
+### E2E Tests
+
+Not applicable — no Snakemake workflow tests or browser/API E2E tests exist.
+
+### R Pipeline Tests
+
+No automated tests exist for the R scripts in `biorempp_snakemake_version/workflow/scripts/`. The Snakemake pipeline is validated at runtime only via the GE validation suite (which is what the Python tests cover).
+
+---
 
 ## Test Structure
 
-**Suite Organization:**
+**Suite organization pattern:**
 ```python
-# From test_happy_path.py
-def test_happy_path(config_path):
+# Each test file: one function, one scenario
+from biorempp_validation.run_validation import main
+from biorempp_validation.settings import load_settings
+
+def test_<scenario>(config_path, sample_results_root):
+    # 1. Mutate the data
+    some_file = sample_results_root / "path/to/file"
+    some_file.unlink()   # or: modify contents
+
+    # 2. Run the validator
     exit_code = main(["--config", str(config_path)])
-    assert exit_code == 0
 
+    # 3. Assert exit code
+    assert exit_code == 1
+
+    # 4. Assert summary JSON content
     settings = load_settings(config_path)
-    summary_path = settings.output_dir / "validation_summary.json"
-    assert summary_path.exists()
-
-    summary = json.loads(summary_path.read_text(encoding="utf-8"))
-    assert summary["counts"]["critical_failed_expectations"] == 0
+    summary = json.loads((settings.output_dir / "validation_summary.json").read_text(encoding="utf-8"))
+    assert summary["counts"]["critical_failed_expectations"] >= 1
+    assert summary["failed_expectations"][0]["expectation_type"] == "expect_required_files_to_exist"
 ```
 
-**Patterns:**
-- Test functions take fixture parameters: `def test_name(config_path, sample_results_root)`
-- Single assertion per semantic unit (may have multiple assert statements)
-- Tests load configuration and call `main()` which returns exit codes
-- Tests verify output files exist and contain expected structure
-- Setup by fixture injection, no explicit setup/teardown code in test functions
+---
 
-**Fixture Usage Pattern:**
+## Fixtures (`conftest.py`)
+
+All fixtures defined in `biorempp_validation/tests/conftest.py`. No fixtures in test files themselves.
+
+**`project_root` (session-scoped equivalent, function-scoped):**
 ```python
 @pytest.fixture()
-def config_path(tmp_path: Path, project_root: Path, sample_results_root: Path) -> Path:
-    template = project_root / "config" / "validation.yaml"
-    cfg = yaml.safe_load(template.read_text(encoding="utf-8"))
-    # Modify config
-    cfg["paths"]["input_results_root"] = str(sample_results_root.resolve())
-    # Write to tmp
-    path = tmp_path / "validation.yaml"
-    path.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
-    return path
+def project_root() -> Path:
+    return PROJECT_ROOT  # biorempp_validation/
 ```
 
-## Mocking
-
-**Framework:** No mocking library used (no pytest-mock, unittest.mock, etc.)
-
-**Patterns:**
-- Tests manipulate real files in temporary directories via fixtures
-- No function mocking; tests invoke actual `main()` function
-- Files are copied/modified in `tmp_path` to simulate different scenarios
-
-**What to Mock:**
-- Nothing is mocked; full integration testing approach
-
-**What NOT to Mock:**
-- External API calls: Tests work with file-based data, not real APIs
-- Database operations: No database layer, file-based persistence only
-- Great Expectations library: Used as-is, not mocked
-
-## Fixtures and Factories
-
-**Test Data:**
+**`sample_results_root` (function-scoped, uses `tmp_path`):**
 ```python
-# From conftest.py
 @pytest.fixture()
 def sample_results_root(tmp_path: Path) -> Path:
     source = REPO_ROOT / "biorempp_snakemake_version" / "results"
@@ -112,119 +117,120 @@ def sample_results_root(tmp_path: Path) -> Path:
     shutil.copytree(source, destination)
     return destination
 ```
+- Copies the real production results directory into pytest's `tmp_path` for isolation
+- Each test gets a fresh copy — mutations don't affect other tests
 
-**Location:**
-- `biorempp_validation/tests/conftest.py`
-- Fixtures are module-scoped (default `@pytest.fixture()`)
-- Three fixtures defined: `project_root`, `sample_results_root`, `config_path`
-
-**Fixture Composition:**
-- `config_path` depends on `tmp_path` (pytest built-in), `project_root`, and `sample_results_root`
-- Fixtures return Path objects for file manipulation
-
-**Test Data Source:**
-- Sample results copied from actual pipeline output: `biorempp_snakemake_version/results/`
-- Configuration template: `biorempp_validation/config/validation.yaml`
-- Tests modify configuration and files within `tmp_path` to avoid test pollution
-
-## Coverage
-
-**Requirements:** None enforced
-
-**View Coverage:**
-- No coverage configuration present
-- To measure: `pytest --cov=biorempp_validation tests/` (requires pytest-cov package)
-
-## Test Types
-
-**Unit Tests:**
-- Not used; all tests are integration tests
-- No isolated function testing
-
-**Integration Tests:**
-- All tests are end-to-end validation scenarios
-- Tests invoke `main()` function which orchestrates entire validation pipeline
-- Tests verify output files and exit codes
-
-Scope of integration tests:
-- Happy path: Valid data passes validation
-- Schema break: Drops required column, expects failure
-- Missing files: Removes required input files, expects failure
-- KEGG metadata: Corrupts metadata, expects critical failure
-- Warning drift: Exceeds warning thresholds, policy determines exit code
-
-**E2E Tests:**
-- Not used; integration tests serve E2E purpose for validation pipeline
-
-## Common Patterns
-
-**Exit Code Testing:**
+**`config_path` (function-scoped):**
 ```python
-# Success case
-exit_code = main(["--config", str(config_path)])
-assert exit_code == 0
-
-# Failure case
-exit_code = main(["--config", str(config_path)])
-assert exit_code == 1
+@pytest.fixture()
+def config_path(tmp_path: Path, project_root: Path, sample_results_root: Path) -> Path:
+    template = project_root / "config" / "validation.yaml"
+    cfg = yaml.safe_load(template.read_text(encoding="utf-8"))
+    cfg["paths"]["input_results_root"] = str(sample_results_root.resolve())
+    cfg["paths"]["output_dir"] = str((tmp_path / "validation_results").resolve())
+    cfg["paths"]["expectations_dir"] = str((project_root / "great_expectations" / "expectations").resolve())
+    cfg["paths"]["checkpoints_dir"] = str((project_root / "great_expectations" / "checkpoints").resolve())
+    path = tmp_path / "validation.yaml"
+    path.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
+    return path
 ```
-
-**Output File Verification:**
-```python
-settings = load_settings(config_path)
-summary_path = settings.output_dir / "validation_summary.json"
-assert summary_path.exists()
-
-summary = json.loads(summary_path.read_text(encoding="utf-8"))
-assert summary["counts"]["critical_failed_expectations"] == 0
-```
-
-**File Manipulation in Tests:**
-```python
-# From test_schema_break.py
-csv_path = sample_results_root / "database" / "biorempp_database_v1.0.0.csv"
-df = pd.read_csv(csv_path)
-df = df.drop(columns=["ko"])
-df.to_csv(csv_path, index=False)
-```
-
-**Configuration Override Pattern:**
-```python
-# From test_warning_only_drift.py
-cfg = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-cfg["strict_exact"] = False
-cfg["policy"]["fail_on_warning"] = True
-cfg["drift_thresholds"]["row_count"]["max"] = 100
-config_path.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
-```
-
-## Test Assertions
-
-**Common Assertions:**
-- Exit code checks: `assert exit_code == 0` or `assert exit_code == 1`
-- File existence: `assert summary_path.exists()`
-- Dictionary key presence: `assert "counts" in summary`
-- Array length: `assert len(metadata_failures) > 0`
-- Set membership: `assert "expect_table_columns_to_match_ordered_list" in failed_types`
-- Numeric equality: `assert summary["counts"]["critical_failed_expectations"] == 0`
-
-## Test Data Flow
-
-**Typical Test Execution:**
-1. Fixture `config_path` creates temp directory with copied pipeline results
-2. Configuration YAML is loaded and modified (if needed for the test scenario)
-3. `main(["--config", str(config_path)])` is called
-4. Validation pipeline runs and produces output JSON files
-5. Output files are loaded and assertions check structure/counts
-6. Exit code indicates overall pass/fail
-
-**Example: Schema Break Test**
-1. Copy sample results to temp directory
-2. Load CSV and drop required column
-3. Run validation with modified CSV
-4. Assert exit code is 1
-5. Assert specific expectation type in failed list
+- Rewrites all paths in the YAML to point to `tmp_path`-based copies
+- Uses the real `great_expectations/` suite definitions (not mocked)
 
 ---
 
-*Testing analysis: 2026-03-24*
+## Mocking
+
+**Framework:** None. No `unittest.mock`, `pytest-mock`, or any mock library is used.
+
+All external dependencies (filesystem, GE context, pandas) are exercised directly against real data. The `sample_results_root` fixture substitutes for mocking by providing an isolated copy of real artifacts.
+
+**What is tested with real artifacts:**
+- `great_expectations` suite execution via `gx_context.create_context()` (ephemeral, in-memory)
+- Pandas DataFrame loading from real CSV files
+- JSON file reading and writing
+
+**What is not mocked:**
+- KEGG API calls — no tests exercise the network-calling scripts (`01_validate_keys_consistency_api.py`, `02_validate_links_groundtruth_policy_api.py`)
+- Snakemake rules
+- R scripts
+
+---
+
+## Test Scenarios Covered
+
+| Test File | Scenario | Trigger | Expected Exit |
+|-----------|----------|---------|---------------|
+| `test_happy_path.py` | All valid data passes | Real production results | `0` |
+| `test_missing_files.py` | Required file deleted | `analysis/basic_statistics.json` unlinked | `1` |
+| `test_schema_break.py` | Column `ko` dropped from CSV | DataFrame column removal | `1` |
+| `test_kegg_metadata.py` | `source_url` missing from KEGG JSON | Key popped from payload | `1` |
+| `test_warning_only_drift.py` | Warning threshold breached with `fail_on_warning=True` | Row count max=100 | `1` |
+
+---
+
+## Coverage Gaps
+
+**Not covered by automated tests:**
+
+- **Unit-level module tests** — `loaders.py`, `consistency_checks.py`, `json_to_dataframe.py`, `report_builder.py`, `gx_context.py`, `settings.py` have zero dedicated unit tests
+- **`strict_exact=False` path** — the default `strict_exact: true` config is used in all tests; the range-based threshold path is partially tested only in `test_warning_only_drift.py`
+- **Multiple database CSV files error** — `_resolve_database_csv_relative_path()` raises `ValueError` for multiple candidates; not tested
+- **API retry logic** — `fetch_text()` in `01_validate_keys_consistency_api.py` and `02_validate_links_groundtruth_policy_api.py` has no tests
+- **R generation scripts** — zero automated tests for `workflow/scripts/generation/`, `workflow/scripts/analysis/`, or `workflow/lib/`
+- **Snakemake rules** — no Snakemake test harness
+- **`generate_data_docs=True` path** — `_write_data_docs_placeholder()` is never exercised in tests (config uses default, not checked)
+- **`fail_on_warning=False` with warning failures** — no test verifies exit=0 when warnings fail but `fail_on_warning=False`
+
+---
+
+## Great Expectations Suites (Runtime Validation, Not pytest)
+
+The following GE expectation suites run via the `biorempp-validate` CLI (not pytest):
+
+- `biorempp_validation/great_expectations/expectations/database_critical.json`
+- `biorempp_validation/great_expectations/expectations/database_warning.json`
+- `biorempp_validation/great_expectations/expectations/analysis_json_critical.json`
+- `biorempp_validation/great_expectations/expectations/analysis_json_exact_critical.json`
+- `biorempp_validation/great_expectations/expectations/analysis_json_warning.json`
+- `biorempp_validation/great_expectations/expectations/metadata_kegg_critical.json`
+- `biorempp_validation/great_expectations/expectations/cross_consistency_critical.json`
+
+Checkpoints:
+- `biorempp_validation/great_expectations/checkpoints/critical_gate.yml`
+- `biorempp_validation/great_expectations/checkpoints/warning_report.yml`
+
+These are the primary quality gate for the database — the pytest suite validates that the validation framework itself behaves correctly.
+
+---
+
+## Test Data
+
+**Source:** Real Snakemake pipeline outputs at `biorempp_snakemake_version/results/`
+
+The `sample_results_root` fixture copies this live data. There are no synthetic fixtures, factory functions, or dedicated test data files. This means:
+- Tests require the Snakemake pipeline to have been run and results to be present
+- Tests reflect the actual state of production data at time of running
+
+**Required output files for tests:**
+```
+biorempp_snakemake_version/results/
+├── analysis/
+│   ├── basic_statistics.json
+│   ├── compound_statistics.json
+│   ├── ko_statistics.json
+│   ├── enzyme_statistics.json
+│   ├── gene_statistics.json
+│   ├── crosstab_statistics.json
+│   ├── database_metadata.json
+│   ├── executive_summary.json
+│   └── complete_analysis.json
+├── database/
+│   └── biorempp_database_v1.1.0.csv
+└── metadata/
+    └── kegg_release.json
+```
+
+---
+
+*Testing analysis: 2026-05-17*

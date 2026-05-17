@@ -1,296 +1,279 @@
+<!-- refreshed: 2026-05-17 -->
 # Architecture
 
-**Analysis Date:** 2026-03-24
+**Analysis Date:** 2026-05-17
+
+## System Overview
+
+BioRemPP is a bioinformatics database generation and validation system. It integrates data from environmental regulatory agencies, KEGG (Kyoto Encyclopedia of Genes and Genomes), and manual curation to produce a curated bioremediation compound-gene database. The system has two execution modes: a standalone R script (`generate_database.R`) for v1.0.0 and a full Snakemake pipeline (`biorempp_snakemake_version/`) for v1.1.0.
+
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│                          Input Layer                                    │
+│  Local files (XLSX/TXT)           KEGG REST API                        │
+│  `input_data/`                    `https://rest.kegg.jp`               │
+└──────────────────────────┬─────────────────────────┬───────────────────┘
+                           │                         │
+                           ▼                         ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│               Generation Pipeline (Snakemake + R)                      │
+│  `biorempp_snakemake_version/Snakefile`                                │
+│  `biorempp_snakemake_version/workflow/rules/10_generation.smk`         │
+│  `biorempp_snakemake_version/workflow/scripts/generation/`             │
+└──────────────────────────────────────┬─────────────────────────────────┘
+                                       │
+                                       ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                    Database Output                                      │
+│  `biorempp_snakemake_version/results/database/`                        │
+│  biorempp_database_v1.1.0.csv / .xlsx                                  │
+└──────────┬──────────────────────────────────────────────┬──────────────┘
+           │                                              │
+           ▼                                              ▼
+┌──────────────────────────┐              ┌───────────────────────────────┐
+│  Analysis (R)            │              │  KEGG Validation (Python)     │
+│  `rules/20_analysis.smk` │              │  `rules/30_validation.smk`    │
+│  `scripts/analysis/`     │              │  `scripts/validation/`        │
+└──────────┬───────────────┘              └──────────────┬────────────────┘
+           │                                             │
+           ▼                                             ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│              Results / Metadata / Reports Layer                        │
+│  `results/analysis/*.json`  `results/metadata/*.json`                 │
+│  `results/reports/workflow_summary.json`                               │
+└──────────────────────────────────────┬─────────────────────────────────┘
+                                       │
+                                       ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│           Great Expectations Validation (Python package)               │
+│  `biorempp_validation/src/biorempp_validation/`                        │
+│  `biorempp_validation/great_expectations/`                             │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+## Component Responsibilities
+
+| Component | Responsibility | File |
+|-----------|----------------|------|
+| Snakemake Orchestrator | DAG-based workflow coordination | `biorempp_snakemake_version/Snakefile` |
+| Preflight Check | Validates input file presence before pipeline runs | `workflow/rules/00_preflight.smk` |
+| Generation Rules | Declares R-script execution order for database build | `workflow/rules/10_generation.smk` |
+| Analysis Rules | Declares R-script execution for statistical summaries | `workflow/rules/20_analysis.smk` |
+| KEGG Validation Rules | Declares Python-script validation against live KEGG API | `workflow/rules/30_validation.smk` |
+| Reporting Rule | Assembles final workflow summary JSON with checksums | `workflow/rules/90_reporting.smk` |
+| IO Contracts (R) | Canonical column names, KEGG endpoint definitions, value patterns | `workflow/lib/io_contracts.R` |
+| Utils (R) | Shared CLI argument parsing, package loading helpers | `workflow/lib/utils.R` |
+| Generation Scripts (R) | 8 R scripts implementing step-by-step data transformation | `workflow/scripts/generation/` |
+| Analysis Scripts (R) | 9 R scripts computing per-entity statistics and metadata | `workflow/scripts/analysis/` |
+| Validation Scripts (Python) | 2 Python scripts checking keys and link correctness via KEGG API | `workflow/scripts/validation/` |
+| Reporting Script (Python) | Builds `workflow_summary.json` with file hashes | `workflow/scripts/reporting/build_run_report.py` |
+| GX Validation Package | Great Expectations-based data contract enforcement | `biorempp_validation/src/biorempp_validation/` |
+| Standalone R Script | Original monolithic v1.0.0 generator (no Snakemake) | `generate_database.R` |
 
 ## Pattern Overview
 
-**Overall:** Multi-stage ETL pipeline with decoupled validation layer
+**Overall:** Staged ETL pipeline with Snakemake DAG orchestration
 
 **Key Characteristics:**
-- Snakemake-based workflow orchestration with modular rule files (declarative dependencies)
-- Layered processing: preflight validation → data generation → statistical analysis → validation gates → reporting
-- Dual-track data flow: primary generation pipeline + independent Great Expectations validation framework
-- API-first design for KEGG integration with fallback/enrichment strategies
-- Containerized execution via Docker for reproducibility
-- Contract-based outputs (fixed naming: `biorempp_database_v1.0.0.*`)
+- Each Snakemake rule corresponds to exactly one R or Python script invoked via shell
+- Intermediate data is serialized as `.rds` files (R binary) inside `work/`; final outputs are CSV/XLSX and JSON
+- All scripts consume configuration exclusively from `config/config.yaml` via CLI flags (no hardcoded paths in scripts)
+- IO contracts are centralized in `workflow/lib/io_contracts.R`, consumed by all generation R scripts
+- The GX validation module runs independently against the `results/` output of the Snakemake pipeline
 
 ## Layers
 
-**Preflight Layer:**
-- Purpose: Validates input file existence and integrity before pipeline execution
-- Location: `biorempp_snakemake_version/workflow/rules/00_preflight.smk`
-- Contains: Single input validation rule triggered before all dependent rules
-- Depends on: Local filesystem input data
-- Used by: All downstream generation rules depend on preflight completion marker `work/preflight_ok.json`
-- Key Script: `workflow/scripts/generation/00_check_inputs.R` - validates 6 required input files exist in `../input_data/`
+**Input Layer:**
+- Purpose: Curated source data and locally cached KEGG references
+- Location: `input_data/`
+- Contains: `.xlsx` agency compound lists, curated mappings, KO list (`.txt`), enzyme terms (`.txt`)
+- Depends on: Nothing (root source)
+- Used by: Generation scripts via `01_load_local_data.R`
 
-**Generation Layer (Data ETL):**
-- Purpose: Load local and external data, merge relationships, classify compounds, enrich metadata, export final database
-- Location: `biorempp_snakemake_version/workflow/rules/10_generation.smk`
-- Contains: 7 sequential rules producing intermediate `.rds` artifacts
-- Depends on: Preflight validation, local input files, KEGG REST API
-- Used by: Analysis and validation layers consume the final CSV output
-- Data flow:
-  1. **Preflight** → `work/preflight_ok.json`
-  2. **fetch_kegg_info** → `results/metadata/kegg_release.json` (independent, run in parallel)
-  3. **load_local_data** → `work/local_data.rds` (reads 6 Excel/text files from `../input_data/`)
-  4. **fetch_kegg_data** → `work/kegg_data.rds` (queries KO-EC, KO-reaction, cpd-EC links via REST API)
-  5. **merge_relationships** → `work/merged_compounds.rds` (joins local + KEGG data)
-  6. **add_classifications** → `work/classified_compounds.rds` (adds compound class annotations)
-  7. **enrich_gene_info** → intermediate enrichment (not explicitly shown, embedded in extraction)
-  8. **extract_enzymes_export** → `results/database/biorempp_database_v1.0.0.csv` + `.xlsx` (final table export)
-- Key Scripts:
-  - `workflow/scripts/generation/01_load_local_data.R` - reads 4 Excel files and 2 text files
-  - `workflow/scripts/generation/02_fetch_kegg_info.R` - queries KEGG info endpoint, stores release metadata
-  - `workflow/scripts/generation/03_fetch_kegg_data.R` - fetches link relationships via KEGG REST API, caches in memory
-  - `workflow/scripts/generation/04_merge_relationships.R` - joins via compound ID and KO ID with fallback enrichment
-  - `workflow/scripts/generation/07_extract_enzymes_export.R` - final CSV/XLSX export with 8-column schema
+**Generation Layer:**
+- Purpose: Builds the core database by loading, merging, classifying, and enriching data
+- Location: `biorempp_snakemake_version/workflow/scripts/generation/`
+- Contains: 8 R scripts (`00_check_inputs.R` through `07_extract_enzymes_export.R`)
+- Depends on: Input layer, KEGG REST API, `workflow/lib/io_contracts.R`
+- Used by: Analysis layer
 
-**Analysis Layer (Statistical Processing):**
-- Purpose: Generate 9 independent JSON reports summarizing database contents and relationships
-- Location: `biorempp_snakemake_version/workflow/rules/20_analysis.smk`
-- Contains: 9 parallelizable rules, each reading final CSV and producing summary JSON
-- Depends on: Final CSV output from generation layer
-- Used by: Validation layer and workflow reporting
-- Key Rules:
-  - `basic_statistics` → `results/analysis/basic_statistics.json` (row count, column info)
-  - `compound_statistics` → `results/analysis/compound_statistics.json` (top N compounds, frequency)
-  - `ko_statistics` → `results/analysis/ko_statistics.json` (top N KO IDs, distribution)
-  - `enzyme_statistics` → `results/analysis/enzyme_statistics.json` (top N enzymes extracted)
-  - `gene_statistics` → `results/analysis/gene_statistics.json` (gene symbol frequencies)
-  - `crosstab_statistics` → `results/analysis/crosstab_statistics.json` (cross-tabulations: compound×agency)
-  - `metadata` → `results/analysis/database_metadata.json` (column descriptions, sources, processing notes)
-  - `executive_summary` → `results/analysis/executive_summary.json` (high-level KPIs: total entries, unique compounds, unique KOs)
-  - `complete_analysis` → `results/analysis/complete_analysis.json` (merged all above)
-- Key Scripts: `workflow/scripts/analysis/0{1-9}_*.R` - each reads CSV via `readr::read_csv()`, aggregates, exports JSON
+**Intermediate Work Layer:**
+- Purpose: Stores in-progress `.rds` R data objects between generation steps
+- Location: `biorempp_snakemake_version/work/`
+- Contains: `preflight_ok.json`, `local_data.rds`, `kegg_data.rds`, `merged_compounds.rds`, `classified_compounds.rds`, `enriched_compounds.rds`
+- Generated: Yes — not committed to source control
+- Used by: Subsequent generation rules
 
-**Validation Layer (API-Based Consistency Checks):**
-- Purpose: Validate database integrity against KEGG API and enforce data quality gates
-- Location: `biorempp_snakemake_version/workflow/rules/30_validation.smk`
-- Contains: 2 API-driven validation rules producing JSON consistency reports
-- Depends on: Final CSV output from generation layer, KEGG REST API
-- Used by: Workflow reporting and external validation framework
-- Key Rules:
-  - `validate_keys_consistency` → `results/metadata/keys_consistency_report.json` - validates that database KO/cpd/EC relationships align with KEGG API ground truth
-  - `validate_links_groundtruth_policy` → `results/metadata/links_groundtruth_policy_report.json` - checks bridge relationships (KO→EC→reaction) exist in KEGG
-- Key Scripts:
-  - `workflow/scripts/validation/01_validate_keys_consistency_api.py` - queries KEGG endpoints for KO-EC, KO-reaction, cpd-EC, cpd-reaction, EC-reaction links; compares with database
-  - `workflow/scripts/validation/02_validate_links_groundtruth_policy_api.py` - validates transitive relationship rules and fallback enrichment policies
+**Analysis Layer:**
+- Purpose: Computes statistical summaries over the generated database
+- Location: `biorempp_snakemake_version/workflow/scripts/analysis/`
+- Contains: 9 R scripts producing per-entity statistics JSON files
+- Depends on: `results/database/` CSV output
+- Used by: Validation layer, reporting layer
 
-**Reporting Layer (Provenance & Checksums):**
-- Purpose: Compute final run summary with SHA-256 hashes, execution metadata, and KEGG release info
-- Location: `biorempp_snakemake_version/workflow/rules/90_reporting.smk`
-- Contains: Single aggregation rule consuming all prior outputs
-- Depends on: All database, analysis, metadata, and validation artifacts
-- Used by: External documentation, CI/CD validation, audit trails
-- Key Rule:
-  - `build_run_report` → `results/reports/workflow_summary.json` - aggregates checksums, timestamps, KEGG release, artifact paths
-- Key Script:
-  - `workflow/scripts/reporting/build_run_report.py` - computes SHA-256 for all outputs, collects execution context
+**Validation Layer:**
+- Purpose: Verifies database keys and link correctness against live KEGG API
+- Location: `biorempp_snakemake_version/workflow/scripts/validation/`
+- Contains: `01_validate_keys_consistency_api.py`, `02_validate_links_groundtruth_policy_api.py`, `common_normalization.py`
+- Depends on: `results/database/` CSV, KEGG REST API
+- Used by: Reporting layer
 
-**Validation Framework Layer (Post-Pipeline, Independent):**
-- Purpose: Standalone Great Expectations validation suite verifying database schema, content integrity, and statistical consistency
-- Location: `biorempp_validation/` (separate Python package)
-- Contains: GX checkpoints, expectation suites, schema validators, cross-consistency checks
-- Depends on: Final pipeline outputs (CSV + JSON analysis artifacts)
-- Used by: CI/CD, release gates, compliance audits
-- Key Components:
-  - `biorempp_validation/great_expectations/expectations/` - JSON expectation suites for schema, nulls, vocab, exact counts
-  - `biorempp_validation/src/biorempp_validation/run_validation.py` - orchestrates suite execution
-  - `biorempp_validation/src/biorempp_validation/consistency_checks.py` - validates CSV↔JSON parity
-  - Schema enforcement: database critical (blocks on schema violations), database warning (vocab controlled)
-  - Analysis JSON validation: critical (required keys/structure), warning (top-N quality), exact (metric parity)
+**Results Layer:**
+- Purpose: Persists all pipeline outputs in structured subdirectories
+- Location: `biorempp_snakemake_version/results/`
+- Contains: `database/` (CSV+XLSX), `analysis/` (JSON stats), `metadata/` (KEGG release + validation reports), `reports/` (workflow summary)
+- Used by: GX validation package
+
+**GX Validation Layer:**
+- Purpose: Formal data contract enforcement using Great Expectations; runs as a separate Python package after the Snakemake pipeline
+- Location: `biorempp_validation/src/biorempp_validation/`
+- Contains: `run_validation.py` (entrypoint), `settings.py`, `loaders.py`, `gx_context.py`, `json_to_dataframe.py`, `consistency_checks.py`, `report_builder.py`
+- Depends on: `results/` directory from Snakemake pipeline, `biorempp_validation/config/validation.yaml`
+- Used by: CI/CD, manual quality gates
+
+**Documentation Layer:**
+- Purpose: MkDocs-based static site documentation
+- Location: `docs/`, `mkdocs.yml`
+- Built by: `scripts/build-docs.sh`, CI via `.github/workflows/docs-ci.yml`
 
 ## Data Flow
 
-**Main Pipeline (Generation → Analysis → Validation → Reporting):**
+### Primary Database Generation Path
 
-1. **Ingestion Phase:**
-   - Preflight rule checks 6 input files in `../input_data/` exist
-   - Two parallel branches:
-     - **Local Data:** `01_load_local_data.R` reads 4 Excel + 2 text files → `work/local_data.rds`
-     - **KEGG Metadata:** `02_fetch_kegg_info.R` queries KEGG info endpoint → `results/metadata/kegg_release.json`
-     - **KEGG Links:** `03_fetch_kegg_data.R` fetches KO-EC, KO-reaction, etc. via REST → `work/kegg_data.rds`
+1. **Preflight** — `00_check_inputs.R` verifies all 6 required input files exist; writes `work/preflight_ok.json`
+2. **Load local data** — `01_load_local_data.R` reads XLSX/TXT input files; serializes to `work/local_data.rds`
+3. **Fetch KEGG info** — `02_fetch_kegg_info.R` queries `https://rest.kegg.jp/info/kegg`; writes `results/metadata/kegg_release.json`
+4. **Fetch KEGG data** — `03_fetch_kegg_data.R` retrieves KO-EC, KO-reaction, compound-EC, compound-reaction, EC-reaction, reaction-description, and compound-list endpoints; serializes to `work/kegg_data.rds`
+5. **Merge relationships** — `04_merge_relationships.R` joins local + KEGG data on EC numbers and reactions; writes `work/merged_compounds.rds`
+6. **Add classifications** — `05_add_classifications.R` joins curated compound classes; writes `work/classified_compounds.rds`
+7. **Enrich gene info** — `06_enrich_gene_info.R` adds gene symbol/name from KEGG KO list; writes `work/enriched_compounds.rds`
+8. **Extract enzymes + export** — `07_extract_enzymes_export.R` pattern-matches enzyme terms, cleans annotations, writes `results/database/biorempp_database_v1.1.0.csv` and `.xlsx`
 
-2. **Transformation Phase:**
-   - `04_merge_relationships.R` joins local data + KEGG links via compound ID + KO ID with fallback enrichment
-   - `05_add_classifications.R` annotates compound classes (from `confirm_class_CURATED.xlsx`)
-   - `06_enrich_gene_info.R` supplements gene symbols + descriptions (from local mapping)
-   - `07_extract_enzymes_export.R` parses enzyme activity from gene names → final 8-column CSV/XLSX export
+### Analysis Path
 
-3. **Analysis Phase (9 Independent Rules):**
-   - Each rule reads the final CSV
-   - Computes metrics: counts, top-N, distributions, cross-tabs, metadata
-   - Outputs JSON to `results/analysis/`
-   - Final `09_merge_complete_analysis.R` concatenates all JSON files
+All 9 analysis scripts read from `results/database/biorempp_database_v1.1.0.csv` independently and write to `results/analysis/*.json`:
 
-4. **Validation Phase (API-Based):**
-   - `01_validate_keys_consistency_api.py` queries KEGG for each KO/cpd/EC in database, counts matches
-   - `02_validate_links_groundtruth_policy_api.py` validates bridge relationships (KO→EC→reaction)
-   - Outputs JSON reports to `results/metadata/`
+- `01_basic_statistics.R` → `basic_statistics.json`
+- `02_compound_statistics.R` → `compound_statistics.json`
+- `03_ko_statistics.R` → `ko_statistics.json`
+- `04_enzyme_statistics.R` → `enzyme_statistics.json`
+- `05_gene_statistics.R` → `gene_statistics.json`
+- `06_crosstab_statistics.R` → `crosstab_statistics.json`
+- `07_metadata.R` → `database_metadata.json`
+- `08_executive_summary.R` (aggregates basic/compound/ko/enzyme JSONs) → `executive_summary.json`
+- `09_merge_complete_analysis.R` (aggregates all JSONs) → `complete_analysis.json`
 
-5. **Reporting Phase:**
-   - `build_run_report.py` computes SHA-256 for all outputs, aggregates metadata
-   - Outputs `results/reports/workflow_summary.json`
+### KEGG Validation Path
 
-**External Validation (Post-Pipeline):**
+Both Python scripts read the final CSV and hit the KEGG REST API to spot-check key linkages:
 
-1. User runs: `python -m biorempp_validation.run_validation --config config/validation.yaml`
-2. Framework loads database CSV from `biorempp_snakemake_version/results/database/`
-3. Framework loads analysis JSON files from `biorempp_snakemake_version/results/analysis/`
-4. Executes 7 expectation suites:
-   - `database_critical` - schema, nulls, ID patterns, duplicates
-   - `database_warning` - controlled vocab, strict exact counts (configurable)
-   - `analysis_json_critical` - required keys, structural checks
-   - `analysis_json_warning` - top-N quality, summary plausibility
-   - `analysis_json_exact_critical` - metric parity (CSV row count ↔ basic_statistics.json)
-   - `metadata_kegg_critical` - KEGG release traceability
-   - `cross_consistency_critical` - validate CSV counts vs. analysis JSON summaries
-5. Outputs checkpoint results + HTML data docs to `biorempp_validation/results/`
-6. Exit code: 0 (pass all critical), 1 (any critical failure or configured warning failure)
+1. `01_validate_keys_consistency_api.py` → `results/metadata/keys_consistency_report.json`
+2. `02_validate_links_groundtruth_policy_api.py` → `results/metadata/links_groundtruth_policy_report.json`
+
+### Reporting Path
+
+`build_run_report.py` aggregates all outputs (database files + all JSON results) and computes SHA-256 hashes → `results/reports/workflow_summary.json`
+
+### GX Validation Path
+
+`biorempp_validation/src/biorempp_validation/run_validation.py`:
+
+1. Loads `validation.yaml` settings
+2. Checks required files exist in `results/`
+3. Loads CSV and analysis JSONs
+4. Builds synthetic DataFrames from JSON payloads for GX suites
+5. Runs `critical_gate` checkpoint (fail-on-critical) and `warning_report` checkpoint
+6. Writes `critical_checkpoint_result.json`, `warning_checkpoint_result.json`, `validation_summary.json` to `biorempp_validation/results/`
 
 **State Management:**
-
-- **Intermediate State:** `.rds` files in `work/` - R-native serialization for fast deserialization across rules
-- **Final State:** CSV/XLSX in `results/database/`, JSON in `results/analysis/` and `results/metadata/`
-- **Metadata State:** KEGG release info, checksums, timestamps in `results/metadata/` and `results/reports/`
-- **Validation State:** Great Expectations checkpoint results in `biorempp_validation/results/`
+- Between pipeline steps: `.rds` R binary files in `work/`
+- Final state: CSV/XLSX in `results/database/`, JSON files in `results/analysis/` and `results/metadata/`
+- No shared in-memory state — all communication is via files
 
 ## Key Abstractions
 
-**Compound-Gene-Enzyme Relationship (CGE):**
-- Purpose: Core data model linking chemical compounds → KEGG KO → gene symbols → enzyme activities
-- Examples: `biorempp_database_v1.0.0.csv` (8-column table: cpd, compoundclass, ko, referenceAG, compoundname, genesymbol, genename, enzyme_activity)
-- Pattern: Relational table with multiple many-to-one joins (single compound maps to multiple KOs, each KO maps to multiple genes)
+**IO Contracts (`io_contracts.R`):**
+- Purpose: Single source of truth for expected column names, KEGG endpoint definitions, and identifier regex patterns
+- File: `biorempp_snakemake_version/workflow/lib/io_contracts.R`
+- Pattern: Constants file sourced by all generation R scripts
 
-**Input Contract (6 Files):**
-- Purpose: Defines canonical input sources
-- Examples:
-  - `kegglistcompounds.xlsx` - compound registry with KEGG IDs
-  - `compostos_todasagencias.xlsx` - compound-agency mappings
-  - `confirm_class_CURATED.xlsx` - compound classification (manually curated)
-  - `kegglistko.txt` - KEGG KO identifiers
-  - `enzymes_unique.txt` - unique enzyme names
-  - `missing_compounds_founds_curated.xlsx` - gap-fill data (compounds found outside standard KEGG)
-- Pattern: Static lookup tables + curated extensions (defined in `io_contracts.R`)
+**ValidationSettings (Python dataclass):**
+- Purpose: Typed configuration object for the GX validation run
+- File: `biorempp_validation/src/biorempp_validation/settings.py`
+- Pattern: Immutable frozen dataclass loaded from `validation.yaml`
 
-**Output Contract (Fixed Naming):**
-- Purpose: Ensures reproducible, versionable output paths
-- Examples: `biorempp_database_v1.0.0.csv`, `biorempp_database_v1.0.0.xlsx`
-- Pattern: Version string in filename, immutable structure once v1.0.0 released
+**Expectation Suites (JSON):**
+- Purpose: GX expectation definitions for critical and warning checks, split by severity
+- Files: `biorempp_validation/great_expectations/expectations/database_critical.json`, `database_warning.json`, `analysis_json_critical.json`, `analysis_json_exact_critical.json`, `analysis_json_warning.json`, `metadata_kegg_critical.json`, `cross_consistency_critical.json`
+- Pattern: JSON payloads loaded at runtime and patched with dynamic thresholds from config
 
-**KEGG Integration Pattern:**
-- Purpose: Fetch and validate relationships from external KEGG API
-- Examples:
-  - `fetch_kegg_data.R` queries 5 endpoints (KO-EC, KO-reaction, cpd-EC, cpd-reaction, EC-reaction)
-  - `02_validate_keys_consistency_api.py` re-queries same endpoints to verify consistency
-- Pattern: Caching in intermediate `.rds` artifacts, API calls in dedicated generation step, separate validation step for audit trail
-
-**Statistics Aggregation Pattern:**
-- Purpose: Compute summary metrics independently then merge
-- Examples: 9 analysis rules each read CSV, compute specialized metric, output JSON
-- Pattern: Single-responsibility rules (compound_statistics only computes compound frequencies, not KO or enzyme data)
-
-**Schema Validation Pattern:**
-- Purpose: Enforce strict column definitions, nullability, regex patterns, vocabulary
-- Examples: `database_critical` expectation suite validates 8 columns, null constraints, KEGG ID format (`^[A-Z]\d{5}$`)
-- Pattern: Great Expectations JSON definitions, loaded at validation runtime, configurable severity (critical = blocks, warning = reports)
+**Checkpoints (YAML):**
+- Purpose: GX checkpoint definitions that map datasets to suites
+- Files: `biorempp_validation/great_expectations/checkpoints/critical_gate.yml`, `warning_report.yml`
 
 ## Entry Points
 
-**Pipeline Execution:**
+**Snakemake Pipeline:**
 - Location: `biorempp_snakemake_version/Snakefile`
-- Triggers: `snakemake --snakefile Snakefile --configfile config/config.yaml --cores N` OR Docker Compose
-- Responsibilities:
-  - Includes all rule modules (00_preflight, 10_generation, 20_analysis, 30_validation, 90_reporting)
-  - Declares target files for `all` rule (database CSV/XLSX, analysis JSON files, metadata, workflow summary)
-  - Manages global variables (VERSION, PATHS, OUTPUTS, file locations)
+- Triggers: `snakemake --snakefile Snakefile --configfile config/config.yaml --cores N`
+- Responsibilities: Declares all pipeline outputs in `rule all`, includes all `.smk` rule files
 
-**Validation Execution:**
-- Location: `biorempp_validation/src/biorempp_validation/run_validation.py` (main function)
-- Triggers: `python -m biorempp_validation.run_validation --config <yaml>` OR `biorempp-validate --config <yaml>` (installed entry point)
-- Responsibilities:
-  - Parses validation config (expected agencies, compound classes, strict_exact flag, fail_on_warning flag)
-  - Loads pipeline outputs from disk
-  - Instantiates Great Expectations context
-  - Runs expectation suites sequentially
-  - Aggregates results into checkpoint pass/fail
-  - Generates validation summary JSON + HTML data docs
-  - Returns exit code (0 = pass, 1 = fail)
+**Standalone R Script (v1.0.0):**
+- Location: `generate_database.R`
+- Triggers: `Rscript generate_database.R` or run from RStudio
+- Responsibilities: Complete monolithic pipeline — loads, fetches, merges, classifies, enriches, exports
 
-**Development Entry Points (Scripts):**
-- `biorempp_snakemake_version/scripts/run_snakemake.sh` - Linux/macOS helper (sets cores, runs Docker if available)
-- `biorempp_snakemake_version/scripts/run_snakemake.bat` - Windows batch helper
+**GX Validation CLI:**
+- Location: `biorempp_validation/src/biorempp_validation/run_validation.py`
+- Triggers: `python -m biorempp_validation.run_validation --config biorempp_validation/config/validation.yaml`
+- Responsibilities: Loads pipeline results, runs Great Expectations checkpoints, writes validation reports
+
+**Docker Entry Point:**
+- Location: `biorempp_snakemake_version/env/Dockerfile`
+- CMD: `snakemake --snakefile Snakefile --configfile config/config.yaml --cores 2 --printshellcmds`
+- Base image: `rocker/tidyverse:4.3` with Python 3 added
+
+## Architectural Constraints
+
+- **Execution order:** Snakemake enforces DAG ordering via file dependencies — no rule runs unless its input files exist
+- **Inter-script communication:** Exclusively via files (`.rds`, `.json`, `.csv`) — no shared memory, no sockets
+- **KEGG API dependency:** Rules `fetch_kegg_info`, `fetch_kegg_data`, and both validation rules require network access to `https://rest.kegg.jp`
+- **R version:** Base image pins `rocker/tidyverse:4.3`; key packages: `readxl`, `dplyr`, `tidyr`, `stringr`, `readr`, `xlsx`, `jsonlite`, `httr`
+- **Python version:** `python3` (no specific version pinned outside Docker)
+- **Global state:** `io_contracts.R` is sourced as a side-effectful file, defining package-level constants. `common_normalization.py` loads NA markers at module import
+- **Circular imports:** None detected
+- **Config authority:** `biorempp_snakemake_version/config/config.yaml` is the single config for the pipeline; `biorempp_validation/config/validation.yaml` is the single config for GX validation — they are separate files
+
+## Anti-Patterns
+
+### Standalone Script vs Pipeline Duplication
+
+**What happens:** `generate_database.R` at the project root duplicates the full database generation logic that also lives in `workflow/scripts/generation/`. Both implement the same ETL steps independently.
+
+**Why it's wrong:** Changes to the pipeline logic must be applied in two places; the standalone script will drift from the canonical pipeline implementation.
+
+**Do this instead:** Use only the Snakemake pipeline for all generation. Treat `generate_database.R` as a legacy artifact. New features go into `workflow/scripts/generation/` scripts only.
 
 ## Error Handling
 
-**Strategy:** Fail-fast with detailed logging + graceful API fallback for enrichment
+**Strategy:** Fail-fast with informative messages at each layer
 
 **Patterns:**
-
-1. **Input Validation (Preflight):**
-   - `00_check_inputs.R` verifies all 6 files exist before pipeline starts
-   - Exit if any missing → blocks entire DAG
-   - Log: `logs/preflight_check_inputs.log`
-
-2. **API Failure (Generation):**
-   - `03_fetch_kegg_data.R` calls KEGG REST endpoints
-   - If API unavailable: pipeline fails (no fallback local cache)
-   - If partial response: pipeline fails (incomplete links)
-   - Log: `logs/fetch_kegg_data.log`
-
-3. **Data Inconsistency (Validation):**
-   - `01_validate_keys_consistency_api.py` counts mismatches between database and KEGG API
-   - Outputs report (does not block by default, requires separate validation run)
-   - Log: `logs/validate_keys_consistency.log`
-
-4. **Schema Violations (Validation Framework):**
-   - Great Expectations detects missing columns, wrong data types, nulls, regex failures
-   - `critical` expectations block execution (exit 1)
-   - `warning` expectations report only (unless `fail_on_warning: true` in config)
-   - Output: `biorempp_validation/results/critical_checkpoint_result.json`
-
-5. **Logging:**
-   - All R scripts use `log_message()` helper from `workflow/lib/utils.R` (timestamp + level)
-   - All Python scripts use `logging` module with file + console handlers
-   - Per-rule logs: `logs/<rule_name>.log`
-   - Pipeline logs aggregated by Snakemake in `.snakemake/log/`
+- R scripts call `stop()` with descriptive messages when required files or arguments are missing
+- Python validation scripts use `argparse` for required argument enforcement
+- GX validation separates critical failures (pipeline-halting) from warnings (report-only) via `fail_on_critical` and `fail_on_warning` settings in `validation.yaml`
+- KEGG API calls in Python validation use retry logic with exponential backoff (configured via env vars `BIOREMPP_API_MAX_RETRIES`, `BIOREMPP_API_TIMEOUT_SECONDS`)
 
 ## Cross-Cutting Concerns
 
-**Logging:**
-- Approach: File-based per-rule logging (Snakemake redirects stdout/stderr to `logs/<rule>.log`)
-- Pattern: R scripts use custom `log_message()` function with timestamp + level; Python scripts use standard `logging` module
-- Centralized: All logs written to `logs/` directory, indexed by Snakemake
+**Logging:** R scripts write stdout/stderr to per-rule log files in `biorempp_snakemake_version/logs/` (e.g., `logs/fetch_kegg_info.log`). Snakemake captures these via shell redirection `> {log} 2>&1`.
 
-**Validation:**
-- Approach: Multi-layer strategy - input validation (preflight), schema enforcement (Great Expectations), API consistency checks (workflow rules)
-- Pattern:
-  - Preflight rule blocks pipeline start
-  - Generation rules fail if KEGG API unavailable
-  - Validation rules produce reports (non-blocking by default)
-  - Great Expectations framework enforces schema after pipeline completes
-- Critical paths: CSV schema, null constraints, KEGG ID format (must pass)
+**Validation:** Two distinct validation layers: (1) in-pipeline KEGG key/link validation via Python scripts in `workflow/scripts/validation/`; (2) post-pipeline Great Expectations data contract validation in `biorempp_validation/`.
 
-**Authentication:**
-- Approach: No authentication required (KEGG REST API is public)
-- KEGG base URL: `https://rest.kegg.jp` (configurable in `config/config.yaml`)
+**Configuration:** All configurable values (paths, KEGG endpoints, output names, analysis top-N counts) are in `biorempp_snakemake_version/config/config.yaml`. Validation thresholds and database contract are in `biorempp_validation/config/validation.yaml`.
 
-**Configuration Management:**
-- Approach: Centralized YAML config file
-- Location: `biorempp_snakemake_version/config/config.yaml`
-- Keys managed: version, paths (input/results/work/logs), outputs (CSV/XLSX filenames), KEGG endpoints, analysis parameters (top_n_compounds, etc.)
-- Usage: Snakemake loads config automatically, passes to rules via `config["key"]` syntax
-
-**Reproducibility:**
-- Approach: Version all inputs + environment + pipeline + outputs
-- Assets:
-  - Input files: 6 static Excel/text files in `input_data/`
-  - Pipeline code: `workflow/` scripts + rules + `Snakefile`
-  - Environment: `env/Dockerfile`, `env/python-requirements.txt`, `env/r-packages.txt`
-  - Metadata: `results/metadata/kegg_release.json` captures KEGG state at run time
-  - Checksums: `results/reports/workflow_summary.json` contains SHA-256 hashes of all outputs
+**Reproducibility:** `build_run_report.py` records SHA-256 checksums of all output files in `workflow_summary.json`. The GX `strict_exact` mode pins exact row/entity counts from a prior run.
 
 ---
 
-*Architecture analysis: 2026-03-24*
+*Architecture analysis: 2026-05-17*

@@ -1,45 +1,61 @@
 # Codebase Structure
 
-**Analysis Date:** 2026-03-24
+**Analysis Date:** 2026-05-17
 
 ## Directory Layout
 
 ```
-BioRemPP_DB_1.0.0/
-├── biorempp_snakemake_version/    # Primary Snakemake pipeline (v1.0.0)
-│   ├── Snakefile                   # Main workflow orchestrator
-│   ├── README.md                    # Pipeline documentation
+BioRemPP_DB_1.0.0/                          # Project root
+├── generate_database.R                      # Standalone v1.0.0 monolithic generator (legacy)
+├── requirements.txt                         # Python dependencies for MkDocs documentation site
+├── mkdocs.yml                               # MkDocs static documentation site configuration
+├── LICENSE.md
+├── README.md
+│
+├── input_data/                              # Source data files (checked into git)
+│   ├── kegglistcompounds.xlsx               # KEGG compound ID → name reference list
+│   ├── compostos_todasagencias.xlsx         # Compound IDs from 9 environmental agencies
+│   ├── missing_compounds_founds_curated.xlsx# Manually curated cpd→KO mappings (gap-fill)
+│   ├── confirm_class_CURATED.xlsx           # Manually curated compound classifications
+│   ├── kegglistko.txt                       # KEGG KO list with gene symbol/name columns
+│   ├── enzymes_unique.txt                   # Unique enzyme activity terms for pattern matching
+│   ├── biorempp_database_v1.0.0.csv         # Frozen v1.0.0 database (reference copy)
+│   └── biorempp_database_v1.0.0.xlsx        # Frozen v1.0.0 database (Excel copy)
+│
+├── output_data/                             # Output from standalone generate_database.R
+│   └── (generated CSV/XLSX — not committed)
+│
+├── biorempp_snakemake_version/              # Snakemake pipeline (v1.1.0 and forward)
+│   ├── Snakefile                            # Pipeline entry point — declares all final outputs
 │   ├── config/
-│   │   └── config.yaml              # Centralized configuration (paths, KEGG endpoints, analysis params)
-│   ├── env/
-│   │   ├── Dockerfile               # Docker image (rocker/tidyverse:4.3 base)
-│   │   ├── docker-compose.yml       # Docker Compose service definition
-│   │   ├── python-requirements.txt  # Snakemake 7.32.4, PuLP, etc.
-│   │   └── r-packages.txt           # R packages (readxl, dplyr, tidyr, jsonlite, etc.)
-│   ├── scripts/
-│   │   ├── run_snakemake.sh         # Linux/macOS helper (runs Snakemake or Docker)
-│   │   └── run_snakemake.bat        # Windows batch helper
+│   │   └── config.yaml                      # All pipeline config: paths, KEGG endpoints, version
+│   ├── env/                                 # Reproducible environment definitions
+│   │   ├── Dockerfile                       # rocker/tidyverse:4.3 + Python3 image
+│   │   ├── docker-compose.yml
+│   │   ├── python-requirements.txt          # Python packages for pipeline scripts
+│   │   └── r-packages.txt                   # R packages installed at Docker build time
 │   ├── workflow/
-│   │   ├── lib/                     # Shared R utility libraries
-│   │   │   ├── utils.R              # General helpers (parse_cli_args, log_message, write_json_file, etc.)
-│   │   │   └── io_contracts.R       # Input/output contract definitions
-│   │   ├── rules/                   # Snakemake rule modules (4 files, processed by main Snakefile)
-│   │   │   ├── 00_preflight.smk     # Input validation rule
-│   │   │   ├── 10_generation.smk    # Data ETL rules (load local, fetch KEGG, merge, classify, enrich, export)
-│   │   │   ├── 20_analysis.smk      # Statistical analysis rules (9 parallelizable rules → JSON)
-│   │   │   ├── 30_validation.smk    # API-based consistency validation rules (2 Python scripts)
-│   │   │   └── 90_reporting.smk     # Final run report generation (SHA-256 checksums)
-│   │   └── scripts/                 # Rule implementations (R + Python)
-│   │       ├── generation/          # Data generation layer (8 R scripts, 00-07 prefix)
-│   │       │   ├── 00_check_inputs.R
-│   │       │   ├── 01_load_local_data.R
-│   │       │   ├── 02_fetch_kegg_info.R
-│   │       │   ├── 03_fetch_kegg_data.R
-│   │       │   ├── 04_merge_relationships.R
-│   │       │   ├── 05_add_classifications.R
-│   │       │   ├── 06_enrich_gene_info.R
-│   │       │   └── 07_extract_enzymes_export.R
-│   │       ├── analysis/            # Statistical analysis layer (9 R scripts, 01-09 prefix)
+│   │   ├── rules/                           # Snakemake rule files (numbered by stage)
+│   │   │   ├── 00_preflight.smk             # Input file existence check
+│   │   │   ├── 10_generation.smk            # Database generation rules (7 steps)
+│   │   │   ├── 20_analysis.smk              # Statistical analysis rules (9 steps)
+│   │   │   ├── 30_validation.smk            # KEGG API validation rules (2 steps)
+│   │   │   └── 90_reporting.smk             # Workflow summary report rule
+│   │   ├── lib/                             # Shared R library code
+│   │   │   ├── io_contracts.R               # Canonical column names, KEGG endpoints, patterns
+│   │   │   ├── utils.R                      # Shared CLI parsing, package loading helpers
+│   │   │   └── na_markers.txt               # List of NA-like string values for normalization
+│   │   └── scripts/                         # Implementation scripts grouped by stage
+│   │       ├── generation/                  # R scripts for database construction
+│   │       │   ├── 00_check_inputs.R        # Validates required input files exist
+│   │       │   ├── 01_load_local_data.R     # Loads and parses all XLSX/TXT input files
+│   │       │   ├── 02_fetch_kegg_info.R     # Fetches KEGG release metadata
+│   │       │   ├── 03_fetch_kegg_data.R     # Fetches all KEGG link/list endpoints
+│   │       │   ├── 04_merge_relationships.R # Joins local + KEGG data on EC/reaction keys
+│   │       │   ├── 05_add_classifications.R # Joins curated compound class annotations
+│   │       │   ├── 06_enrich_gene_info.R    # Joins KO → gene symbol/name
+│   │       │   └── 07_extract_enzymes_export.R # Extracts enzyme terms, exports CSV+XLSX
+│   │       ├── analysis/                    # R scripts for statistical summaries
 │   │       │   ├── 01_basic_statistics.R
 │   │       │   ├── 02_compound_statistics.R
 │   │       │   ├── 03_ko_statistics.R
@@ -49,345 +65,256 @@ BioRemPP_DB_1.0.0/
 │   │       │   ├── 07_metadata.R
 │   │       │   ├── 08_executive_summary.R
 │   │       │   └── 09_merge_complete_analysis.R
-│   │       ├── validation/          # API-based validation layer (2 Python scripts)
+│   │       ├── validation/                  # Python scripts for KEGG API validation
 │   │       │   ├── 01_validate_keys_consistency_api.py
-│   │       │   └── 02_validate_links_groundtruth_policy_api.py
-│   │       └── reporting/           # Provenance reporting (1 Python script)
+│   │       │   ├── 02_validate_links_groundtruth_policy_api.py
+│   │       │   └── common_normalization.py  # Shared NA detection, token normalization
+│   │       └── reporting/                   # Python script for workflow summary
 │   │           └── build_run_report.py
-│   ├── work/                        # Intermediate .rds artifacts (generated, not committed)
-│   │   ├── .gitkeep
-│   │   ├── preflight_ok.json        # Marker file from preflight check
-│   │   ├── local_data.rds           # Loaded input data (serialized R object)
-│   │   ├── kegg_data.rds            # Fetched KEGG relationships
-│   │   ├── merged_compounds.rds     # Joined local + KEGG data
-│   │   └── classified_compounds.rds # After classification/enrichment
-│   ├── results/                     # Final outputs (generated, committed per release)
+│   ├── input_data -> ../input_data          # Symlink or reference (pipeline uses ../input_data)
+│   ├── results/                             # All pipeline outputs (generated, not committed)
 │   │   ├── database/
-│   │   │   ├── .gitkeep
-│   │   │   ├── biorempp_database_v1.0.0.csv     # Final database (10,871 rows × 8 cols)
-│   │   │   └── biorempp_database_v1.0.0.xlsx    # Same as Excel
-│   │   ├── analysis/                # JSON statistics reports
-│   │   │   ├── .gitkeep
-│   │   │   ├── basic_statistics.json            # Row/column counts
-│   │   │   ├── compound_statistics.json         # Top N compounds
-│   │   │   ├── ko_statistics.json               # Top N KO IDs
-│   │   │   ├── enzyme_statistics.json           # Top N enzymes
-│   │   │   ├── gene_statistics.json             # Top N genes
-│   │   │   ├── crosstab_statistics.json         # Compound×Agency crosstab
-│   │   │   ├── database_metadata.json           # Schema + processing notes
-│   │   │   ├── executive_summary.json           # High-level KPIs
-│   │   │   └── complete_analysis.json           # Merged all analyses
+│   │   │   ├── biorempp_database_v1.1.0.csv
+│   │   │   └── biorempp_database_v1.1.0.xlsx
+│   │   ├── analysis/                        # Per-entity statistics JSON files
+│   │   │   ├── basic_statistics.json
+│   │   │   ├── compound_statistics.json
+│   │   │   ├── ko_statistics.json
+│   │   │   ├── enzyme_statistics.json
+│   │   │   ├── gene_statistics.json
+│   │   │   ├── crosstab_statistics.json
+│   │   │   ├── database_metadata.json
+│   │   │   ├── executive_summary.json
+│   │   │   └── complete_analysis.json
 │   │   ├── metadata/
-│   │   │   ├── kegg_release.json                # KEGG release metadata (date, version)
-│   │   │   ├── keys_consistency_report.json     # API validation results (mismatches)
-│   │   │   └── links_groundtruth_policy_report.json # Transitive rule violations
+│   │   │   ├── kegg_release.json
+│   │   │   ├── keys_consistency_report.json
+│   │   │   ├── links_groundtruth_policy_report.json
+│   │   │   └── link_consistency_audit.json
 │   │   └── reports/
-│   │       └── workflow_summary.json            # SHA-256 checksums + metadata
-│   ├── logs/                        # Per-rule execution logs (generated, not committed)
-│   │   ├── .gitkeep
-│   │   ├── preflight_check_inputs.log
-│   │   ├── load_local_data.log
-│   │   ├── fetch_kegg_data.log
-│   │   ├── analysis_*.log           # 9 analysis rule logs
-│   │   └── ... (one log per rule)
-│   ├── .snakemake/                  # Snakemake metadata (locks, cache, conda)
-│   │   ├── locks/                   # Execution locks
-│   │   ├── log/                     # Snakemake system logs
-│   │   ├── metadata/                # Rule metadata
-│   │   └── conda/                   # Conda environment cache (if used)
-│   └── input_data/                  # Symlink/copy of root input_data (used by Snakefile)
+│   │       └── workflow_summary.json        # SHA-256 checksums + run metadata
+│   ├── work/                                # Intermediate .rds files (generated, not committed)
+│   │   ├── preflight_ok.json
+│   │   ├── local_data.rds
+│   │   ├── kegg_data.rds
+│   │   ├── merged_compounds.rds
+│   │   ├── classified_compounds.rds
+│   │   └── enriched_compounds.rds
+│   └── logs/                                # Per-rule log files (generated)
 │
-├── biorempp_validation/             # Standalone Great Expectations validation package
-│   ├── README.md                     # Validation framework documentation
-│   ├── pyproject.toml                # Python package metadata
-│   ├── requirements.txt              # GX + dependencies
+├── biorempp_validation/                     # GX validation Python package (post-pipeline QA)
 │   ├── config/
-│   │   └── validation.yaml           # Validation rules (expected agencies, classes, strict_exact, fail_on_warning)
+│   │   └── validation.yaml                  # Validation config: thresholds, expected columns
+│   ├── src/biorempp_validation/             # Installable Python package
+│   │   ├── __init__.py
+│   │   ├── run_validation.py                # CLI entrypoint for validation run
+│   │   ├── settings.py                      # ValidationSettings dataclass + loader
+│   │   ├── loaders.py                       # File loading utilities (CSV, JSON, path resolution)
+│   │   ├── gx_context.py                    # Great Expectations context factory
+│   │   ├── json_to_dataframe.py             # Converts analysis JSON payloads to GX DataFrames
+│   │   ├── consistency_checks.py            # Builds cross-consistency DataFrame
+│   │   └── report_builder.py                # Builds validation_summary.json
 │   ├── great_expectations/
-│   │   ├── great_expectations.yml    # GX context configuration
 │   │   ├── checkpoints/
-│   │   │   ├── critical_gate.yml     # Blocking checkpoint (critical suites)
-│   │   │   └── warning_report.yml    # Report-only checkpoint (warning suites)
-│   │   ├── expectations/             # JSON expectation suite definitions
-│   │   │   ├── database_critical.json                # Schema, nulls, regex, duplicates
-│   │   │   ├── database_warning.json                 # Vocab, exact counts (configurable)
-│   │   │   ├── analysis_json_critical.json          # Required keys, structure
-│   │   │   ├── analysis_json_warning.json           # Quality checks
-│   │   │   ├── analysis_json_exact_critical.json    # Metric parity (CSV ↔ JSON)
-│   │   │   ├── cross_consistency_critical.json      # Count cross-validation
-│   │   │   └── metadata_kegg_critical.json          # KEGG traceability
-│   │   └── plugins/                  # Custom validators (reserved)
-│   │       └── .gitkeep
-│   ├── src/biorempp_validation/
-│   │   ├── __init__.py              # Package init
-│   │   ├── run_validation.py        # Main validation entry point + orchestration
-│   │   ├── settings.py              # ValidationSettings dataclass (config parsing)
-│   │   ├── loaders.py               # File loading utilities (CSV, JSON, path resolution)
-│   │   ├── gx_context.py            # Great Expectations context creation + suite execution
-│   │   ├── json_to_dataframe.py     # Convert JSON analysis artifacts to DataFrames for validation
-│   │   ├── consistency_checks.py    # Cross-validation logic (CSV ↔ JSON parity)
-│   │   └── report_builder.py        # Validation result aggregation + HTML data docs
-│   ├── tests/
-│   │   ├── test_happy_path.py       # Valid outputs pass all checks
-│   │   ├── test_kegg_metadata.py    # KEGG release validation
-│   │   ├── test_missing_files.py    # Handles missing pipeline outputs gracefully
-│   │   ├── test_schema_break.py     # Catches schema violations
-│   │   └── test_warning_only_drift.py # Warning suites don't block by default
-│   └── results/                      # Validation output (generated, not committed)
-│       ├── critical_checkpoint_result.json   # Critical suite results (blocks if failed)
-│       ├── warning_checkpoint_result.json    # Warning suite results
-│       ├── validation_summary.json           # Aggregated pass/fail
-│       └── data_docs/                        # HTML validation report
-│           └── index.html
+│   │   │   ├── critical_gate.yml            # Fail-blocking checkpoint (schema, key counts)
+│   │   │   └── warning_report.yml           # Warning-only checkpoint (drift thresholds)
+│   │   ├── expectations/                    # GX expectation suite JSON files
+│   │   │   ├── database_critical.json       # Column schema, null checks on CSV
+│   │   │   ├── database_warning.json        # Drift thresholds, value set checks on CSV
+│   │   │   ├── analysis_json_critical.json  # Critical checks on analysis JSON payloads
+│   │   │   ├── analysis_json_exact_critical.json # Exact count pinning (strict_exact mode)
+│   │   │   ├── analysis_json_warning.json   # Warning checks on analysis JSON payloads
+│   │   │   ├── metadata_kegg_critical.json  # KEGG release metadata checks
+│   │   │   └── cross_consistency_critical.json # CSV vs JSON cross-consistency checks
+│   │   └── plugins/                         # Custom GX expectation implementations
+│   ├── tests/                               # pytest test suite for the validation package
+│   │   ├── conftest.py
+│   │   ├── test_happy_path.py
+│   │   ├── test_kegg_metadata.py
+│   │   ├── test_missing_files.py
+│   │   ├── test_schema_break.py
+│   │   └── test_warning_only_drift.py
+│   └── results/                             # GX validation outputs (generated)
+│       ├── critical_checkpoint_result.json
+│       ├── warning_checkpoint_result.json
+│       ├── validation_summary.json
+│       └── data_docs/index.html
 │
-├── input_data/                      # Input files (canonical location, 6 required files)
-│   ├── kegglistcompounds.xlsx       # Compound registry with KEGG IDs
-│   ├── kegglistko.txt               # KEGG KO identifiers (one per line)
-│   ├── enzymes_unique.txt           # Enzyme names (one per line)
-│   ├── compostos_todasagencias.xlsx # Compound-agency mappings
-│   ├── confirm_class_CURATED.xlsx   # Compound classifications (manually curated)
-│   └── missing_compounds_founds_curated.xlsx # Fallback/curated compounds
+├── scripts/                                 # Project-level utility scripts
+│   └── build-docs.sh                        # Builds MkDocs documentation site
 │
-├── output_data/                     # Deprecated (legacy monolithic script outputs)
-│   └── .gitkeep
+├── docs/                                    # MkDocs source documentation
+│   ├── index.md
+│   ├── about/
+│   ├── database/
+│   ├── getting-started/
+│   ├── interoperability/
+│   ├── reference/
+│   ├── stylesheets/extra.css
+│   ├── technical/
+│   ├── user-guide/
+│   ├── validation/
+│   └── validation-gx/
 │
-├── docs/                            # MkDocs documentation site
-│   ├── index.md                     # Main documentation index
-│   ├── about/                       # Project info (changelog, contributing, license, how-to-cite)
-│   ├── getting-started/             # User guides (installation, quick start, requirements)
-│   ├── user-guide/                  # Usage documentation (input data, output understanding, troubleshooting)
-│   ├── database/                    # Database documentation (schema, statistics, FAIR compliance)
-│   ├── technical/                   # Technical docs (pipeline architecture, snakemake rules, config reference)
-│   ├── validation/                  # Validation documentation (old, legacy GX docs)
-│   ├── validation-gx/               # New Great Expectations documentation
-│   ├── interoperability/            # Multi-omics integration, R/Python integration
-│   ├── reference/                   # Data sources, environmental agencies, glossary
-│   └── stylesheets/                 # Custom CSS
+├── site/                                    # MkDocs built static site (generated)
 │
-├── scripts/
-│   └── build-docs.sh                # MkDocs documentation build helper
+├── .github/workflows/
+│   └── docs-ci.yml                          # GitHub Actions: build and deploy docs
 │
-├── .github/
-│   └── workflows/                   # CI/CD workflows (GitHub Actions)
+├── .archive/                                # Historical/draft materials (not production)
+│   ├── .planning/codebase/                  # Archived planning documents
+│   ├── draft_papper/
+│   ├── gx_documentation/
+│   ├── links/
+│   └── V1.1.0/
 │
-├── .planning/
-│   └── codebase/                    # GSD-generated codebase analysis documents
-│       ├── ARCHITECTURE.md          # Pipeline architecture
-│       ├── STRUCTURE.md             # This file
-│       ├── CONVENTIONS.md           # (optional, quality focus)
-│       ├── TESTING.md               # (optional, quality focus)
-│       ├── STACK.md                 # (optional, tech focus)
-│       ├── INTEGRATIONS.md          # (optional, tech focus)
-│       └── CONCERNS.md              # (optional, concerns focus)
-│
-├── .claude/                         # Claude workspace (internal)
-├── .benchmarks/                     # Performance benchmarks
-├── .archive/                        # Historical docs + archived components
-│   ├── gx_documentation/            # Old Great Expectations documentation
-│   ├── V1.1.0/                      # Unreleased v1.1.0 prototype code
-│   └── draft_papper/                # Research drafts
-│
-├── .gitignore                       # Git ignore patterns (venv, work/, .snakemake, etc.)
-├── mkdocs.yml                       # MkDocs configuration
-├── .readthedocs.yaml                # ReadTheDocs deployment config
-├── requirements.txt                 # Python dependencies for documentation build
-├── LICENSE.md                       # Apache 2.0 + CC BY 4.0 dual license
-├── README.md                        # Project overview
-├── generate_database.R              # Legacy monolithic script (base for Snakemake modularization)
-└── venv/                            # Python virtual environment (not committed, local dev)
+└── .benchmarks/                             # Performance benchmarks
 ```
 
 ## Directory Purposes
 
-**biorempp_snakemake_version/**
-- Purpose: Primary Snakemake pipeline implementation for v1.0.0 database generation
-- Contains: Declarative workflow rules, reusable R/Python scripts, configuration, runtime artifacts
-- Key files: `Snakefile` (orchestrator), `config/config.yaml` (parameters), `workflow/` (rule modules + scripts)
+**`input_data/`:**
+- Purpose: All curated source data files that feed the database generation pipeline
+- Contains: XLSX spreadsheets from 9 environmental agencies, curated compound-KO mappings, KEGG compound/KO lists, enzyme activity terms
+- Key files: `compostos_todasagencias.xlsx`, `confirm_class_CURATED.xlsx`, `kegglistko.txt`, `enzymes_unique.txt`
+- Committed: Yes — these are the versioned ground-truth inputs
 
-**biorempp_snakemake_version/workflow/rules/**
-- Purpose: Modular Snakemake rule definitions, separated by layer (00_preflight, 10_generation, 20_analysis, 30_validation, 90_reporting)
-- Contains: `.smk` files that define DAG structure, dependencies, inputs, outputs
-- Key files: `00_preflight.smk` (1 rule), `10_generation.smk` (8 rules), `20_analysis.smk` (9 rules), `30_validation.smk` (2 rules), `90_reporting.smk` (1 rule)
+**`biorempp_snakemake_version/workflow/rules/`:**
+- Purpose: Snakemake rule definitions — declare input/output dependencies and shell commands only; no business logic
+- Contains: 5 `.smk` files numbered by execution stage (00, 10, 20, 30, 90)
+- Key files: `10_generation.smk` (7 rules), `20_analysis.smk` (9 rules)
 
-**biorempp_snakemake_version/workflow/scripts/generation/**
-- Purpose: Data ETL implementations (R scripts)
-- Contains: Load, fetch, merge, classify, enrich, export operations
-- Execution order: 00 → 01 → 02 → 03 → 04 → 05 → 06 → 07 (some parallelizable)
-- Key files: `01_load_local_data.R` (reads 6 input files), `03_fetch_kegg_data.R` (REST API calls), `07_extract_enzymes_export.R` (CSV/XLSX export)
+**`biorempp_snakemake_version/workflow/lib/`:**
+- Purpose: Shared R library code sourced by all generation scripts
+- Key file: `io_contracts.R` — defines `REQUIRED_INPUT_FILES`, `EXPECTED_DATABASE_COLUMNS`, `KEGG_ENDPOINTS`, `KEGG_VALUE_PATTERNS`
 
-**biorempp_snakemake_version/workflow/scripts/analysis/**
-- Purpose: Statistical aggregation implementations (R scripts)
-- Contains: Parallel statistics rules computing top-N, counts, distributions, crosstabs
-- Execution: All rules parallelizable (each reads final CSV independently)
-- Key files: `01_basic_statistics.R` (row/col counts), `08_executive_summary.R` (KPIs), `09_merge_complete_analysis.R` (aggregates all JSON)
+**`biorempp_snakemake_version/workflow/scripts/`:**
+- Purpose: Implementation code organized by pipeline stage
+- Organized by: Stage (generation, analysis, validation, reporting) — not by feature
+- Naming: `NN_descriptive_name.{R,py}` — two-digit numeric prefix determines execution order within stage
 
-**biorempp_snakemake_version/workflow/scripts/validation/**
-- Purpose: API-based consistency validation (Python scripts)
-- Contains: KEGG API queries, comparison logic, report generation
-- Key files: `01_validate_keys_consistency_api.py` (validates KO/cpd/EC links), `02_validate_links_groundtruth_policy_api.py` (validates transitive rules)
+**`biorempp_snakemake_version/work/`:**
+- Purpose: Scratch directory for intermediate `.rds` files passed between generation rules
+- Generated: Yes — created at runtime, not committed
 
-**biorempp_snakemake_version/workflow/lib/**
-- Purpose: Shared utility libraries (R functions)
-- Contains: Argument parsing, logging, JSON I/O, contract helpers
-- Key files: `utils.R` (load_required_packages, parse_cli_args, log_message, write_json_file), `io_contracts.R` (input/output schema definitions)
+**`biorempp_snakemake_version/results/`:**
+- Purpose: All pipeline outputs, organized by output type
+- Subdirs: `database/` (final CSV+XLSX), `analysis/` (JSON statistics), `metadata/` (KEGG release + validation reports), `reports/` (workflow summary)
 
-**biorempp_snakemake_version/work/**
-- Purpose: Intermediate artifacts (serialized R objects)
-- Contains: `.rds` files produced by generation rules
-- Generated: Yes (cleared with `snakemake --delete-temp-outputs`)
-- Committed: No (in `.gitignore`)
+**`biorempp_validation/src/biorempp_validation/`:**
+- Purpose: Installable Python package implementing GX-based data contract validation
+- Contains: 7 Python modules with clear single responsibilities
 
-**biorempp_snakemake_version/results/**
-- Purpose: Final outputs (database CSV/XLSX, analysis JSON, metadata, reports)
-- Contains: Three subdirectories (database/, analysis/, metadata/, reports/)
-- Generated: Yes
-- Committed: Yes (per release, for reproducibility and downstream use)
+**`biorempp_validation/great_expectations/`:**
+- Purpose: GX configuration — expectation suites (JSON) and checkpoints (YAML)
+- Expectations are split by severity: `*_critical` suites block CI; `*_warning` suites report only
 
-**biorempp_validation/**
-- Purpose: Standalone Great Expectations validation framework
-- Contains: Expectation suites (JSON), validation logic (Python), tests, configuration
-- Key files: `run_validation.py` (main entry point), `great_expectations/expectations/` (suite definitions), `config/validation.yaml` (runtime config)
+**`biorempp_validation/tests/`:**
+- Purpose: pytest tests for the validation package itself (not the database)
+- Key files: `test_happy_path.py`, `test_schema_break.py`, `test_missing_files.py`, `test_warning_only_drift.py`
 
-**biorempp_validation/tests/**
-- Purpose: Test validation framework behavior
-- Contains: Happy path tests, schema violation tests, missing file handling, warning-only mode tests
-- Key files: `test_happy_path.py` (valid outputs), `test_schema_break.py` (rejection tests)
-
-**input_data/**
-- Purpose: Canonical input data location
-- Contains: 6 required files (Excel files, text files)
-- Generated: No (user-provided)
-- Committed: Yes (required for reproducibility)
-
-**docs/**
-- Purpose: User and developer documentation (MkDocs site)
-- Contains: Markdown files organized by topic (getting started, user guide, technical, validation, reference)
-- Key files: `index.md` (site home), `technical/pipeline-architecture.md` (system design), `validation-gx/` (GX docs)
+**`docs/`:**
+- Purpose: MkDocs source markdown for the project documentation site
+- Organized by: Topic area (getting-started, technical, database, validation, validation-gx, etc.)
 
 ## Key File Locations
 
 **Entry Points:**
-- `biorempp_snakemake_version/Snakefile`: Main Snakemake orchestrator (includes rules, declares all targets)
-- `biorempp_validation/src/biorempp_validation/run_validation.py`: Validation framework entry point
-- `biorempp_snakemake_version/scripts/run_snakemake.sh`: Linux/macOS execution helper
-- `biorempp_snakemake_version/scripts/run_snakemake.bat`: Windows execution helper
+- `biorempp_snakemake_version/Snakefile`: Snakemake pipeline entry point
+- `biorempp_validation/src/biorempp_validation/run_validation.py`: GX validation CLI entry
+- `generate_database.R`: Legacy standalone generator
 
 **Configuration:**
-- `biorempp_snakemake_version/config/config.yaml`: Pipeline configuration (paths, KEGG URLs, analysis parameters)
-- `biorempp_validation/config/validation.yaml`: Validation configuration (expected values, thresholds, severity)
-- `biorempp_snakemake_version/env/Dockerfile`: Container image definition
-- `biorempp_snakemake_version/env/python-requirements.txt`: Python dependencies
-- `biorempp_snakemake_version/env/r-packages.txt`: R package dependencies
+- `biorempp_snakemake_version/config/config.yaml`: Pipeline version, paths, KEGG endpoints, analysis parameters
+- `biorempp_validation/config/validation.yaml`: GX validation thresholds, expected schema, file requirements
+- `biorempp_snakemake_version/env/Dockerfile`: Reproducible execution environment
+- `mkdocs.yml`: Documentation site configuration
 
 **Core Logic:**
-- `biorempp_snakemake_version/workflow/scripts/generation/01_load_local_data.R`: Loads 6 input files
-- `biorempp_snakemake_version/workflow/scripts/generation/03_fetch_kegg_data.R`: Fetches KEGG relationships via REST API
-- `biorempp_snakemake_version/workflow/scripts/generation/04_merge_relationships.R`: Joins local + KEGG data
-- `biorempp_snakemake_version/workflow/scripts/generation/07_extract_enzymes_export.R`: Final CSV/XLSX export
-- `biorempp_validation/src/biorempp_validation/run_validation.py`: Validation orchestration
+- `biorempp_snakemake_version/workflow/lib/io_contracts.R`: Canonical column/endpoint definitions
+- `biorempp_snakemake_version/workflow/scripts/generation/07_extract_enzymes_export.R`: Final export step (produces database CSV/XLSX)
+- `biorempp_validation/src/biorempp_validation/settings.py`: ValidationSettings dataclass
+- `biorempp_validation/src/biorempp_validation/run_validation.py`: Full GX validation orchestration
 
 **Testing:**
-- `biorempp_validation/tests/test_happy_path.py`: Valid pipeline output tests
-- `biorempp_validation/tests/test_schema_break.py`: Schema violation detection tests
+- `biorempp_validation/tests/`: pytest tests for the GX validation package
 
 ## Naming Conventions
 
 **Files:**
+- Snakemake rules: `NN_stage_name.smk` (e.g., `10_generation.smk`, `30_validation.smk`)
+- Scripts: `NN_descriptive_name.R` or `NN_descriptive_name.py` (e.g., `04_merge_relationships.R`)
+- GX expectation suites: `{dataset}_{severity}.json` (e.g., `database_critical.json`, `analysis_json_warning.json`)
+- Results: `{entity}_statistics.json` (e.g., `compound_statistics.json`, `ko_statistics.json`)
+- Databases: `biorempp_database_v{version}.csv` / `.xlsx`
 
-- **Rule modules:** `{priority}_{layer}.smk` (e.g., `00_preflight.smk`, `10_generation.smk`, `20_analysis.smk`)
-  - Priority: 00 (preflight), 10 (generation), 20 (analysis), 30 (validation), 90 (reporting)
-  - Layer: preflight, generation, analysis, validation, reporting
+**Python modules:** `snake_case.py`
 
-- **Scripts:** `{sequence}_{operation}.R` or `.py` within layer directories
-  - Sequence: 00-09 (execution order or grouping number)
-  - Operation: descriptive name (load_local_data, fetch_kegg_info, extract_enzymes_export)
-  - Example: `workflow/scripts/generation/01_load_local_data.R`
+**R scripts:** `snake_case.R`
 
-- **Output files:** `biorempp_database_v{VERSION}.{ext}` (fixed, immutable)
-  - Format: `biorempp_database_v1.0.0.csv`, `biorempp_database_v1.0.0.xlsx`
-  - JSON analyses: `{metric}_statistics.json` (e.g., `compound_statistics.json`, `ko_statistics.json`)
-
-**Directories:**
-
-- **Layer directories:** `{priority}_{layer_name}` within `workflow/rules/` (e.g., `00_preflight.smk` is a single file, not a directory)
-- **Script subdirectories:** `{layer_name}` within `workflow/scripts/` (generation/, analysis/, validation/, reporting/)
-- **Results subdirectories:** `{artifact_type}` (database/, analysis/, metadata/, reports/)
-- **Log files:** `{rule_name}.log` (e.g., `load_local_data.log`, `analysis_basic_statistics.log`)
+**Directories:** `snake_case/` for scripts; `kebab-case/` inside `docs/` (e.g., `getting-started/`, `validation-gx/`)
 
 ## Where to Add New Code
 
-**New Data Validation Rule:**
-- Primary code: Add rule to `biorempp_snakemake_version/workflow/rules/30_validation.smk` (or new `.smk` file if major layer)
-- Script implementation: `biorempp_snakemake_version/workflow/scripts/validation/{sequence}_{operation}.py` (Python preferred for API validation)
-- Log file: Auto-generated at `biorempp_snakemake_version/logs/{rule_name}.log`
-- Register in Snakefile: Add `include:` directive if new rule file
+**New generation step (new KEGG field, new enrichment):**
+- Add R script to `biorempp_snakemake_version/workflow/scripts/generation/` with next numeric prefix (e.g., `08_new_step.R`)
+- Add corresponding rule to `biorempp_snakemake_version/workflow/rules/10_generation.smk`
+- Update `EXPECTED_DATABASE_COLUMNS` in `biorempp_snakemake_version/workflow/lib/io_contracts.R`
+- Update `expected_columns` in `biorempp_validation/config/validation.yaml`
+- Update GX expectations in `biorempp_validation/great_expectations/expectations/database_critical.json`
 
-**New Analysis Statistic:**
-- Primary code: Add rule to `biorempp_snakemake_version/workflow/rules/20_analysis.smk`
-- Script implementation: `biorempp_snakemake_version/workflow/scripts/analysis/{next_sequence}_{operation}.R` (follow 01-09 numbering)
-- Output: `biorempp_snakemake_version/results/analysis/{operation}_statistics.json` OR `{operation}.json`
-- Integration: Update `biorempp_snakemake_version/workflow/scripts/analysis/09_merge_complete_analysis.R` to include new JSON file
+**New analysis statistic:**
+- Add R script to `biorempp_snakemake_version/workflow/scripts/analysis/` with next numeric prefix
+- Add corresponding rule to `biorempp_snakemake_version/workflow/rules/20_analysis.smk`
+- Add new JSON output to `ANALYSIS_FILES` list in `biorempp_snakemake_version/Snakefile`
+- Update `biorempp_snakemake_version/workflow/scripts/analysis/09_merge_complete_analysis.R` to include it
 
-**New Input/Output Contract:**
-- Definition: Add to `biorempp_snakemake_version/workflow/lib/io_contracts.R`
-- Reference: Call contract validator in relevant generation script
-- Documentation: Update `biorempp_validation/great_expectations/expectations/database_critical.json` with new expectations
+**New KEGG validation check:**
+- Add or modify Python script in `biorempp_snakemake_version/workflow/scripts/validation/`
+- Add corresponding rule to `biorempp_snakemake_version/workflow/rules/30_validation.smk`
 
-**New Great Expectations Validation Suite:**
-- Expectation JSON: Create `biorempp_validation/great_expectations/expectations/{suite_name}.json`
-- Register in config: Add to `biorempp_validation/config/validation.yaml` under appropriate severity (critical/warning)
-- Checkpoint assignment: Assign to `critical_gate` or `warning_report` checkpoint in `great_expectations/checkpoints/`
-- Test: Add test case to `biorempp_validation/tests/test_*.py`
+**New GX expectation:**
+- Add expectation to appropriate JSON file in `biorempp_validation/great_expectations/expectations/`
+- If new severity level needed, create new checkpoint in `biorempp_validation/great_expectations/checkpoints/`
 
-**Shared Utility Functions:**
-- R utilities: Add to `biorempp_snakemake_version/workflow/lib/utils.R` (load_required_packages, parse_cli_args, log_message, etc.)
-- Python utilities: Add to `biorempp_validation/src/biorempp_validation/` (loaders.py, consistency_checks.py, etc.)
-- Usage: Source with `source("workflow/lib/utils.R")` in R scripts; import in Python modules
+**New shared R utility:**
+- Add to `biorempp_snakemake_version/workflow/lib/utils.R` (shared helpers) or `io_contracts.R` (constants)
 
-**Documentation:**
-- User docs: `docs/user-guide/` (Markdown files)
-- Technical docs: `docs/technical/` (Markdown files)
-- API/schema reference: `docs/reference/` (Markdown files)
-- Build locally: `mkdocs serve` (requires `pip install -r requirements.txt`)
+**New documentation section:**
+- Add markdown file under appropriate `docs/` subdirectory
+- Register it in the `nav:` section of `mkdocs.yml`
 
 ## Special Directories
 
-**biorempp_snakemake_version/work/**
-- Purpose: Intermediate serialized R objects
-- Generated: Yes (created by generation rules)
-- Committed: No (in `.gitignore`)
-- Cleanup: Snakemake clears with `--delete-temp-outputs` flag
+**`biorempp_snakemake_version/work/`:**
+- Purpose: Intermediate `.rds` data objects between generation rules
+- Generated: Yes — created at runtime by Snakemake
+- Committed: No
 
-**biorempp_snakemake_version/results/**
-- Purpose: Final outputs for release
-- Generated: Yes (created by all rules)
-- Committed: Yes (for v1.0.0 release reproducibility)
-- Note: Versioned files (e.g., `biorempp_database_v1.0.0.csv`) remain stable; new versions need new filenames
+**`biorempp_snakemake_version/results/`:**
+- Purpose: Final pipeline outputs (database + JSON artifacts)
+- Generated: Yes — produced by pipeline run
+- Committed: Yes (for the current released version outputs)
 
-**biorempp_snakemake_version/.snakemake/**
-- Purpose: Snakemake system metadata (locks, logs, caches)
-- Generated: Yes (auto-created by Snakemake)
-- Committed: No (in `.gitignore`)
-- Note: Safe to delete; Snakemake regenerates as needed
+**`biorempp_snakemake_version/.snakemake/`:**
+- Purpose: Snakemake internal state (metadata, conda envs, locks)
+- Generated: Yes — Snakemake runtime
+- Committed: No
 
-**biorempp_validation/results/**
-- Purpose: Validation framework outputs (checkpoint results, HTML data docs)
-- Generated: Yes (created by `run_validation.py`)
-- Committed: No (in `.gitignore`)
-- Note: Review after validation run to verify suite results
+**`biorempp_validation/results/`:**
+- Purpose: GX validation output reports
+- Generated: Yes — produced by validation run
+- Committed: Partially (summary reports may be committed as QA artifacts)
 
-**input_data/**
-- Purpose: Canonical input location
-- Generated: No (user-provided or copy from external source)
-- Committed: Yes (required for reproducibility)
-- Note: Symlink supported; pipeline resolves `../input_data` from Snakefile directory
+**`site/`:**
+- Purpose: MkDocs built static HTML documentation site
+- Generated: Yes — by `mkdocs build` or `scripts/build-docs.sh`
+- Committed: No (built by CI)
 
-**.archive/**
-- Purpose: Historical code, obsolete components, research drafts
-- Generated: No (curated by maintainers)
-- Committed: Yes (for historical reference)
-- Note: Not part of active pipeline; kept for audit trail
+**`.archive/`:**
+- Purpose: Historical materials, draft papers, previous planning documents — not production code
+- Committed: Yes — preserved for reference
 
 ---
 
-*Structure analysis: 2026-03-24*
+*Structure analysis: 2026-05-17*

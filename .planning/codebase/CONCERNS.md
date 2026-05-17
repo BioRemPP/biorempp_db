@@ -1,202 +1,264 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-03-24
-
-## Tech Debt
-
-**Data Loss via Inner Joins:**
-- Issue: Multiple cascading `inner_join()` operations in `04_merge_relationships.R` aggressively filter data, potentially losing valid relationships that don't meet all join conditions. Lines 103-104, 109-110, 158-162 use chained `inner_join()` with `relationship = "many-to-many"` that silently exclude unmatched rows without logging how many rows were discarded.
-- Files: `biorempp_snakemake_version/workflow/scripts/generation/04_merge_relationships.R` (lines 101-240)
-- Impact: Compounds, KOs, or relationships that exist in one endpoint but not all may be silently dropped from the database without user visibility. The logging at line 279-297 shows row counts but doesn't correlate to input sizes.
-- Fix approach: Add pre-join row counts and log discards at each join stage. Consider using `left_join()` with explicit filtering for cases where missing data should be allowed.
-
-**Inconsistent Data Quality Checks Across Input Types:**
-- Issue: `01_load_local_data.R` does minimal validation on loaded Excel files (lines 19-43). It checks file existence but not data structure (column count, data types, non-empty content). By contrast, `03_fetch_kegg_data.R` has extensive validation. The gap creates risk if input files are corrupted.
-- Files: `biorempp_snakemake_version/workflow/scripts/generation/01_load_local_data.R` (lines 19-74), `biorempp_snakemake_version/workflow/scripts/generation/03_fetch_kegg_data.R` (lines 59-162)
-- Impact: Malformed input files may produce cryptic downstream errors or silent data loss. An agency file with swapped columns would load without error, corrupting the database.
-- Fix approach: Apply canonical validation patterns from `03_fetch_kegg_data.R` to all loaders in `01_load_local_data.R`. Validate column counts, data types, and non-empty requirements for each file.
-
-**Silent Fallback Mechanisms Without Visibility:**
-- Issue: `04_merge_relationships.R` implements a 6-stage fallback chain (lines 174-254): dense → fallback_dense → compound_bridge_dense → partial_ec → partial_reaction → unsupported. Each stage silently feeds residuals to the next. No warning when rows proceed through fallbacks—users see only final counts, not which rows degraded.
-- Files: `biorempp_snakemake_version/workflow/scripts/generation/04_merge_relationships.R` (lines 174-254)
-- Impact: Database quality degrades silently. A row that reaches "partial_ec_rows" (only EC, no reaction) passes through without indicating data loss. Users cannot distinguish high-confidence from fallback entries in downstream analysis.
-- Fix approach: Add a "completeness_level" or "confidence_score" column to mark which fallback stage each row passed through. Log per-stage statistics and add output metrics.
-
-**Unversioned Archive Directory:**
-- Issue: `.archive/V1.1.0/` directory contains deprecated scripts from previous pipeline versions but is committed to git. No clear deprecation markers in active codebase pointing to this. Risk that someone runs old scripts thinking they're current.
-- Files: `.archive/V1.1.0/` (contains legacy validation scripts)
-- Impact: Maintainer confusion, potential for accidental use of outdated pipeline logic.
-- Fix approach: Add a deprecated notice in README. Consider moving archive entirely outside repo or creating a separate archive tag/branch.
-
-## Known Bugs
-
-**API Retry Logic with Fixed Backoff:**
-- Symptoms: Network failures during KEGG API fetches hang for extended periods with predictable sleep times (`Sys.sleep(attempt)` in R, `time.sleep(attempt)` in Python).
-- Files: `biorempp_snakemake_version/workflow/scripts/generation/03_fetch_kegg_data.R` (line 34), `biorempp_snakemake_version/workflow/scripts/validation/01_validate_keys_consistency_api.py` (line 50), `biorempp_snakemake_version/workflow/scripts/validation/02_validate_links_groundtruth_policy_api.py` (line 50)
-- Trigger: Any network timeout or connection reset during KEGG API fetch. With 3 retries and 1-2-3 second sleeps, total wait is ~6 seconds before failure. If running on unstable network (VPN, proxy), this is insufficient.
-- Workaround: Run in Docker environment with stable network; consider increasing max_retries to 5+ for production.
-
-**Hardcoded Sentinel Cases in Validation:**
-- Symptoms: Validation report includes hardcoded sentinel checks for only two specific cpd-ko pairs: `C00230-K20218` and `C00038-K00001` (line 353-355 in `01_validate_keys_consistency_api.py`). If these don't exist in current database, script silently continues with empty results.
-- Files: `biorempp_snakemake_version/workflow/scripts/validation/01_validate_keys_consistency_api.py` (lines 352-356)
-- Trigger: Database regeneration with different source data where these pairs don't exist.
-- Workaround: Query the database first to select actual sentinel pairs, or make sentinels configurable via config file.
-
-**Inconsistent NA/Missing Value Handling:**
-- Symptoms: Multiple functions normalize NA values differently. Python uses a set of string markers (`NA_MARKERS = {"", "NA", "NAN", "<NA>", "NONE", "NULL"}`) while R filters with `is.na()` + trimmed string comparison. Leading to inconsistent behavior when spreadsheet contains variants like "na" vs "NA".
-- Files: `biorempp_snakemake_version/workflow/scripts/validation/01_validate_keys_consistency_api.py` (line 15), `biorempp_snakemake_version/workflow/scripts/generation/04_merge_relationships.R` (lines 14-39), `biorempp_snakemake_version/workflow/scripts/analysis/07_metadata.R` (lines 14-38)
-- Trigger: Input data with lowercase "na" or other variants.
-- Workaround: Standardize NA_MARKERS definition across all scripts in a shared config or create a centralized normalization library.
-
-## Security Considerations
-
-**Unvalidated KEGG API URL in Configuration:**
-- Risk: Base URL is hardcoded in `config/config.yaml` as `https://rest.kegg.jp`. If config is loaded from untrusted source or modified, could redirect API calls to malicious endpoint capturing database credentials or injecting data.
-- Files: `biorempp_snakemake_version/config/config.yaml` (line 14), used throughout generation and validation scripts
-- Current mitigation: HTTPS enforced in config, URL is public KEGG service.
-- Recommendations: Add URL validation regex check in preflight rule to ensure only approved KEGG domains are used. Log all API endpoints called during pipeline. Consider pinning to specific KEGG server IPs if possible.
-
-**No Authentication for KEGG API:**
-- Risk: All KEGG API calls are unauthenticated, rate-limited only by KEGG's public quotas (10 requests/sec). If KEGG account is compromised or rate limits change, pipeline can be disrupted. No API key rotation mechanism.
-- Files: All fetch/validation scripts lack authentication parameters
-- Current mitigation: Public API endpoints only; KEGG provides free access.
-- Recommendations: If moving to KEGG's commercial/authenticated service, implement secure key storage (environment variables, secrets manager). Add request throttling and rate-limit detection.
-
-**CSV Output Contains No Integrity Verification:**
-- Risk: Database CSV is exported without checksums or signatures. Users cannot verify data integrity after download or detect tampering.
-- Files: `biorempp_snakemake_version/workflow/scripts/generation/07_extract_enzymes_export.R`, `biorempp_snakemake_version/workflow/rules/90_reporting.smk`
-- Current mitigation: SHA-256 checksums computed in reporting (line 90_reporting.smk), but not embedded in CSV headers.
-- Recommendations: Include row-count and column-count metadata as CSV comments. Publish checksums alongside database on distribution site. Consider GPG signing release artifacts.
-
-## Performance Bottlenecks
-
-**Inefficient Cartesian Products in Data Merging:**
-- Problem: `04_merge_relationships.R` uses `relationship = "many-to-many"` joins extensively (lines 103, 109, 160, etc.), which compute full Cartesian products before filtering. If a single compound links to 100 KOs and 50 reactions, join produces 5,000 intermediate rows before deduplication.
-- Files: `biorempp_snakemake_version/workflow/scripts/generation/04_merge_relationships.R` (lines 101-240)
-- Cause: dplyr's `inner_join()` with `relationship = "many-to-many"` is designed for flexibility but is inefficient for large fanout ratios.
-- Improvement path: Pre-aggregate source tables before joins. Filter to relevant compound/KO subsets first. Use `relationship = "many-to-one"` where directionality is known. Monitor peak memory usage with large datasets.
-
-**Validation Scripts Fetch All Endpoints Sequentially:**
-- Problem: `01_validate_keys_consistency_api.py` and `02_validate_links_groundtruth_policy_api.py` make 5 sequential HTTP calls to KEGG (lines 299-309 in validation/01). Each call waits for response before next. With 60-second timeout and 3 retries, worst case is 15 minutes if network is slow.
-- Files: `biorempp_snakemake_version/workflow/scripts/validation/01_validate_keys_consistency_api.py` (lines 299-309), `workflow/scripts/validation/02_validate_links_groundtruth_policy_api.py`
-- Cause: No parallel HTTP request library used; blocking I/O.
-- Improvement path: Use `concurrent.futures` or `aiohttp` for parallel endpoint fetches. Cache responses to disk to skip refetch if pipeline re-runs. Implement connection pooling.
-
-**RDS Serialization for Large Intermediate Data:**
-- Problem: All intermediate pipeline data (kegg_data.rds, merged_compounds.rds) are serialized as RDS format, which is R-specific and may be inefficient for large datasets (10k+ rows). Each rule reads/writes full RDS files.
-- Files: All generation scripts use `saveRDS()` and `readRDS()`
-- Cause: RDS is convenient but adds serialization overhead; parquet or arrow would be faster.
-- Improvement path: Consider switching to Apache Arrow or Parquet for intermediate storage if datasets scale beyond 100k rows. Benchmark serialization times.
-
-## Fragile Areas
-
-**Compound-Bridge Fallback Logic (Complex Multi-Stage Join Chain):**
-- Files: `biorempp_snakemake_version/workflow/scripts/generation/04_merge_relationships.R` (lines 157-172)
-- Why fragile: `build_compound_bridge_dense()` uses nested `inner_join()` chains to cross-reference compounds across EC and reaction links. The logic is correct but difficult to trace. A single change to join order or filter logic could silently corrupt results.
-- Safe modification: Add detailed unit tests for this function with known input/output pairs. Add intermediate assertions checking row counts at each join step. Document join intent (why this order, what's being excluded).
-- Test coverage: No unit tests currently exist for this function. Function is tested only by final database smoke tests.
-
-**KEGG Value Pattern Validation:**
-- Files: `biorempp_snakemake_version/workflow/lib/io_contracts.R` (lines 34-39), used in `03_fetch_kegg_data.R` (lines 47-149)
-- Why fragile: Regex patterns for KEGG IDs are hardcoded and must match exactly. Pattern for EC: `^(ec:)?[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9A-Za-z\\-]+$` allows hyphens and letters in last segment, matching KEGG's wildcard notation (e.g., "1.1.1.-"). If KEGG ever changes ID format, validation will fail cryptically.
-- Safe modification: Parameterize patterns in config file. Add validation tests comparing patterns against live KEGG response samples. Create version-specific pattern sets.
-- Test coverage: Patterns tested only implicitly through integration tests. No unit tests for pattern validity.
-
-**Analysis Rule Dependencies (Linear Chain):**
-- Files: `biorempp_snakemake_version/workflow/rules/20_analysis.smk` - all 9 analysis rules depend on single merged_compounds.rds
-- Why fragile: If any single analysis script fails (e.g., basic_statistics.R), the entire analysis batch is marked as failed and `09_merge_complete_analysis.R` cannot proceed. No graceful degradation to produce partial reports.
-- Safe modification: Add error handling in each analysis script to write empty/stub outputs on failure, allowing pipeline to continue. Add a validation rule that checks all analysis outputs exist before merging.
-- Test coverage: Only full integration tests exist. No unit tests for individual analysis scripts.
-
-**Monolithic Python Validation Scripts:**
-- Files: `biorempp_snakemake_version/workflow/scripts/validation/01_validate_keys_consistency_api.py` (365 lines), `02_validate_links_groundtruth_policy_api.py` (455 lines)
-- Why fragile: Both scripts are single Python files with multiple responsibilities: API fetching, data loading, parsing, analysis, JSON report generation. High cyclomatic complexity in analysis loops (lines 139-263 in 01_validate_keys_consistency_api.py). Difficult to unit test or modify without side effects.
-- Safe modification: Refactor into modules: api_client.py, csv_loader.py, link_parser.py, consistency_analyzer.py. Test each module independently.
-- Test coverage: Only full integration tests. No unit tests for parser, analyzer, or API client functions.
-
-## Scaling Limits
-
-**In-Memory Data Consolidation:**
-- Current capacity: Pipeline handles ~10k database rows (current v1.0.0 size) comfortably in R/Python memory.
-- Limit: When compounds scale to 500+ with 5,000+ KOs, Cartesian products in join chains will exceed available RAM on typical machines (~4GB). Intermediate kegg_data.rds alone could reach 500MB.
-- Scaling path: Implement chunked processing for large datasets. Use database (SQLite/DuckDB) for intermediate storage instead of in-memory data frames. Parallelize analysis rules using Snakemake's `--jobs` flag to process chunks independently.
-
-**KEGG API Rate Limiting:**
-- Current capacity: KEGG API allows 10 requests/second for public users. Pipeline makes 5-6 requests per validation run.
-- Limit: If adding new endpoints or validation rules, rate limiting could cause timeouts. No backoff beyond simple retry.
-- Scaling path: Implement adaptive rate limiting with exponential backoff. Cache KEGG responses locally (24-hour TTL). Use KEGG REST API batching features if available. Consider commercial KEGG access for guaranteed throughput.
-
-**Workflow DAG Complexity:**
-- Current capacity: 18 rules, 4 layers, easily managed by Snakemake 7.32.4 on single machine.
-- Limit: If adding species-specific pipelines, per-compound sub-workflows, or dynamic rules, DAG could exceed 100+ rules, making debugging difficult and cache invalidation complex.
-- Scaling path: Split into separate Snakemake files for independent modules. Use modular rule imports. Implement caching strategy for stable intermediate outputs (KEGG data) so reruns don't refetch.
-
-## Dependencies at Risk
-
-**readxl R Package (Excel I/O):**
-- Risk: `readxl` is used for all Excel input file loading. Package is in maintenance mode with few recent updates. If Excel format changes or bugs emerge, fixes may be slow.
-- Impact: Cannot read input files; pipeline fails at preflight.
-- Migration plan: Add CSV import as alternative to Excel files. Consider `openxlsx` (more actively maintained) as replacement if readxl becomes unsupported.
-
-**Snakemake 7.32.4 (Workflow Manager):**
-- Risk: Pinned to specific version. Snakemake 8+ may have breaking changes in rule syntax or API. Version is from 2023; security updates may lag in new versions.
-- Impact: Compatibility issues with future Python versions; missed security fixes.
-- Migration plan: Regularly review Snakemake release notes. Test pipeline on new major versions quarterly. Create CI job to verify compatibility.
-
-**R dplyr many-to-many Joins:**
-- Risk: `relationship = "many-to-many"` behavior is recent in dplyr (v1.1.0+). Future dplyr may deprecate or change semantics.
-- Impact: Merge logic in `04_merge_relationships.R` relies on this parameter; changing dplyr could silently alter join behavior.
-- Migration plan: Pin dplyr version in docker-compose and r-packages.txt. Add explicit test cases for join behavior to detect changes early.
-
-## Missing Critical Features
-
-**No Incremental Database Updates:**
-- Problem: Pipeline regenerates entire database from scratch each run. No mechanism to update only changed compounds or relationships.
-- Blocks: Frequent database updates with fresh KEGG data; pipeline takes hours even for minor source changes.
-- Fix approach: Implement change-tracking. Store previous KEGG snapshots. Compute diffs and merge only changed entries. Requires versioning of intermediate data.
-
-**No User-Facing Data Provenance Tracking:**
-- Problem: While metadata reports exist, there's no clear per-row lineage (e.g., "this cpd-ko pair came from curated source" vs "KEGG bridge").
-- Blocks: Users cannot assess confidence in individual database entries or filter by source.
-- Fix approach: Add "source_origin" and "derivation_path" columns to database CSV. Track lineage through fallback stages in `04_merge_relationships.R`.
-
-**No Configuration for Data Quality Thresholds:**
-- Problem: All validation rules are hardcoded. No configurable thresholds for pass/fail criteria (e.g., minimum EC coverage, maximum unsupported rows).
-- Blocks: Cannot tune pipeline rigor for different use cases (strict research vs relaxed screening).
-- Fix approach: Add validation policy config section with thresholds. Make each validation rule exit code based on configurable criteria.
-
-## Test Coverage Gaps
-
-**Generation Scripts (04_merge_relationships.R) - Complex Logic Untested:**
-- What's not tested: The fallback chain in `expand_keys_with_consistent_mapping()` function. Cartesian product behavior of many-to-many joins. Data loss at each join boundary.
-- Files: `biorempp_snakemake_version/workflow/scripts/generation/04_merge_relationships.R` (lines 174-254)
-- Risk: Silent data corruption during pipeline runs. Users see only final counts; intermediate filtering is invisible.
-- Priority: **High** — This is the core ETL logic. Should have comprehensive unit tests with synthetic data covering edge cases: empty inputs, single-element sets, high-fanout joins.
-
-**Validation Script Parsing (01/02_validate_*.py) - Token Normalization:**
-- What's not tested: The `normalize_token()` function and pattern matching. Different input variants (prefixed, lowercase, with spaces).
-- Files: `biorempp_snakemake_version/workflow/scripts/validation/01_validate_keys_consistency_api.py` (lines 25-37, 54-101), `02_validate_links_groundtruth_policy_api.py` (lines 25-101)
-- Risk: Subtle normalization bugs causing mismatches between database and validation report (e.g., case sensitivity).
-- Priority: **High** — Validation results are used to assess database quality. Parsing errors invalidate reports.
-
-**Input File Validation (00_preflight.smk, 01_load_local_data.R):**
-- What's not tested: File format validation, column checks, data type validation. Whether loading handles corrupted files gracefully.
-- Files: `biorempp_snakemake_version/workflow/rules/00_preflight.smk`, `biorempp_snakemake_version/workflow/scripts/generation/01_load_local_data.R`
-- Risk: Corrupted input files silently corrupt database (e.g., swapped columns).
-- Priority: **Medium** — Defensive programming issue. Could prevent entire classes of user errors.
-
-**API Resilience (retry logic, timeout handling):**
-- What's not tested: Network failures, partial responses, timeout scenarios. Whether retry logic actually recovers or just delays failure.
-- Files: `biorempp_snakemake_version/workflow/scripts/generation/02_fetch_kegg_info.R`, `03_fetch_kegg_data.R` (lines 14-45), validation scripts
-- Risk: Pipeline hangs or fails silently on network issues. Users don't know if KEGG is down or data is stale.
-- Priority: **Medium** — Resilience issue. Most visible to end users but rare in practice if KEGG is stable.
-
-**Analysis Output Format Consistency:**
-- What's not tested: All 9 analysis scripts produce JSON. No schema validation that outputs match expected structure.
-- Files: `biorempp_snakemake_version/workflow/scripts/analysis/*.R`
-- Risk: Downstream tools expecting specific JSON schema could break silently if an analysis script changes output format.
-- Priority: **Low** — Primarily a forward-compatibility concern.
+**Analysis Date:** 2026-05-17
 
 ---
 
-*Concerns audit: 2026-03-24*
+## Tech Debt
+
+### [HIGH] Duplicated `parse_link_payload` and API retry logic across two validation scripts
+
+- Issue: The functions `parse_link_payload`, `normalize_token`, `read_int_env`, `read_float_env`, `compute_backoff_seconds`, `fetch_text`, and `load_database_rows` are independently re-implemented (with slight variations) in both validation scripts.
+- Files:
+  - `biorempp_snakemake_version/workflow/scripts/validation/01_validate_keys_consistency_api.py`
+  - `biorempp_snakemake_version/workflow/scripts/validation/02_validate_links_groundtruth_policy_api.py`
+- Impact: Divergence in behavior is already present — `parse_link_payload` in `01_` uses `continue` after a direct match (line 125), while `02_` falls through to `elif` on the same logic (line 126–128). Bug fixes or policy changes must be made in both files independently or they silently diverge.
+- Fix approach: Extract shared logic into `common_normalization.py` (already exists) or a new `api_client.py` shared module under `workflow/scripts/validation/`.
+
+### [HIGH] `link_consistency_audit.json` is present in `results/metadata/` but not generated by any rule in the Snakemake workflow
+
+- Issue: The file `biorempp_snakemake_version/results/metadata/link_consistency_audit.json` exists in the committed results but is not produced by any `.smk` rule or tracked script in the current pipeline.
+- Files: `biorempp_snakemake_version/results/metadata/link_consistency_audit.json`, all `.smk` files under `biorempp_snakemake_version/workflow/rules/`
+- Impact: The file cannot be regenerated through a clean `snakemake` run. If deleted, it cannot be recovered. Its provenance is unclear. The validation layer does not require it, so it may be stale.
+- Fix approach: Either add a Snakemake rule that generates it from a Python/R script with a clear source, or remove it and the archive scripts that produced it.
+
+### [MEDIUM] Snakemake pinned to version 7.32.4 — end-of-life
+
+- Issue: `biorempp_snakemake_version/env/python-requirements.txt` pins `snakemake==7.32.4`. Snakemake 7.x is no longer actively maintained; Snakemake 8.x introduced substantial API changes and improved reproducibility features.
+- Files: `biorempp_snakemake_version/env/python-requirements.txt`, `biorempp_snakemake_version/env/Dockerfile`
+- Impact: No security patches, no compatibility guarantees with newer Python/conda environments. Migrating later will require rewriting rule `shell` blocks to avoid deprecated `--printshellcmds` and related options.
+- Fix approach: Evaluate Snakemake 8.x migration; update `Dockerfile` (currently `rocker/tidyverse:4.3`) and `python-requirements.txt` together.
+
+### [MEDIUM] R packages installed without version pinning
+
+- Issue: `biorempp_snakemake_version/env/r-packages.txt` lists packages (`readxl`, `dplyr`, `tidyr`, `stringr`, `readr`, `jsonlite`, `writexl`) without version constraints.
+- Files: `biorempp_snakemake_version/env/r-packages.txt`, `biorempp_snakemake_version/env/Dockerfile` (line 27)
+- Impact: Docker builds are not reproducible; a new `docker build` may pull different R package versions. Breaking changes in dplyr (e.g., `many-to-many` relationship handling) could silently alter merge behavior.
+- Fix approach: Use `renv` to lock R package versions, or pin using `remotes::install_version()` per package in the Dockerfile.
+
+### [MEDIUM] `config_file` parameter is passed to all R scripts but never read inside them
+
+- Issue: Every Snakemake rule passes `--config {params.config_file}` to R scripts, but none of the R scripts (e.g., `01_load_local_data.R`, `04_merge_relationships.R`, `05_add_classifications.R`, `06_enrich_gene_info.R`) contain any code that reads from `config.yaml`. The argument is accepted by `parse_cli_args()` and `require_cli_args()` but then ignored.
+- Files: All `workflow/scripts/generation/*.R` scripts, `biorempp_snakemake_version/workflow/rules/10_generation.smk`
+- Impact: Dead interface surface. If configuration keys (e.g., KEGG endpoints, version, output paths) need to be consumed by R scripts in the future, the plumbing is missing. Currently, any config value change requires direct script edits.
+- Fix approach: Either remove the `--config` argument from scripts that do not use it, or implement `read_yaml_config()` in `workflow/lib/utils.R` and consume config values from the file.
+
+### [LOW] Archive directory committed to the repository contains superseded scripts and draft documents
+
+- Issue: `.archive/` is tracked in git (only excluded from public view via `.gitignore` with `!biorempp_snakemake_version/env/...` exceptions, but `.archive` itself is listed in `.gitignore`). However the archive contains experimental scripts and draft LaTeX papers.
+- Files: `.archive/V1.1.0/`, `.archive/draft_papper/`, `.archive/links/`
+- Impact: Repository history carries unreferenced experiment scripts. New contributors may be confused about which scripts are authoritative. Archive Python scripts (`explain_na_incorrect_counts.py`, `na_compliance_audit.py`) overlap in purpose with current workflow scripts.
+- Fix approach: Remove `.archive` from version control entirely; store historical context in git tags or release notes.
+
+---
+
+## Missing Error Handling / Edge Cases
+
+### [HIGH] No HTTP status code inspection on KEGG API responses in R fetch path
+
+- Issue: `workflow/scripts/generation/03_fetch_kegg_data.R` uses `read.delim(url, ...)` wrapped in `tryCatch`. This catches network-level errors but cannot distinguish HTTP 429 (rate limit), 403 (forbidden), or 500 (server error) from a successful empty response. The function at line 90 returns `NULL` silently on non-final retry attempts, but a 429 response body is parsed as data rather than being caught as an error.
+- Files: `biorempp_snakemake_version/workflow/scripts/generation/03_fetch_kegg_data.R` (lines 45–96)
+- Impact: A transient KEGG rate limit response could be silently treated as valid (but malformed) data, corrupting the `kegg_data.rds` bundle and propagating bad data through the entire pipeline without an explicit error.
+- Fix approach: Replace `read.delim(url)` with `httr::GET()` or `curl::curl_fetch_memory()` to access HTTP status codes before parsing; add an explicit check for non-200 status before treating response as data.
+
+### [HIGH] `parse_link_payload` raises `RuntimeError` on any invalid line, blocking the entire pipeline
+
+- Issue: In both `01_validate_keys_consistency_api.py` (line 137) and `02_validate_links_groundtruth_policy_api.py` (line 134), if `stats["invalid_lines"] > 0`, a `RuntimeError` is raised immediately. However, KEGG API responses may legitimately contain comment lines, blank lines, or encoding artifacts that are not valid tab-separated pairs.
+- Files:
+  - `biorempp_snakemake_version/workflow/scripts/validation/01_validate_keys_consistency_api.py` (lines 134–140)
+  - `biorempp_snakemake_version/workflow/scripts/validation/02_validate_links_groundtruth_policy_api.py` (lines 132–138)
+- Impact: Any transient API noise causes a hard pipeline failure, requiring manual re-run. The threshold is binary (zero tolerance) with no configurable allowance.
+- Fix approach: Add a configurable tolerance ratio (e.g., `max_invalid_line_ratio`), log a warning instead of raising when below threshold, or only raise when the ratio exceeds a meaningful threshold.
+
+### [MEDIUM] `_apply_config_overrides_to_suite_payloads` mutates shared dict objects in-place without defensive copies
+
+- Issue: In `biorempp_validation/src/biorempp_validation/run_validation.py` (lines 49–155), `suite_payloads` dicts are mutated in-place (e.g., `expectation["kwargs"]["column_list"] = ...`). This means if `run()` is called multiple times in the same Python process (e.g., in test scenarios), the second call receives already-mutated suite payloads.
+- Files: `biorempp_validation/src/biorempp_validation/run_validation.py` (lines 49–155)
+- Impact: Test isolation issues if suites are loaded once and mutated; subtle bugs when invoking `main()` twice in tests.
+- Fix approach: Deep-copy suite payloads before mutation using `import copy; suite_payloads = copy.deepcopy(suite_payloads)`.
+
+### [MEDIUM] Silently drops rows where `genesymbol` or `genename` is empty in `06_enrich_gene_info.R`
+
+- Issue: The enrichment step filters out all rows where `genesymbol` or `genename` is empty after a `left_join` (line 36). There is no log message reporting how many rows were dropped, and no validation check confirms the drop count is within an acceptable range.
+- Files: `biorempp_snakemake_version/workflow/scripts/generation/06_enrich_gene_info.R` (lines 27–40)
+- Impact: Silent data loss if `kegglistko.txt` input has missing gene annotations; the final database silently shrinks with no warning.
+- Fix approach: Add a `log_message()` call reporting the count of rows dropped at this step; add a minimum row count assertion (similar to the key universe check in `04_merge_relationships.R`, line 122).
+
+### [MEDIUM] Compound name disambiguation always takes `dplyr::first()` without deterministic ordering
+
+- Issue: In `04_merge_relationships.R` (line 264) and `03_fetch_kegg_data.R` (line 262), when multiple compound names exist per `cpd`, `dplyr::first()` is used after `group_by()`. Without an explicit `arrange()` call before `summarise()`, the first-selected name is non-deterministic across runs on different platforms or R versions.
+- Files:
+  - `biorempp_snakemake_version/workflow/scripts/generation/04_merge_relationships.R` (line 264)
+  - `biorempp_snakemake_version/workflow/scripts/generation/03_fetch_kegg_data.R` (line 262)
+- Impact: Non-reproducible compound name selection; exact-match validation in `strict_exact` mode may fail sporadically between runs.
+- Fix approach: Add `dplyr::arrange(cpd, compoundname)` before `summarise()` to make the selection deterministic.
+
+### [LOW] `02_fetch_kegg_info.R` uses `readLines(url)` without error handling for partial reads or malformed responses
+
+- Issue: `readLines(source_url)` (line 16) fetches the KEGG `info/kegg` endpoint and immediately tries to extract a release line. If the response is truncated or the "Release" pattern is not found, the script falls back to `response[[1]]`, which may be a non-informative string.
+- Files: `biorempp_snakemake_version/workflow/scripts/generation/02_fetch_kegg_info.R` (lines 15–31)
+- Impact: A malformed KEGG info response would produce a `parsed_version` of `"unknown"`, and this would propagate into the database metadata and validation reports without triggering a pipeline error.
+- Fix approach: Add a check that `release_text` contains an expected format, and `stop()` explicitly if `parsed_version == "unknown"`.
+
+---
+
+## Security Considerations
+
+### [LOW] No input validation on KEGG API URL construction
+
+- Issue: The `base_url` and endpoint values are passed as CLI arguments (`--base-url`, `--endpoint`) and concatenated with string operations in both R and Python scripts. There is no validation that the URL scheme is `https://`.
+- Files:
+  - `biorempp_snakemake_version/workflow/scripts/generation/03_fetch_kegg_data.R` (line 46)
+  - `biorempp_snakemake_version/workflow/scripts/validation/01_validate_keys_consistency_api.py` (line 74)
+  - `biorempp_snakemake_version/workflow/scripts/validation/02_validate_links_groundtruth_policy_api.py` (line 74)
+- Impact: Low severity in this context (pipeline is run locally/in Docker), but an accidental misconfiguration of `config.yaml` with a `file://` or `http://` URL would expose data over unencrypted channels.
+- Fix approach: Add a URL scheme validation check (`startsWith(url, "https://")`) before making requests.
+
+### [LOW] `venv/` directory committed to version control
+
+- Issue: The virtual environment at `venv/` is present in the working tree. Although `.gitignore` lists `venv/`, the git status shows it is tracked (the `.gitignore` pattern includes `venv/` but exceptions under `biorempp_snakemake_version/env/` may interact). Committed virtual environments may contain platform-specific binaries.
+- Files: `venv/` directory
+- Impact: Repository bloat; platform-specific compiled files committed; potential for including cached credentials or tokens in installed packages.
+- Fix approach: Verify `venv/` is not tracked by git (`git ls-files venv/`); if it is, add it to `.gitignore` and remove with `git rm -r --cached venv/`.
+
+---
+
+## Performance Risks
+
+### [HIGH] Both validation scripts fetch 5 identical KEGG API endpoints independently — 10 total live API calls per pipeline run
+
+- Issue: `01_validate_keys_consistency_api.py` and `02_validate_links_groundtruth_policy_api.py` each independently fetch the same 5 KEGG link endpoints (`ko/ec`, `ko/reaction`, `compound/ec`, `cpd/reaction`, `ec/reaction`) at runtime. These are large flat-file dumps (tens of thousands of lines each).
+- Files:
+  - `biorempp_snakemake_version/workflow/scripts/validation/01_validate_keys_consistency_api.py` (lines 324–328)
+  - `biorempp_snakemake_version/workflow/scripts/validation/02_validate_links_groundtruth_policy_api.py` (lines 414–418)
+- Impact: Each validation run makes 10 live HTTP calls to `rest.kegg.jp`, each potentially downloading 1–5 MB of data. This doubles network load, increases execution time, and creates 2x the surface area for transient network failures.
+- Fix approach: Cache the fetched KEGG link payloads to disk (e.g., as `.tsv` files in `work/`) during the generation phase and have validation scripts read the cached files instead of re-fetching.
+
+### [MEDIUM] `expand_keys_with_consistent_mapping` performs multiple sequential many-to-many joins on large data frames without intermediate size guards
+
+- Issue: `04_merge_relationships.R` chains multiple `dplyr::inner_join(..., relationship = "many-to-many")` operations on the full KEGG link tables (potentially hundreds of thousands of rows). There is no intermediate check on the size of expanded data frames, risking memory exhaustion on large databases.
+- Files: `biorempp_snakemake_version/workflow/scripts/generation/04_merge_relationships.R` (lines 134–254)
+- Impact: On larger KEGG releases or when curated compound sets grow, the Cartesian intermediate joins could exhaust available RAM in a Docker container without warning.
+- Fix approach: Add intermediate `nrow()` checks after each join with a warning or stop if results exceed a configurable threshold; consider chunked processing for the `build_compound_bridge_dense` function.
+
+### [MEDIUM] `json_to_dataframe.py` recomputes the full top-N rankings from the raw CSV multiple times
+
+- Issue: `build_analysis_exact_df()` in `biorempp_validation/src/biorempp_validation/json_to_dataframe.py` independently calls `_top_compounds_exact()`, `_top_ko_exact()`, `_top_enzymes_exact()`, `_top_genes_exact()`, and `_crosstab_exact()` — each performing a full `groupby` and sort over the entire database DataFrame. These same computations also occur in `build_analysis_critical_df()`.
+- Files: `biorempp_validation/src/biorempp_validation/json_to_dataframe.py` (lines 277–429)
+- Impact: The full database CSV (10,000+ rows) is scanned 10+ times during a single validation run. For larger future databases, this increases validation time significantly.
+- Fix approach: Compute shared groupby results once and pass as arguments; or memoize using `functools.lru_cache` on the key aggregation functions.
+
+---
+
+## Maintainability Issues
+
+### [HIGH] Input data files are curated Excel spreadsheets with no schema or format contract
+
+- Issue: The pipeline depends on six input files (`kegglistcompounds.xlsx`, `compostos_todasagencias.xlsx`, `missing_compounds_founds_curated.xlsx`, `confirm_class_CURATED.xlsx`, `kegglistko.txt`, `enzymes_unique.txt`). These are loaded in `01_load_local_data.R` with `col_names = FALSE` (no header expectations) and column assignments are hardcoded by position (`colnames(data) <- c("cpd", "compoundname")`).
+- Files:
+  - `biorempp_snakemake_version/workflow/scripts/generation/01_load_local_data.R` (lines 19–65)
+  - `biorempp_snakemake_version/workflow/lib/io_contracts.R` (lines 3–10)
+- Impact: A change in column order in any input file silently assigns data to the wrong column without error. The preflight check (`00_check_inputs.R`) only verifies file existence, not content structure or column validity.
+- Fix approach: Read input files with named columns or add post-load assertions checking that column values match expected patterns (e.g., `cpd` column matches `C\d{5}`).
+
+### [MEDIUM] `_apply_config_overrides_to_suite_payloads` is a 106-line function with 12 branching conditions and no unit tests
+
+- Issue: This function in `biorempp_validation/src/biorempp_validation/run_validation.py` (lines 49–155) applies different overrides depending on `strict_exact` mode and expectation type strings. It is tested only indirectly via integration tests.
+- Files: `biorempp_validation/src/biorempp_validation/run_validation.py` (lines 49–155)
+- Impact: Adding a new expectation type or column requires modifying this function and manually verifying all branches still work. Regression risk is high.
+- Fix approach: Extract each override case into a separate named function; add unit tests per override type using mock suite payloads.
+
+### [MEDIUM] `05_add_classifications.R` hardcodes a typo correction for `"Organometalic"` → `"Organometallic"`
+
+- Issue: Line 20 of `biorempp_snakemake_version/workflow/scripts/generation/05_add_classifications.R` contains `str_replace_all(compoundclass, "Organometalic", "Organometallic")`, correcting a known spelling error in the curated input file `confirm_class_CURATED.xlsx`.
+- Files: `biorempp_snakemake_version/workflow/scripts/generation/05_add_classifications.R` (line 20)
+- Impact: This is a hidden dependency: if `confirm_class_CURATED.xlsx` is corrected upstream, this line becomes a no-op silently. If the typo appears in another form (e.g., with different spacing), it will not be caught. The fix should live in the data file, not the code.
+- Fix approach: Fix the typo directly in `confirm_class_CURATED.xlsx`; remove the `str_replace_all` correction from the script; add a validation assertion that `compoundclass` values match the known set defined in `validation.yaml`.
+
+### [LOW] Validation configuration version is hardcoded as `"1.1.0"` as a default fallback in `settings.py`
+
+- Issue: `biorempp_validation/src/biorempp_validation/settings.py` (line 51) defaults `version` to `"1.1.0"` if the config key is missing: `version=str(cfg.get("version", "1.1.0"))`. The `config.yaml` also declares `version: "1.1.0"`.
+- Files: `biorempp_validation/src/biorempp_validation/settings.py` (line 51), `biorempp_validation/config/validation.yaml` (line 1)
+- Impact: When incrementing to v1.2.0, developers must update both files or risk the fallback masking the fact that the config was missing the version field. Silent version mismatch.
+- Fix approach: Remove the fallback default; use `cfg["version"]` and let it raise a `KeyError` if missing, making the misconfiguration explicit.
+
+### [LOW] `__pycache__` directories from two different Python versions present in validation scripts
+
+- Issue: `biorempp_snakemake_version/workflow/scripts/validation/__pycache__/` contains both `common_normalization.cpython-310.pyc` and `common_normalization.cpython-312.pyc`, indicating the module has been executed with Python 3.10 and 3.12 in the same directory.
+- Files: `biorempp_snakemake_version/workflow/scripts/validation/__pycache__/`
+- Impact: Mixed bytecode caches can cause confusion but not functional issues. More importantly, it reveals that the pipeline has been run with Python versions other than what is specified in the Docker environment.
+- Fix approach: Add `**/__pycache__/` to `.gitignore` (currently missing for subdirectory pycache); ensure the Dockerfile uses a consistent Python version.
+
+---
+
+## Missing Documentation
+
+### [MEDIUM] No inline documentation for KEGG relationship expansion logic in `04_merge_relationships.R`
+
+- Issue: The functions `build_ko_complete`, `build_ko_fallback_dense`, `build_compound_bridge_dense`, and `expand_keys_with_consistent_mapping` in `04_merge_relationships.R` implement a complex multi-tier join strategy with no roxygen2 comments or inline explanation of the biological rationale.
+- Files: `biorempp_snakemake_version/workflow/scripts/generation/04_merge_relationships.R` (lines 134–254)
+- Impact: The logic for why three distinct join tiers exist (complete, fallback, compound-bridge) and what each tier's biological meaning is cannot be understood without external documentation or deep domain knowledge.
+- Fix approach: Add a block comment above each tier function explaining the biological rationale and the KEGG data model assumption being exploited.
+
+### [MEDIUM] No `README.md` or `HOWTO` inside `biorempp_snakemake_version/` explaining local vs Docker execution
+
+- Issue: The `biorempp_snakemake_version/` directory contains both a `Snakefile` for direct execution and a `env/docker-compose.yml` for containerized execution. There is no file in that directory guiding contributors on how to run either mode.
+- Files: `biorempp_snakemake_version/` directory, `biorempp_snakemake_version/env/docker-compose.yml`
+- Impact: A new contributor must read the external `docs/` site to understand how to run the pipeline, but docs are MkDocs-based and may not be available locally.
+- Fix approach: Add a `biorempp_snakemake_version/README.md` with prerequisites, both execution modes, and expected output structure.
+
+### [LOW] `validation.yaml` drift thresholds are not documented with their derivation basis
+
+- Issue: `biorempp_validation/config/validation.yaml` specifies numeric thresholds (e.g., `row_count: {min: 7000, max: 20000}`) with no comment explaining whether these were derived empirically, set conservatively, or match a specific database version.
+- Files: `biorempp_validation/config/validation.yaml` (lines 70–77)
+- Impact: Future version increments may trigger drift failures that are actually expected growth. Without documented baselines, it is unclear whether threshold updates are safe recalibrations or masking real data quality regressions.
+- Fix approach: Add YAML comments above each threshold block stating the database version and date the values were last calibrated.
+
+---
+
+## Dependency Risks
+
+### [HIGH] `great_expectations>=1.12,<1.13` is tightly pinned to a minor patch window
+
+- Issue: `biorempp_validation/pyproject.toml` and `biorempp_validation/requirements.txt` pin `great_expectations>=1.12,<1.13`. Great Expectations releases frequently include breaking API changes between minor versions and the GX 1.x API surface (`EphemeralDataContext`, `add_or_update_pandas`, `batch.validate`) is relatively new and may change.
+- Files: `biorempp_validation/pyproject.toml` (line 12), `biorempp_validation/requirements.txt` (line 1)
+- Impact: Any GX patch release that modifies `to_json_dict()` or the expectations DSL would require code changes. The tight pin prevents adopting security patches.
+- Fix approach: Pin to `great_expectations~=1.12.0` (patch-compatible) and add a CI job that runs against the latest patch; review GX changelogs on each release.
+
+### [MEDIUM] `pulp==2.7.0` is pinned as a Snakemake internal dependency with no documented rationale
+
+- Issue: `biorempp_snakemake_version/env/python-requirements.txt` pins `pulp==2.7.0`. PuLP is Snakemake's ILP solver for DAG scheduling. This pin is required for Snakemake 7.x but not documented as such.
+- Files: `biorempp_snakemake_version/env/python-requirements.txt` (line 2)
+- Impact: If Snakemake is upgraded, the PuLP version constraint will need to change simultaneously. The coupling is invisible without context.
+- Fix approach: Add a comment in `python-requirements.txt` explaining the PuLP pin is a Snakemake 7.x internal dependency.
+
+### [MEDIUM] `rocker/tidyverse:4.3` Docker base image is unpinned to a digest
+
+- Issue: `biorempp_snakemake_version/env/Dockerfile` (line 1) uses `FROM rocker/tidyverse:4.3`. Without a digest pin (`@sha256:...`), re-building the Docker image at a future date may pull a different layer if the `4.3` tag is republished.
+- Files: `biorempp_snakemake_version/env/Dockerfile` (line 1)
+- Impact: Builds are not fully reproducible; a changed base image could alter system library versions affecting R package compilation.
+- Fix approach: Pin the base image to its full digest (`FROM rocker/tidyverse:4.3@sha256:<digest>`) and record the digest in `env/`.
+
+---
+
+## Scalability Concerns
+
+### [MEDIUM] All KEGG link endpoints are fetched and held in-memory as Python sets during validation
+
+- Issue: Both validation Python scripts load the full KEGG link payloads (`ko/ec`, `ko/reaction`, `compound/ec`, `cpd/reaction`, `ec/reaction`) into Python `set` objects. Each set can contain hundreds of thousands of tuples. All five sets coexist in memory simultaneously.
+- Files:
+  - `biorempp_snakemake_version/workflow/scripts/validation/01_validate_keys_consistency_api.py` (lines 330–343)
+  - `biorempp_snakemake_version/workflow/scripts/validation/02_validate_links_groundtruth_policy_api.py` (lines 420–432)
+- Impact: As KEGG grows, memory consumption grows proportionally. On constrained CI runners or Docker containers with 2GB RAM limits (as set in `docker-compose.yml` with `--cores 2`), this may cause OOM kills.
+- Fix approach: Stream-parse the KEGG payload into a SQLite in-memory database or use Bloom filters for membership testing when exact pair examples are not needed.
+
+### [MEDIUM] The Snakemake workflow has no concurrency directives; all rules run sequentially by default
+
+- Issue: No rule in `workflow/rules/10_generation.smk`, `20_analysis.smk`, `30_validation.smk`, or `90_reporting.smk` specifies `threads:` or uses Snakemake's parallel DAG execution model. The `docker-compose.yml` command uses `--cores 2`, but no rule declares thread requirements, so all rules run serially.
+- Files: All `.smk` files under `biorempp_snakemake_version/workflow/rules/`
+- Impact: The 9 analysis rules in `20_analysis.smk` are independent (they each read only the database CSV) and could run in parallel, but currently execute one at a time. On slow hardware, this significantly increases total pipeline time.
+- Fix approach: Add `threads: 1` declarations to computationally light rules and `threads: 2` or higher to the two validation scripts (which make 5 API calls each), and update the Docker command to `--cores 4`.
+
+---
+
+*Concerns audit: 2026-05-17*
