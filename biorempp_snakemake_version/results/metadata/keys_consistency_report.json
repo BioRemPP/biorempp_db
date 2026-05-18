@@ -1,31 +1,31 @@
 {
-  "generated_at_utc": "2026-04-05T00:39:17Z",
+  "generated_at_utc": "2026-05-18T00:37:34Z",
   "input": {
     "database_csv": "results/database/biorempp_database_v1.1.0.csv",
     "csv_delimiter": ";",
     "config_file": "config/config.yaml"
   },
   "kegg_api": {
-    "base_url": "https://rest.kegg.jp",
+    "cache_source": "work/kegg_link_cache/",
     "endpoints": {
-      "ko_ec": "https://rest.kegg.jp/link/ko/ec",
-      "ko_reaction": "https://rest.kegg.jp/link/ko/reaction",
-      "cpd_ec": "https://rest.kegg.jp/link/compound/ec",
-      "cpd_reaction": "https://rest.kegg.jp/link/cpd/reaction",
-      "ec_reaction": "https://rest.kegg.jp/link/ec/reaction"
+      "ko_ec": "work/kegg_link_cache/ko_ec.tsv",
+      "ko_reaction": "work/kegg_link_cache/ko_reaction.tsv",
+      "cpd_ec": "work/kegg_link_cache/cpd_ec.tsv",
+      "cpd_reaction": "work/kegg_link_cache/cpd_reaction.tsv",
+      "ec_reaction": "work/kegg_link_cache/ec_reaction.tsv"
     }
   },
   "api_parse_stats": {
     "ko_ec": {
-      "total_lines": 10010,
-      "parsed_pairs": 10010,
-      "swapped_orientation_lines": 10010,
+      "total_lines": 10044,
+      "parsed_pairs": 10044,
+      "swapped_orientation_lines": 10044,
       "invalid_lines": 0
     },
     "ko_reaction": {
-      "total_lines": 12222,
-      "parsed_pairs": 12222,
-      "swapped_orientation_lines": 12222,
+      "total_lines": 12239,
+      "parsed_pairs": 12239,
+      "swapped_orientation_lines": 12239,
       "invalid_lines": 0
     },
     "cpd_ec": {
@@ -35,9 +35,9 @@
       "invalid_lines": 0
     },
     "cpd_reaction": {
-      "total_lines": 52320,
-      "parsed_pairs": 52320,
-      "swapped_orientation_lines": 52320,
+      "total_lines": 52324,
+      "parsed_pairs": 52324,
+      "swapped_orientation_lines": 52324,
       "invalid_lines": 0
     },
     "ec_reaction": {
@@ -48,7 +48,7 @@
     }
   },
   "validation_policy": {
-    "source_of_truth": "KEGG REST API endpoints fetched at runtime",
+    "source_of_truth": "KEGG REST API via shared link cache",
     "ec_na_incorrect_rule": "Reaction must be supported by pair sources and mappable to EC with pair EC support",
     "reaction_na_incorrect_rule": "EC must be supported by pair sources and mappable to reaction with pair reaction support",
     "both_na_incorrect_rule": "Pair fillable by ko_ec+ko_reaction or by reaction-ec bridge with pair sources"
