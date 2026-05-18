@@ -357,10 +357,10 @@ def build_analysis_exact_df(
         (str(k), int(v)) for k, v in (compound.get("compounds_per_agency", {}) or {}).items()
     )
 
-    observed_ko_total = int(database_df["ko"].nunique())
-    observed_enzyme_total = int(database_df["enzyme_activity"].nunique())
-    observed_gene_symbol_total = int(database_df["genesymbol"].nunique())
-    observed_gene_name_total = int(database_df["genename"].nunique())
+    observed_ko_total = observed_basic["unique_ko_entries"]
+    observed_enzyme_total = observed_basic["unique_enzyme_activities"]
+    observed_gene_symbol_total = observed_basic["unique_gene_symbols"]
+    observed_gene_name_total = observed_basic["unique_gene_names"]
 
     observed_top_compounds = _top_compounds_exact(database_df, top_n=20)
     observed_top_ko = _top_ko_exact(database_df, top_n=20)
