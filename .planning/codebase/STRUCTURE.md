@@ -89,8 +89,7 @@ BioRemPP_DB_1.0.0/                          # Project root
 │   │   ├── metadata/
 │   │   │   ├── kegg_release.json
 │   │   │   ├── keys_consistency_report.json
-│   │   │   ├── links_groundtruth_policy_report.json
-│   │   │   └── link_consistency_audit.json
+│   │   │   └── links_groundtruth_policy_report.json
 │   │   └── reports/
 │   │       └── workflow_summary.json        # SHA-256 checksums + run metadata
 │   ├── work/                                # Intermediate .rds files (generated, not committed)
