@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-05-18T13:31:36Z",
+  "generated_at_utc": "2026-05-18T14:34:01Z",
   "input": {
     "database_csv": "results/database/biorempp_database_v1.1.0.csv",
     "csv_delimiter": ";",
@@ -20,31 +20,36 @@
       "total_lines": 10044,
       "parsed_pairs": 10044,
       "swapped_orientation_lines": 10044,
-      "invalid_lines": 0
+      "invalid_lines": 0,
+      "invalid_ratio": 0.0
     },
     "ko_reaction": {
       "total_lines": 12239,
       "parsed_pairs": 12239,
       "swapped_orientation_lines": 12239,
-      "invalid_lines": 0
+      "invalid_lines": 0,
+      "invalid_ratio": 0.0
     },
     "cpd_ec": {
       "total_lines": 33620,
       "parsed_pairs": 33620,
       "swapped_orientation_lines": 33620,
-      "invalid_lines": 0
+      "invalid_lines": 0,
+      "invalid_ratio": 0.0
     },
     "cpd_reaction": {
       "total_lines": 52324,
       "parsed_pairs": 52324,
       "swapped_orientation_lines": 52324,
-      "invalid_lines": 0
+      "invalid_lines": 0,
+      "invalid_ratio": 0.0
     },
     "ec_reaction": {
       "total_lines": 10699,
       "parsed_pairs": 10699,
       "swapped_orientation_lines": 10699,
-      "invalid_lines": 0
+      "invalid_lines": 0,
+      "invalid_ratio": 0.0
     }
   },
   "validation_policy": {
