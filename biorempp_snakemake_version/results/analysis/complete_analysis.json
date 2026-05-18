@@ -11,7 +11,7 @@
       "kegg_release": {
         "release_text": "kegg             Release 118.0+/05-18, May 26",
         "parsed_version": "118.0+",
-        "retrieved_at_utc": "2026-05-18T14:03:48Z",
+        "retrieved_at_utc": "2026-05-18T15:12:59Z",
         "source_url": "https://rest.kegg.jp/info/kegg",
         "raw_response": [
           "kegg             Kyoto Encyclopedia of Genes and Genomes",
