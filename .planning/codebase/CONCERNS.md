@@ -22,7 +22,7 @@
 - Impact: No security patches, no compatibility guarantees with newer Python/conda environments. Migrating later will require rewriting rule `shell` blocks to avoid deprecated `--printshellcmds` and related options.
 - Fix approach: Evaluate Snakemake 8.x migration; update `Dockerfile` (currently `rocker/tidyverse:4.3`) and `python-requirements.txt` together.
 
-### [MEDIUM] R packages installed without version pinning
+### [MEDIUM] **[FIXED]** R packages installed without version pinning
 
 - Issue: `biorempp_snakemake_version/env/r-packages.txt` lists packages (`readxl`, `dplyr`, `tidyr`, `stringr`, `readr`, `jsonlite`, `writexl`) without version constraints.
 - Files: `biorempp_snakemake_version/env/r-packages.txt`, `biorempp_snakemake_version/env/Dockerfile` (line 27)
@@ -47,7 +47,7 @@
 
 ## Missing Error Handling / Edge Cases
 
-### [HIGH] No HTTP status code inspection on KEGG API responses in R fetch path
+### [HIGH] **[FIXED]** No HTTP status code inspection on KEGG API responses in R fetch path
 
 - Issue: `workflow/scripts/generation/03_fetch_kegg_data.R` uses `read.delim(url, ...)` wrapped in `tryCatch`. This catches network-level errors but cannot distinguish HTTP 429 (rate limit), 403 (forbidden), or 500 (server error) from a successful empty response. The function at line 90 returns `NULL` silently on non-final retry attempts, but a 429 response body is parsed as data rather than being caught as an error.
 - Files: `biorempp_snakemake_version/workflow/scripts/generation/03_fetch_kegg_data.R` (lines 45–96)
@@ -211,21 +211,21 @@
 
 ## Dependency Risks
 
-### [HIGH] `great_expectations>=1.12,<1.13` is tightly pinned to a minor patch window
+### [HIGH] **[FIXED]** `great_expectations>=1.12,<1.13` is tightly pinned to a minor patch window
 
 - Issue: `biorempp_validation/pyproject.toml` and `biorempp_validation/requirements.txt` pin `great_expectations>=1.12,<1.13`. Great Expectations releases frequently include breaking API changes between minor versions and the GX 1.x API surface (`EphemeralDataContext`, `add_or_update_pandas`, `batch.validate`) is relatively new and may change.
 - Files: `biorempp_validation/pyproject.toml` (line 12), `biorempp_validation/requirements.txt` (line 1)
 - Impact: Any GX patch release that modifies `to_json_dict()` or the expectations DSL would require code changes. The tight pin prevents adopting security patches.
 - Fix approach: Pin to `great_expectations~=1.12.0` (patch-compatible) and add a CI job that runs against the latest patch; review GX changelogs on each release.
 
-### [MEDIUM] `pulp==2.7.0` is pinned as a Snakemake internal dependency with no documented rationale
+### [MEDIUM] **[FIXED]** `pulp==2.7.0` is pinned as a Snakemake internal dependency with no documented rationale
 
 - Issue: `biorempp_snakemake_version/env/python-requirements.txt` pins `pulp==2.7.0`. PuLP is Snakemake's ILP solver for DAG scheduling. This pin is required for Snakemake 7.x but not documented as such.
 - Files: `biorempp_snakemake_version/env/python-requirements.txt` (line 2)
 - Impact: If Snakemake is upgraded, the PuLP version constraint will need to change simultaneously. The coupling is invisible without context.
 - Fix approach: Add a comment in `python-requirements.txt` explaining the PuLP pin is a Snakemake 7.x internal dependency.
 
-### [MEDIUM] `rocker/tidyverse:4.3` Docker base image is unpinned to a digest
+### [MEDIUM] **[FIXED]** `rocker/tidyverse:4.3` Docker base image is unpinned to a digest
 
 - Issue: `biorempp_snakemake_version/env/Dockerfile` (line 1) uses `FROM rocker/tidyverse:4.3`. Without a digest pin (`@sha256:...`), re-building the Docker image at a future date may pull a different layer if the `4.3` tag is republished.
 - Files: `biorempp_snakemake_version/env/Dockerfile` (line 1)
