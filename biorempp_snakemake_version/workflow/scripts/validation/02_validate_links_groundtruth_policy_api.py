@@ -1,170 +1,19 @@
 #!/usr/bin/env python3
 
 import argparse
-import csv
 import json
-import os
-import random
-import re
-import time
-import urllib.error
-import urllib.request
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
-from common_normalization import is_na_like, load_na_markers
+from common_normalization import load_na_markers
+from kegg_api_client import (
+    load_database_rows,
+    parse_link_payload,
+    read_link_cache,
+)
 
 NA_MARKERS = load_na_markers()
-
-PATTERNS = {
-    "ko": re.compile(r"(?:ko:)?(K\d{5})", re.IGNORECASE),
-    "cpd": re.compile(r"(?:cpd:)?(C\d{5})", re.IGNORECASE),
-    "reaction": re.compile(r"(?:rn:)?(R\d{5})", re.IGNORECASE),
-    "ec": re.compile(r"(?:ec:)?((?:\d+\.){3}[0-9A-Za-z\-]+)", re.IGNORECASE),
-}
-
-
-def normalize_token(value, token_type):
-    if is_na_like(value, NA_MARKERS):
-        return None
-    text = str(value).strip()
-    match = PATTERNS[token_type].search(text)
-    if not match:
-        return None
-    token = match.group(1)
-    if token_type in {"ko", "cpd", "reaction"}:
-        return token.upper()
-    return token
-
-
-def read_int_env(name, default, min_value=1):
-    raw = os.getenv(name, str(default))
-    try:
-        value = int(raw)
-    except ValueError:
-        return default
-    return value if value >= min_value else default
-
-
-def read_float_env(name, default, min_value=0.0):
-    raw = os.getenv(name, str(default))
-    try:
-        value = float(raw)
-    except ValueError:
-        return default
-    return value if value >= min_value else default
-
-
-RETRY_MAX = read_int_env("BIOREMPP_API_MAX_RETRIES", 6, min_value=1)
-REQUEST_TIMEOUT = read_int_env("BIOREMPP_API_TIMEOUT_SECONDS", 90, min_value=1)
-BACKOFF_BASE = read_float_env("BIOREMPP_API_BACKOFF_BASE_SECONDS", 1.0, min_value=0.1)
-BACKOFF_MAX = read_float_env("BIOREMPP_API_BACKOFF_MAX_SECONDS", 30.0, min_value=0.1)
-BACKOFF_JITTER = read_float_env("BIOREMPP_API_BACKOFF_JITTER_RATIO", 0.25, min_value=0.0)
-
-
-def compute_backoff_seconds(attempt):
-    exponential = BACKOFF_BASE * (2 ** (attempt - 1))
-    capped = min(BACKOFF_MAX, exponential)
-    jitter_multiplier = random.uniform(1 - BACKOFF_JITTER, 1 + BACKOFF_JITTER)
-    return max(0.1, capped * jitter_multiplier)
-
-
-def fetch_text(base_url, endpoint, retries=RETRY_MAX, timeout=REQUEST_TIMEOUT):
-    url = base_url.rstrip("/") + "/" + endpoint.lstrip("/")
-    last_error = None
-    for attempt in range(1, retries + 1):
-        try:
-            with urllib.request.urlopen(url, timeout=timeout) as response:
-                return response.read().decode("utf-8", errors="replace"), url
-        except (urllib.error.URLError, TimeoutError) as err:
-            last_error = err
-            if attempt < retries:
-                sleep_seconds = compute_backoff_seconds(attempt)
-                print(
-                    f"[WARN] Fetch failed for {url} at attempt {attempt}/{retries} "
-                    f"({err}). Retrying in {sleep_seconds:.2f}s."
-                )
-                time.sleep(sleep_seconds)
-    raise RuntimeError(f"Failed to fetch endpoint after {retries} attempts: {url} | {last_error}")
-
-
-def parse_link_payload(payload, left_type, right_type):
-    pairs = set()
-    stats = {
-        "total_lines": 0,
-        "parsed_pairs": 0,
-        "swapped_orientation_lines": 0,
-        "invalid_lines": 0,
-    }
-
-    for raw_line in payload.splitlines():
-        line = raw_line.strip()
-        if not line:
-            continue
-        stats["total_lines"] += 1
-        parts = line.split("\t")
-        if len(parts) < 2:
-            stats["invalid_lines"] += 1
-            continue
-
-        col1 = parts[0].strip()
-        col2 = parts[1].strip()
-
-        direct_left = normalize_token(col1, left_type)
-        direct_right = normalize_token(col2, right_type)
-        swap_left = normalize_token(col2, left_type)
-        swap_right = normalize_token(col1, right_type)
-
-        direct_valid = direct_left is not None and direct_right is not None
-        swap_valid = swap_left is not None and swap_right is not None
-
-        if direct_valid:
-            pairs.add((direct_left, direct_right))
-            stats["parsed_pairs"] += 1
-        elif swap_valid:
-            pairs.add((swap_left, swap_right))
-            stats["parsed_pairs"] += 1
-            stats["swapped_orientation_lines"] += 1
-        else:
-            stats["invalid_lines"] += 1
-
-    if stats["parsed_pairs"] == 0:
-        raise RuntimeError(f"No valid pairs parsed for relation {left_type}->{right_type}")
-    if stats["invalid_lines"] > 0:
-        raise RuntimeError(
-            f"Invalid lines found for relation {left_type}->{right_type}: {stats['invalid_lines']}"
-        )
-
-    return pairs, stats
-
-
-def load_database_rows(csv_path, csv_delimiter):
-    rows = []
-    with open(csv_path, "r", encoding="utf-8", newline="") as handle:
-        reader = csv.DictReader(handle, delimiter=csv_delimiter)
-        required = {"cpd", "ko", "ec", "reaction"}
-        missing = [col for col in required if col not in reader.fieldnames]
-        if missing:
-            raise RuntimeError(f"Missing required DB columns: {missing}")
-
-        for idx, raw in enumerate(reader, start=2):
-            cpd = normalize_token(raw.get("cpd"), "cpd")
-            ko = normalize_token(raw.get("ko"), "ko")
-            if cpd is None or ko is None:
-                continue
-
-            rows.append(
-                {
-                    "row_number": idx,
-                    "cpd": cpd,
-                    "ko": ko,
-                    "ec": normalize_token(raw.get("ec"), "ec"),
-                    "reaction": normalize_token(raw.get("reaction"), "reaction"),
-                    "referenceAG": (raw.get("referenceAG") or "").strip(),
-                }
-            )
-    return rows
 
 
 def build_pair_validation(rows, link_sets, max_examples):
@@ -394,12 +243,11 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Policy-aware links ground-truth validation against KEGG API.")
     parser.add_argument("--database-csv", required=True)
     parser.add_argument("--csv-delimiter", required=True)
-    parser.add_argument("--base-url", required=True)
-    parser.add_argument("--ko-ec-endpoint", required=True)
-    parser.add_argument("--ko-reaction-endpoint", required=True)
-    parser.add_argument("--cpd-ec-endpoint", required=True)
-    parser.add_argument("--cpd-reaction-endpoint", required=True)
-    parser.add_argument("--ec-reaction-endpoint", required=True)
+    parser.add_argument("--ko-ec-cache", required=True)
+    parser.add_argument("--ko-reaction-cache", required=True)
+    parser.add_argument("--cpd-ec-cache", required=True)
+    parser.add_argument("--cpd-reaction-cache", required=True)
+    parser.add_argument("--ec-reaction-cache", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--config", required=True)
     parser.add_argument("--max-examples", type=int, default=200)
@@ -411,11 +259,11 @@ def main():
 
     db_rows = load_database_rows(args.database_csv, args.csv_delimiter)
 
-    ko_ec_payload, ko_ec_url = fetch_text(args.base_url, args.ko_ec_endpoint)
-    ko_reaction_payload, ko_reaction_url = fetch_text(args.base_url, args.ko_reaction_endpoint)
-    cpd_ec_payload, cpd_ec_url = fetch_text(args.base_url, args.cpd_ec_endpoint)
-    cpd_reaction_payload, cpd_reaction_url = fetch_text(args.base_url, args.cpd_reaction_endpoint)
-    ec_reaction_payload, ec_reaction_url = fetch_text(args.base_url, args.ec_reaction_endpoint)
+    ko_ec_payload, ko_ec_url = read_link_cache(args.ko_ec_cache)
+    ko_reaction_payload, ko_reaction_url = read_link_cache(args.ko_reaction_cache)
+    cpd_ec_payload, cpd_ec_url = read_link_cache(args.cpd_ec_cache)
+    cpd_reaction_payload, cpd_reaction_url = read_link_cache(args.cpd_reaction_cache)
+    ec_reaction_payload, ec_reaction_url = read_link_cache(args.ec_reaction_cache)
 
     ko_ec, ko_ec_stats = parse_link_payload(ko_ec_payload, "ko", "ec")
     ko_reaction, ko_reaction_stats = parse_link_payload(ko_reaction_payload, "ko", "reaction")
@@ -442,7 +290,7 @@ def main():
             "config_file": args.config,
         },
         "kegg_api": {
-            "base_url": args.base_url,
+            "cache_source": "work/kegg_link_cache/",
             "endpoints": {
                 "ko_ec": ko_ec_url,
                 "ko_reaction": ko_reaction_url,
@@ -460,7 +308,7 @@ def main():
         },
         "validation_policy": {
             "mode": "report_only",
-            "source_of_truth": "KEGG REST API endpoints fetched at runtime",
+            "source_of_truth": "KEGG REST API via shared link cache",
             "strict5_definition": "ko_ec + ko_reaction + cpd_ec + cpd_reaction + ec_reaction",
             "policy_union_definition": "ko_complete_like OR ko_fallback_like OR compound_bridge_like",
         },
