@@ -15,7 +15,7 @@
 - Impact: Divergence in behavior is already present — `parse_link_payload` in `01_` uses `continue` after a direct match (line 125), while `02_` falls through to `elif` on the same logic (line 126–128). Bug fixes or policy changes must be made in both files independently or they silently diverge.
 - Fix approach: Extract shared logic into `common_normalization.py` (already exists) or a new `api_client.py` shared module under `workflow/scripts/validation/`.
 
-### [MEDIUM] Snakemake pinned to version 7.32.4 — end-of-life
+### [MEDIUM] **[FIXED]** Snakemake pinned to version 7.32.4 — end-of-life
 
 - Issue: `biorempp_snakemake_version/env/python-requirements.txt` pins `snakemake==7.32.4`. Snakemake 7.x is no longer actively maintained; Snakemake 8.x introduced substantial API changes and improved reproducibility features.
 - Files: `biorempp_snakemake_version/env/python-requirements.txt`, `biorempp_snakemake_version/env/Dockerfile`
@@ -29,7 +29,7 @@
 - Impact: Docker builds are not reproducible; a new `docker build` may pull different R package versions. Breaking changes in dplyr (e.g., `many-to-many` relationship handling) could silently alter merge behavior.
 - Fix approach: Use `renv` to lock R package versions, or pin using `remotes::install_version()` per package in the Dockerfile.
 
-### [MEDIUM] `config_file` parameter is passed to all R scripts but never read inside them
+### [MEDIUM] **[FIXED]** `config_file` parameter is passed to all R scripts but never read inside them
 
 - Issue: Every Snakemake rule passes `--config {params.config_file}` to R scripts, but none of the R scripts (e.g., `01_load_local_data.R`, `04_merge_relationships.R`, `05_add_classifications.R`, `06_enrich_gene_info.R`) contain any code that reads from `config.yaml`. The argument is accepted by `parse_cli_args()` and `require_cli_args()` but then ignored.
 - Files: All `workflow/scripts/generation/*.R` scripts, `biorempp_snakemake_version/workflow/rules/10_generation.smk`
@@ -54,7 +54,7 @@
 - Impact: A transient KEGG rate limit response could be silently treated as valid (but malformed) data, corrupting the `kegg_data.rds` bundle and propagating bad data through the entire pipeline without an explicit error.
 - Fix approach: Replace `read.delim(url)` with `httr::GET()` or `curl::curl_fetch_memory()` to access HTTP status codes before parsing; add an explicit check for non-200 status before treating response as data.
 
-### [HIGH] `parse_link_payload` raises `RuntimeError` on any invalid line, blocking the entire pipeline
+### [HIGH] **[FIXED]** `parse_link_payload` raises `RuntimeError` on any invalid line, blocking the entire pipeline
 
 - Issue: In both `01_validate_keys_consistency_api.py` (line 137) and `02_validate_links_groundtruth_policy_api.py` (line 134), if `stats["invalid_lines"] > 0`, a `RuntimeError` is raised immediately. However, KEGG API responses may legitimately contain comment lines, blank lines, or encoding artifacts that are not valid tab-separated pairs.
 - Files:
