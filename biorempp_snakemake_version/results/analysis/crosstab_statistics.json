@@ -7,7 +7,7 @@
   "top_20_enzyme_class_combinations": {
     "compound_classes": ["Nitrogen-containing", "Aliphatic", "Nitrogen-containing", "Nitrogen-containing", "Aliphatic", "Nitrogen-containing", "Polyaromatic", "Nitrogen-containing", "Nitrogen-containing", "Nitrogen-containing", "Aromatic", "Aromatic", "Polyaromatic", "Nitrogen-containing", "Nitrogen-containing", "Nitrogen-containing", "Chlorinated", "Aliphatic", "Aliphatic", "Nitrogen-containing"],
     "enzymes": ["hydrolase", "demethylase", "transglutaminase", "oxidase", "cytochrome P450", "reductase", "cytochrome P450", "dioxygenase", "lyase", "deaminase", "dioxygenase", "cytochrome P450", "dioxygenase", "dehydrogenase", "ammonia-lyase", "cytochrome P450", "cytochrome P450", "dehydrogenase", "monooxygenase", "synthase"],
-    "counts": [7422, 6045, 5782, 5388, 5180, 5126, 4107, 3769, 3365, 3112, 3003, 2994, 2844, 2723, 2517, 2262, 2129, 1976, 1774, 1697]
+    "counts": [7422, 6045, 5782, 5388, 5180, 5126, 4107, 3769, 3365, 3112, 3003, 2994, 2844, 2723, 2517, 2262, 2129, 1976, 1774, 1696]
   },
   "top_10_classes_by_ko_diversity": {
     "compound_classes": ["Nitrogen-containing", "Aliphatic", "Aromatic", "Chlorinated", "Polyaromatic", "Inorganic", "Sulfur-containing", "Metal", "Organophosphorus", "Organometallic"],

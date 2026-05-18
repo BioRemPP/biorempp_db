@@ -3,7 +3,7 @@
     "name": "BioRemPP Snakemake Pipeline",
     "version": "1.1.0",
     "config_file": "config/config.yaml",
-    "generated_at_utc": "2026-05-18T00:37:35Z"
+    "generated_at_utc": "2026-05-18T13:06:01Z"
   },
   "kegg_reference": {
     "source_url": "https://rest.kegg.jp/info/kegg",
@@ -18,7 +18,7 @@
       "incorrect": 0
     },
     "totals": {
-      "rows_in_database": 123762,
+      "rows_in_database": 123759,
       "rows_with_any_na_in_ec_or_reaction": 3111,
       "ec_na_rows": 888,
       "reaction_na_rows": 2150,
@@ -26,14 +26,14 @@
     }
   },
   "links_groundtruth_policy": {
-    "dense_total": 120651,
-    "strict5_rate_percent": 2.4168883805355943,
-    "policy_union_rate_percent": 99.99751348932044,
-    "no_policy_support": 3
+    "dense_total": 120648,
+    "strict5_rate_percent": 2.4169484782176247,
+    "policy_union_rate_percent": 100.0,
+    "no_policy_support": 0
   },
   "reaction_description_coverage": {
-    "rows_with_reaction": 121539,
-    "rows_with_reaction_description": 121539,
+    "rows_with_reaction": 121536,
+    "rows_with_reaction_description": 121536,
     "fill_rate_percent": 100.0,
     "unmatched_reaction_id_count": 0
   },
@@ -2006,48 +2006,48 @@
       "false_na_pairs_examples": []
     },
     "row_shapes": {
-      "dense": 120651,
+      "dense": 120648,
       "ec_only": 2150,
       "reaction_only": 888,
       "both_na": 73
     },
     "row_provenance": {
       "direct_compound_supported": 98688,
-      "ko_supported_only": 25001,
+      "ko_supported_only": 24998,
       "unsupported": 73
     },
     "consistency_sentinels": {
-      "duplicate_full_rows": 74554,
+      "duplicate_full_rows": 74552,
       "resolvable_pair_count": 2249,
       "mixed_sparse_on_resolvable_pairs": 0,
       "mixed_sparse_on_resolvable_examples": []
     },
     "reaction_description": {
-      "with_reaction_rows": 121539,
-      "with_reaction_description_rows": 121539,
+      "with_reaction_rows": 121536,
+      "with_reaction_description_rows": 121536,
       "unmatched_reaction_id_count": 0
     }
   },
   "artifacts": {
     "database_csv": {
       "path": "results/database/biorempp_database_v1.1.0.csv",
-      "size_bytes": 32637859,
-      "sha256": "918d8597e08021ca063a6e2fe34160e05c2085affa4f7b3a99b4a12eb61fbdf9"
+      "size_bytes": 32637025,
+      "sha256": "75610c0d6bcb228718a4b54d2f35dcf838a5792d4f5da4a4beb763bb2972a551"
     },
     "database_xlsx": {
       "path": "results/database/biorempp_database_v1.1.0.xlsx",
-      "size_bytes": 7036362,
-      "sha256": "1990fc98fb7013b4fa22f8c10bca76734fd434badc017ee8cc5226821beebd5b"
+      "size_bytes": 7030680,
+      "sha256": "22dc1c50e5d1a5807e3fc2aa9cffab1a0535727655a7bd52b0449ede7b68daef"
     },
     "database_metadata_json": {
       "path": "results/analysis/database_metadata.json",
       "size_bytes": 25074,
-      "sha256": "294b59763673929ba50e7ea5ad12b40dfdb0eedb2303a7bfd6b218096e5ec210"
+      "sha256": "285dc9ae0054bcc11d79d1bfe80c7c339628cfb5b83d5507b80dde2ab96ae7d4"
     },
     "complete_analysis_json": {
       "path": "results/analysis/complete_analysis.json",
       "size_bytes": 60978,
-      "sha256": "3602b34a568b92999780f79a98555f6463cfc1d20822492f0d1b9b453301e74a"
+      "sha256": "9fbcf05ef57419d1bc66433189b659da0ee27302977fa7bce12d799a0d5b6cd7"
     },
     "kegg_release_json": {
       "path": "results/metadata/kegg_release.json",
@@ -2057,12 +2057,12 @@
     "keys_consistency_json": {
       "path": "results/metadata/keys_consistency_report.json",
       "size_bytes": 2435,
-      "sha256": "3c3915d250101df83d4a827d7a2607e3101d3f198a342a3fa55ddaf2f9c26d92"
+      "sha256": "1e29fd1c25e2168e78341380256f44d5c002696c0356bd17bdd0ec455449a0f2"
     },
     "links_groundtruth_policy_json": {
       "path": "results/metadata/links_groundtruth_policy_report.json",
-      "size_bytes": 228495,
-      "sha256": "86880fd7a9360b3fe90775213d2b35159c1ad1ce247e1ae36ebe8e419eb01952"
+      "size_bytes": 227546,
+      "sha256": "71e64f6435ead021388a3e75b5dff1b710db9487f979f0ce226b6ed0a4a11cdd"
     }
   }
 }
