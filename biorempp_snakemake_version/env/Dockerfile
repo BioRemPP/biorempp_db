@@ -1,4 +1,4 @@
-FROM rocker/tidyverse:4.3@sha256:b2fc0a9357b1cb6c90b7a1ac527bd09f113d76f88175db8b99d205d73fbc31b7
+FROM rocker/tidyverse:4.4@sha256:7b6ad006caffcbae246f8f3e761a2ec268b2101a25d54266a27c1bce6ced0689
 
 LABEL maintainer="BioRemPP Development Team"
 LABEL description="BioRemPP Snakemake pipeline"
@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY env/python-requirements.txt /tmp/python-requirements.txt
-RUN pip3 install --no-cache-dir -r /tmp/python-requirements.txt
+RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/python-requirements.txt
 
 RUN R -e "\
   install.packages('remotes', repos='https://cloud.r-project.org/', quiet=TRUE); \
