@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-05-18T00:37:34Z",
+  "generated_at_utc": "2026-05-18T13:05:53Z",
   "input": {
     "database_csv": "results/database/biorempp_database_v1.1.0.csv",
     "csv_delimiter": ";",
@@ -55,7 +55,7 @@
   },
   "results": {
     "totals": {
-      "rows_in_database": 123762,
+      "rows_in_database": 123759,
       "rows_with_any_na_in_ec_or_reaction": 3111,
       "ec_na_rows": 888,
       "reaction_na_rows": 2150,

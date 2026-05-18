@@ -1,5 +1,5 @@
 {
-  "total_entries": 123762,
+  "total_entries": 123759,
   "total_columns": 11,
   "column_names": ["cpd", "compoundclass", "ko", "ec", "reaction", "reaction_description", "referenceAG", "compoundname", "genesymbol", "genename", "enzyme_activity"],
   "unique_compounds": 384,

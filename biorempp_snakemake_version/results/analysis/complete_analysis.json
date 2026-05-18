@@ -3,7 +3,7 @@
     "database_info": {
       "name": "BioRemPP Database",
       "version": "1.1.0",
-      "generation_date": "2026-04-05",
+      "generation_date": "2026-05-18",
       "description": "Comprehensive biological remediation database integrating KEGG data, environmental agency compound lists, manual curations, and enzyme classifications"
     },
     "data_sources": {
@@ -2093,31 +2093,31 @@
         "false_na_pairs_examples": []
       },
       "row_shapes": {
-        "dense": 120651,
+        "dense": 120648,
         "ec_only": 2150,
         "reaction_only": 888,
         "both_na": 73
       },
       "row_provenance": {
         "direct_compound_supported": 98688,
-        "ko_supported_only": 25001,
+        "ko_supported_only": 24998,
         "unsupported": 73
       },
       "consistency_sentinels": {
-        "duplicate_full_rows": 74554,
+        "duplicate_full_rows": 74552,
         "resolvable_pair_count": 2249,
         "mixed_sparse_on_resolvable_pairs": 0,
         "mixed_sparse_on_resolvable_examples": []
       },
       "reaction_description": {
-        "with_reaction_rows": 121539,
-        "with_reaction_description_rows": 121539,
+        "with_reaction_rows": 121536,
+        "with_reaction_description_rows": 121536,
         "unmatched_reaction_id_count": 0
       }
     }
   },
   "basic_stats": {
-    "total_entries": 123762,
+    "total_entries": 123759,
     "total_columns": 11,
     "column_names": [
       "cpd",
@@ -2329,7 +2329,7 @@
     "ko_frequency_summary": {
       "min_frequency": 1,
       "max_frequency": 2690,
-      "mean_frequency": 80.2087,
+      "mean_frequency": 80.2067,
       "median_frequency": 6
     },
     "compounds_per_ko_summary": {
@@ -2387,7 +2387,7 @@
         3922,
         3583,
         3136,
-        2541,
+        2538,
         2524,
         1666,
         1664,
@@ -2474,7 +2474,7 @@
     "enzyme_frequency_summary": {
       "min_frequency": 1,
       "max_frequency": 17729,
-      "mean_frequency": 600.7864,
+      "mean_frequency": 600.7718,
       "median_frequency": 27
     }
   },
@@ -2708,7 +2708,7 @@
         2129,
         1976,
         1774,
-        1697
+        1696
       ]
     },
     "top_10_classes_by_ko_diversity": {
@@ -2740,7 +2740,7 @@
   },
   "executive_summary": {
     "overview": {
-      "total_entries": 123762,
+      "total_entries": 123759,
       "unique_compounds": 384,
       "unique_ko_entries": 1543,
       "unique_enzyme_activities": 206,

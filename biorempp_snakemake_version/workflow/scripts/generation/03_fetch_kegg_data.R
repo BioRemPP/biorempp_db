@@ -3,7 +3,7 @@
 source("workflow/lib/utils.R")
 source("workflow/lib/io_contracts.R")
 
-load_required_packages(c("stringr"))
+load_required_packages(c("httr", "stringr"))
 
 args <- parse_cli_args()
 require_cli_args(args, c("output", "config", "base-url"))
@@ -42,43 +42,61 @@ BACKOFF_BASE <- read_num_env("BIOREMPP_API_BACKOFF_BASE_SECONDS", 1.0)
 BACKOFF_MAX <- read_num_env("BIOREMPP_API_BACKOFF_MAX_SECONDS", 30.0)
 BACKOFF_JITTER <- read_num_env("BIOREMPP_API_BACKOFF_JITTER_RATIO", 0.25)
 
+non_retryable_error <- function(message) {
+  structure(
+    class = c("non_retryable_http_error", "error", "condition"),
+    list(message = message)
+  )
+}
+
 fetch_endpoint_raw <- function(endpoint, sep = "\t", max_retries = RETRY_MAX) {
   url <- paste0(base_url, "/", endpoint)
-  previous_timeout <- getOption("timeout")
-  options(timeout = REQUEST_TIMEOUT)
-  on.exit(options(timeout = previous_timeout), add = TRUE)
 
   for (attempt in seq_len(max_retries)) {
     result <- tryCatch(
       {
-        read.delim(
-          url,
-          header = FALSE,
-          sep = sep,
-          stringsAsFactors = FALSE,
-          quote = "",
-          fill = TRUE,
-          comment.char = ""
-        )
+        response    <- httr::GET(url, httr::timeout(REQUEST_TIMEOUT))
+        status_code <- httr::status_code(response)
+
+        if (status_code == 200L) {
+          content_text <- httr::content(response, as = "text", encoding = "UTF-8")
+          read.delim(
+            text             = content_text,
+            header           = FALSE,
+            sep              = sep,
+            stringsAsFactors = FALSE,
+            quote            = "",
+            fill             = TRUE,
+            comment.char     = ""
+          )
+        } else if (status_code == 429L || status_code >= 500L) {
+          stop(sprintf("HTTP %d from KEGG endpoint %s", status_code, endpoint), call. = FALSE)
+        } else {
+          stop(non_retryable_error(
+            sprintf("HTTP %d (non-retryable) from KEGG endpoint %s — aborting.", status_code, endpoint)
+          ))
+        }
+      },
+      non_retryable_http_error = function(e) {
+        stop(conditionMessage(e), call. = FALSE)
       },
       error = function(e) {
         if (attempt == max_retries) {
-          stop(sprintf("Failed to fetch %s after %d attempts: %s", endpoint, max_retries, e$message), call. = FALSE)
+          stop(
+            sprintf("Failed to fetch %s after %d attempts: %s", endpoint, max_retries, conditionMessage(e)),
+            call. = FALSE
+          )
         }
         sleep_seconds <- compute_backoff_seconds(
-          attempt = attempt,
+          attempt      = attempt,
           base_seconds = BACKOFF_BASE,
-          max_seconds = BACKOFF_MAX,
+          max_seconds  = BACKOFF_MAX,
           jitter_ratio = BACKOFF_JITTER
         )
         log_message(
           sprintf(
             "Fetch failed for %s at attempt %d/%d (%s). Retrying in %.2f seconds.",
-            endpoint,
-            attempt,
-            max_retries,
-            e$message,
-            sleep_seconds
+            endpoint, attempt, max_retries, conditionMessage(e), sleep_seconds
           ),
           "WARN"
         )
