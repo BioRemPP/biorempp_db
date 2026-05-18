@@ -161,6 +161,7 @@ def build_parser():
     parser.add_argument("--ec-reaction-cache", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--config", required=True)
+    parser.add_argument("--max-invalid-line-ratio", type=float, default=0.01)
     return parser
 
 
@@ -175,11 +176,12 @@ def main():
     cpd_reaction_payload, cpd_reaction_url = read_link_cache(args.cpd_reaction_cache)
     ec_reaction_payload, ec_reaction_url = read_link_cache(args.ec_reaction_cache)
 
-    ko_ec, ko_ec_stats = parse_link_payload(ko_ec_payload, "ko", "ec")
-    ko_reaction, ko_reaction_stats = parse_link_payload(ko_reaction_payload, "ko", "reaction")
-    cpd_ec, cpd_ec_stats = parse_link_payload(cpd_ec_payload, "cpd", "ec")
-    cpd_reaction, cpd_reaction_stats = parse_link_payload(cpd_reaction_payload, "cpd", "reaction")
-    ec_reaction, ec_reaction_stats = parse_link_payload(ec_reaction_payload, "ec", "reaction")
+    max_ratio = args.max_invalid_line_ratio
+    ko_ec, ko_ec_stats = parse_link_payload(ko_ec_payload, "ko", "ec", max_ratio)
+    ko_reaction, ko_reaction_stats = parse_link_payload(ko_reaction_payload, "ko", "reaction", max_ratio)
+    cpd_ec, cpd_ec_stats = parse_link_payload(cpd_ec_payload, "cpd", "ec", max_ratio)
+    cpd_reaction, cpd_reaction_stats = parse_link_payload(cpd_reaction_payload, "cpd", "reaction", max_ratio)
+    ec_reaction, ec_reaction_stats = parse_link_payload(ec_reaction_payload, "ec", "reaction", max_ratio)
 
     link_indices = {
         "ko_to_ec": index_pairs(ko_ec),

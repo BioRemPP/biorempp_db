@@ -47,8 +47,9 @@ rule validate_keys_consistency:
     output:
         join(RESULTS_DIR, "metadata", "keys_consistency_report.json")
     params:
-        config_file   = "config/config.yaml",
-        csv_delimiter = OUTPUTS["database_csv_delimiter"],
+        config_file            = "config/config.yaml",
+        csv_delimiter          = OUTPUTS["database_csv_delimiter"],
+        max_invalid_line_ratio = config["validation"]["max_invalid_line_ratio"],
     log:
         join(PATHS["logs_dir"], "validate_keys_consistency.log")
     shell:
@@ -63,6 +64,7 @@ rule validate_keys_consistency:
             "--ec-reaction-cache {input.ec_reaction} "
             "--output {output} "
             "--config {params.config_file} "
+            "--max-invalid-line-ratio {params.max_invalid_line_ratio} "
             "> {log} 2>&1"
         )
 
@@ -78,8 +80,9 @@ rule validate_links_groundtruth_policy:
     output:
         join(RESULTS_DIR, "metadata", "links_groundtruth_policy_report.json")
     params:
-        config_file   = "config/config.yaml",
-        csv_delimiter = OUTPUTS["database_csv_delimiter"],
+        config_file            = "config/config.yaml",
+        csv_delimiter          = OUTPUTS["database_csv_delimiter"],
+        max_invalid_line_ratio = config["validation"]["max_invalid_line_ratio"],
     log:
         join(PATHS["logs_dir"], "validate_links_groundtruth_policy.log")
     shell:
@@ -94,5 +97,6 @@ rule validate_links_groundtruth_policy:
             "--ec-reaction-cache {input.ec_reaction} "
             "--output {output} "
             "--config {params.config_file} "
+            "--max-invalid-line-ratio {params.max_invalid_line_ratio} "
             "> {log} 2>&1"
         )

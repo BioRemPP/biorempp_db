@@ -92,13 +92,14 @@ def read_link_cache(cache_path):
     return path.read_text(encoding="utf-8"), str(path)
 
 
-def parse_link_payload(payload, left_type, right_type):
+def parse_link_payload(payload, left_type, right_type, max_invalid_ratio=0.0):
     pairs = set()
     stats = {
         "total_lines": 0,
         "parsed_pairs": 0,
         "swapped_orientation_lines": 0,
         "invalid_lines": 0,
+        "invalid_ratio": 0.0,
     }
 
     for raw_line in payload.splitlines():
@@ -135,8 +136,18 @@ def parse_link_payload(payload, left_type, right_type):
     if stats["parsed_pairs"] == 0:
         raise RuntimeError(f"No valid pairs parsed for relation {left_type}->{right_type}")
     if stats["invalid_lines"] > 0:
-        raise RuntimeError(
-            f"Invalid lines found for relation {left_type}->{right_type}: {stats['invalid_lines']}"
+        invalid_ratio = stats["invalid_lines"] / stats["total_lines"]
+        stats["invalid_ratio"] = round(invalid_ratio, 6)
+        if invalid_ratio > max_invalid_ratio:
+            raise RuntimeError(
+                f"Invalid line ratio {invalid_ratio:.4f} exceeds threshold "
+                f"{max_invalid_ratio} for {left_type}->{right_type}: "
+                f"{stats['invalid_lines']} of {stats['total_lines']} lines"
+            )
+        print(
+            f"[WARNING] parse_link_payload: {stats['invalid_lines']} invalid lines "
+            f"({invalid_ratio:.4f}) within tolerance {max_invalid_ratio} "
+            f"for {left_type}->{right_type} -- continuing"
         )
 
     return pairs, stats

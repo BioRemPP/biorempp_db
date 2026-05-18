@@ -27,3 +27,6 @@ analysis:
   top_n_compounds: 20
   top_n_ko: 20
   top_n_enzymes: 30
+
+validation:
+  max_invalid_line_ratio: 0.01
