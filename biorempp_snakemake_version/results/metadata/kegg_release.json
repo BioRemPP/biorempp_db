@@ -1,7 +1,7 @@
 {
   "release_text": "kegg             Release 118.0+/05-18, May 26",
   "parsed_version": "118.0+",
-  "retrieved_at_utc": "2026-05-18T14:03:48Z",
+  "retrieved_at_utc": "2026-05-18T15:12:59Z",
   "source_url": "https://rest.kegg.jp/info/kegg",
   "raw_response": ["kegg             Kyoto Encyclopedia of Genes and Genomes", "kegg             Release 118.0+/05-18, May 26", "                 Kanehisa Laboratories", "                 pathway         585 entries", "                 brite       456,609 entries", "                 module      692,209 entries", "                 orthology    28,239 entries", "                 genome       26,615 entries", "                 genes     66,560,207 entries", "                 compound     19,571 entries", "                 glycan       11,261 entries", "                 reaction     12,385 entries", "                 rclass        3,208 entries", "                 enzyme        8,309 entries", "                 network       1,768 entries", "                 variant       1,959 entries", "                 disease       3,053 entries", "                 drug         12,826 entries", "                 dgroup        2,536 entries"]
 }
