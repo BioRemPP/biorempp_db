@@ -24,7 +24,15 @@ COPY env/python-requirements.txt /tmp/python-requirements.txt
 RUN pip3 install --no-cache-dir -r /tmp/python-requirements.txt
 
 COPY env/r-packages.txt /tmp/r-packages.txt
-RUN R -e "pkgs <- scan('/tmp/r-packages.txt', what='character', quiet=TRUE); install.packages(pkgs, repos='https://cloud.r-project.org/')"
+RUN R -e "\
+  install.packages('remotes', repos='https://cloud.r-project.org/', quiet=TRUE); \
+  remotes::install_version('dplyr',    version='1.1.4', repos='https://cloud.r-project.org/', upgrade='never'); \
+  remotes::install_version('readxl',   version='1.4.3', repos='https://cloud.r-project.org/', upgrade='never'); \
+  remotes::install_version('tidyr',    version='1.3.1', repos='https://cloud.r-project.org/', upgrade='never'); \
+  remotes::install_version('stringr',  version='1.5.1', repos='https://cloud.r-project.org/', upgrade='never'); \
+  remotes::install_version('readr',    version='2.1.5', repos='https://cloud.r-project.org/', upgrade='never'); \
+  remotes::install_version('jsonlite', version='1.8.8', repos='https://cloud.r-project.org/', upgrade='never'); \
+  remotes::install_version('writexl',  version='1.5.0', repos='https://cloud.r-project.org/', upgrade='never')"
 
 WORKDIR /workspace
 
