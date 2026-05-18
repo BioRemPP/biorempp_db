@@ -3,7 +3,7 @@
     "name": "BioRemPP Snakemake Pipeline",
     "version": "1.1.0",
     "config_file": "config/config.yaml",
-    "generated_at_utc": "2026-05-18T13:06:01Z"
+    "generated_at_utc": "2026-05-18T13:31:44Z"
   },
   "kegg_reference": {
     "source_url": "https://rest.kegg.jp/info/kegg",
@@ -2037,7 +2037,7 @@
     "database_xlsx": {
       "path": "results/database/biorempp_database_v1.1.0.xlsx",
       "size_bytes": 7030680,
-      "sha256": "22dc1c50e5d1a5807e3fc2aa9cffab1a0535727655a7bd52b0449ede7b68daef"
+      "sha256": "871143412006ec96e02f0432994b1ade9261326cb1f1214680fa9c38dbf74af4"
     },
     "database_metadata_json": {
       "path": "results/analysis/database_metadata.json",
@@ -2057,12 +2057,12 @@
     "keys_consistency_json": {
       "path": "results/metadata/keys_consistency_report.json",
       "size_bytes": 2435,
-      "sha256": "1e29fd1c25e2168e78341380256f44d5c002696c0356bd17bdd0ec455449a0f2"
+      "sha256": "542bf0ec1cfa6b72db77d8f66b6513e8963430db640faad25166c6025cbf12b9"
     },
     "links_groundtruth_policy_json": {
       "path": "results/metadata/links_groundtruth_policy_report.json",
-      "size_bytes": 227546,
-      "sha256": "71e64f6435ead021388a3e75b5dff1b710db9487f979f0ce226b6ed0a4a11cdd"
+      "size_bytes": 227585,
+      "sha256": "2daae81cb30d06e48fbe11e3b8fbd5efc93b25c2bb66cb6f5af6ca60a941d06a"
     }
   }
 }

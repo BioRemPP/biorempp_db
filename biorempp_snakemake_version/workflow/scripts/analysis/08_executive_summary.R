@@ -5,7 +5,7 @@ source("workflow/lib/utils.R")
 load_required_packages(c("jsonlite"))
 
 args <- parse_cli_args()
-require_cli_args(args, c("basic", "compound", "ko", "enzyme", "output", "config"))
+require_cli_args(args, c("basic", "compound", "ko", "enzyme", "output"))
 
 basic_stats <- read_json_file(args[["basic"]])
 compound_stats <- read_json_file(args[["compound"]])

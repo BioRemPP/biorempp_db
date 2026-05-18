@@ -6,7 +6,7 @@ source("workflow/lib/io_contracts.R")
 load_required_packages(c("readxl", "dplyr", "stringr"))
 
 args <- parse_cli_args()
-require_cli_args(args, c("input-dir", "output", "config"))
+require_cli_args(args, c("input-dir", "output"))
 
 input_dir <- args[["input-dir"]]
 output_file <- args[["output"]]
