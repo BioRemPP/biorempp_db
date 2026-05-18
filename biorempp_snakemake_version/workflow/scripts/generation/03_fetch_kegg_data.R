@@ -6,7 +6,7 @@ source("workflow/lib/io_contracts.R")
 load_required_packages(c("httr", "stringr"))
 
 args <- parse_cli_args()
-require_cli_args(args, c("output", "config", "base-url"))
+require_cli_args(args, c("output", "base-url"))
 
 output_file <- args[["output"]]
 base_url <- sub("/$", "", args[["base-url"]])

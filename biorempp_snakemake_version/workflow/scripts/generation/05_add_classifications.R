@@ -5,7 +5,7 @@ source("workflow/lib/utils.R")
 load_required_packages(c("dplyr", "tidyr", "stringr"))
 
 args <- parse_cli_args()
-require_cli_args(args, c("merged-data", "local-data", "output", "config"))
+require_cli_args(args, c("merged-data", "local-data", "output"))
 
 merged_compounds <- readRDS(args[["merged-data"]])
 local_data <- readRDS(args[["local-data"]])

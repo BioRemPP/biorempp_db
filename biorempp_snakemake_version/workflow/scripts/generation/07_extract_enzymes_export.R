@@ -6,7 +6,7 @@ source("workflow/lib/io_contracts.R")
 load_required_packages(c("dplyr", "stringr", "writexl"))
 
 args <- parse_cli_args()
-require_cli_args(args, c("enriched-data", "local-data", "kegg-data", "output-csv", "output-xlsx", "csv-sep", "csv-quote", "config"))
+require_cli_args(args, c("enriched-data", "local-data", "kegg-data", "output-csv", "output-xlsx", "csv-sep", "csv-quote"))
 
 enriched_data <- readRDS(args[["enriched-data"]])
 local_data <- readRDS(args[["local-data"]])

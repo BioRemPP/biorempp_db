@@ -5,7 +5,7 @@ source("workflow/lib/utils.R")
 load_required_packages(c("dplyr", "stringr"))
 
 args <- parse_cli_args()
-require_cli_args(args, c("local-data", "kegg-data", "output", "config"))
+require_cli_args(args, c("local-data", "kegg-data", "output"))
 
 local_data <- readRDS(args[["local-data"]])
 kegg_data <- readRDS(args[["kegg-data"]])

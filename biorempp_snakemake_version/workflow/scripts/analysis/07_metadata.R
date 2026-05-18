@@ -5,7 +5,7 @@ source("workflow/lib/utils.R")
 load_required_packages(c("jsonlite", "dplyr", "stringr"))
 
 args <- parse_cli_args()
-require_cli_args(args, c("input-csv", "csv-sep", "kegg-info", "kegg-data", "output", "version", "config"))
+require_cli_args(args, c("input-csv", "csv-sep", "kegg-info", "kegg-data", "output", "version"))
 
 db <- read_database_csv(args[["input-csv"]], sep = args[["csv-sep"]])
 kegg_info <- read_json_file(args[["kegg-info"]])

@@ -5,7 +5,7 @@ source("workflow/lib/utils.R")
 load_required_packages(c("jsonlite"))
 
 args <- parse_cli_args()
-require_cli_args(args, c("input-csv", "csv-sep", "output", "config"))
+require_cli_args(args, c("input-csv", "csv-sep", "output"))
 
 db <- read_database_csv(args[["input-csv"]], sep = args[["csv-sep"]])
 

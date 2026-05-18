@@ -5,7 +5,7 @@ source("workflow/lib/utils.R")
 load_required_packages(c("dplyr", "stringr"))
 
 args <- parse_cli_args()
-require_cli_args(args, c("classified-data", "local-data", "output", "config"))
+require_cli_args(args, c("classified-data", "local-data", "output"))
 
 classified_data <- readRDS(args[["classified-data"]])
 local_data <- readRDS(args[["local-data"]])

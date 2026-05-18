@@ -9,7 +9,6 @@ rule basic_statistics:
     output:
         join(ANALYSIS_DIR, "basic_statistics.json")
     params:
-        config_file = "config/config.yaml",
         csv_sep = OUTPUTS["database_csv_delimiter"]
     log:
         join(PATHS["logs_dir"], "analysis_basic_statistics.log")
@@ -19,7 +18,6 @@ rule basic_statistics:
             "--input-csv {input} "
             "--csv-sep \"{params.csv_sep}\" "
             "--output {output} "
-            "--config {params.config_file} "
             "> {log} 2>&1"
         )
 
@@ -30,7 +28,6 @@ rule compound_statistics:
     output:
         join(ANALYSIS_DIR, "compound_statistics.json")
     params:
-        config_file = "config/config.yaml",
         top_n = config["analysis"]["top_n_compounds"],
         csv_sep = OUTPUTS["database_csv_delimiter"]
     log:
@@ -42,7 +39,6 @@ rule compound_statistics:
             "--csv-sep \"{params.csv_sep}\" "
             "--output {output} "
             "--top-n {params.top_n} "
-            "--config {params.config_file} "
             "> {log} 2>&1"
         )
 
@@ -53,7 +49,6 @@ rule ko_statistics:
     output:
         join(ANALYSIS_DIR, "ko_statistics.json")
     params:
-        config_file = "config/config.yaml",
         top_n = config["analysis"]["top_n_ko"],
         csv_sep = OUTPUTS["database_csv_delimiter"]
     log:
@@ -65,7 +60,6 @@ rule ko_statistics:
             "--csv-sep \"{params.csv_sep}\" "
             "--output {output} "
             "--top-n {params.top_n} "
-            "--config {params.config_file} "
             "> {log} 2>&1"
         )
 
@@ -76,7 +70,6 @@ rule enzyme_statistics:
     output:
         join(ANALYSIS_DIR, "enzyme_statistics.json")
     params:
-        config_file = "config/config.yaml",
         top_n = config["analysis"]["top_n_enzymes"],
         csv_sep = OUTPUTS["database_csv_delimiter"]
     log:
@@ -88,7 +81,6 @@ rule enzyme_statistics:
             "--csv-sep \"{params.csv_sep}\" "
             "--output {output} "
             "--top-n {params.top_n} "
-            "--config {params.config_file} "
             "> {log} 2>&1"
         )
 
@@ -99,7 +91,6 @@ rule gene_statistics:
     output:
         join(ANALYSIS_DIR, "gene_statistics.json")
     params:
-        config_file = "config/config.yaml",
         csv_sep = OUTPUTS["database_csv_delimiter"]
     log:
         join(PATHS["logs_dir"], "analysis_gene_statistics.log")
@@ -109,7 +100,6 @@ rule gene_statistics:
             "--input-csv {input} "
             "--csv-sep \"{params.csv_sep}\" "
             "--output {output} "
-            "--config {params.config_file} "
             "> {log} 2>&1"
         )
 
@@ -120,7 +110,6 @@ rule crosstab_statistics:
     output:
         join(ANALYSIS_DIR, "crosstab_statistics.json")
     params:
-        config_file = "config/config.yaml",
         csv_sep = OUTPUTS["database_csv_delimiter"]
     log:
         join(PATHS["logs_dir"], "analysis_crosstab_statistics.log")
@@ -130,7 +119,6 @@ rule crosstab_statistics:
             "--input-csv {input} "
             "--csv-sep \"{params.csv_sep}\" "
             "--output {output} "
-            "--config {params.config_file} "
             "> {log} 2>&1"
         )
 
@@ -143,7 +131,6 @@ rule database_metadata:
     output:
         join(ANALYSIS_DIR, "database_metadata.json")
     params:
-        config_file = "config/config.yaml",
         version = config["version"],
         csv_sep = OUTPUTS["database_csv_delimiter"]
     log:
@@ -157,7 +144,6 @@ rule database_metadata:
             "--kegg-data {input.kegg_data} "
             "--output {output} "
             "--version {params.version} "
-            "--config {params.config_file} "
             "> {log} 2>&1"
         )
 
@@ -170,8 +156,6 @@ rule executive_summary:
         enzyme = join(ANALYSIS_DIR, "enzyme_statistics.json")
     output:
         join(ANALYSIS_DIR, "executive_summary.json")
-    params:
-        config_file = "config/config.yaml"
     log:
         join(PATHS["logs_dir"], "analysis_executive_summary.log")
     shell:
@@ -182,7 +166,6 @@ rule executive_summary:
             "--ko {input.ko} "
             "--enzyme {input.enzyme} "
             "--output {output} "
-            "--config {params.config_file} "
             "> {log} 2>&1"
         )
 
@@ -199,8 +182,6 @@ rule complete_analysis:
         executive = join(ANALYSIS_DIR, "executive_summary.json")
     output:
         join(ANALYSIS_DIR, "complete_analysis.json")
-    params:
-        config_file = "config/config.yaml"
     log:
         join(PATHS["logs_dir"], "analysis_complete_analysis.log")
     shell:
@@ -215,6 +196,5 @@ rule complete_analysis:
             "--crosstab {input.crosstab} "
             "--executive {input.executive} "
             "--output {output} "
-            "--config {params.config_file} "
             "> {log} 2>&1"
         )
