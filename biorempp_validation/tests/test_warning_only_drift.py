@@ -10,7 +10,7 @@ from biorempp_validation.settings import load_settings
 
 def test_warning_failure_blocks_when_fail_on_warning(config_path):
     cfg = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-    cfg["strict_exact"] = False
+    cfg["validation_modes"]["regression_detection"] = False
     cfg["policy"]["fail_on_warning"] = True
     cfg["drift_thresholds"]["row_count"]["max"] = 100
     cfg["drift_thresholds"]["row_count"]["min"] = 1
