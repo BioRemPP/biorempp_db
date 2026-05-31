@@ -12,10 +12,18 @@ Validation policy is hybrid:
 - `critical`: blocks the run (`exit 1`)
 - `warning`: reported and can be configured to block (`fail_on_warning`)
 
-Current default mode is strict exact (no drift):
-- `strict_exact: true`
+Validation now has two explicit and independent modes:
+- `internal_consistency`: validates the current CSV against the current run's analysis JSON artifacts and KEGG metadata.
+- `regression_detection`: validates the current CSV against a frozen baseline snapshot committed in this repo.
+
+Default shipped behavior enables both modes:
+- `validation_modes.internal_consistency: true`
+- `validation_modes.regression_detection: true`
 - `fail_on_warning: true`
-- Expected values are validated exactly against `biorempp_snakemake_version/results/analysis` artifacts.
+
+`strict_exact` is deprecated and kept only as a compatibility alias during migration:
+- if `validation_modes` is omitted and `strict_exact: true`, both modes are enabled;
+- if `validation_modes` is omitted and `strict_exact: false`, only `internal_consistency` remains enabled.
 
 ## Directory Architecture
 
@@ -86,15 +94,35 @@ Expected files under that results root:
 - `analysis/complete_analysis.json`
 - `metadata/kegg_release.json`
 
+Expected regression baseline root:
+
+`baselines/release_v1_1_0_kegg_118_0plus`
+
+Expected files under that baseline root:
+- `analysis/basic_statistics.json`
+- `analysis/compound_statistics.json`
+- `analysis/ko_statistics.json`
+- `analysis/enzyme_statistics.json`
+- `analysis/gene_statistics.json`
+- `analysis/crosstab_statistics.json`
+- `analysis/database_metadata.json`
+- `analysis/executive_summary.json`
+- `analysis/complete_analysis.json`
+- `metadata/kegg_release.json`
+
 ## Validation Suites
 
 - `database_critical`: schema, nulls, regex IDs, duplicate full rows
-- `database_warning`: controlled vocabulary + strict exact counts when `strict_exact=true`
+- `database_warning`: controlled vocabulary + drift thresholds from `validation.yaml`
 - `analysis_json_critical`: required keys/types and core structural checks
 - `analysis_json_warning`: top-N and summary quality checks
 - `analysis_json_exact_critical`: exact parity checks for analytics metrics/top-N/crosstabs/executive summary
 - `metadata_kegg_critical`: KEGG traceability contract
 - `cross_consistency_critical`: parity checks between CSV and `basic_statistics.json`
+
+At runtime, `analysis_json_exact_critical` is expanded into two concrete uses:
+- `analysis_json_internal_consistency_critical`
+- `analysis_json_regression_critical`
 
 ## Checkpoints
 
@@ -141,11 +169,26 @@ Exit codes:
 
 If `fail_on_warning: true`, any warning failure also returns `1`.
 
+`validation_summary.json` includes `validation_mode` per failed expectation so it is clear whether a failure came from `internal_consistency`, `regression_detection`, or `current_artifacts`.
+
+Operational details for the dual-mode contract live in [docs/validation_modes.md](docs/validation_modes.md).
+
 ## Testing
 
 ```bash
 pytest biorempp_validation/tests -q
 ```
+
+## Baseline Refresh
+
+The regression baseline is a release artifact, not a runtime by-product. Update it only when a pipeline change is intentional and has been reviewed.
+
+Recommended refresh flow:
+- regenerate the upstream Snakemake results for the intended release;
+- review the validation diff and confirm the new outputs are expected;
+- replace the files under `baselines/<baseline_id>/`;
+- adjust warning thresholds in `config/validation.yaml` only when the drift window itself should change;
+- commit the baseline refresh together with the pipeline change that justifies it.
 
 ## Notes
 
