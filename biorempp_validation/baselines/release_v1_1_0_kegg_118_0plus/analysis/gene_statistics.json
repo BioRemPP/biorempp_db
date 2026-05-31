@@ -1,0 +1,12 @@
+{
+  "total_unique_genesymbols": 1517,
+  "total_unique_genenames": 1422,
+  "top_20_genesymbols": {
+    "symbols": ["SUR1", "CYP1A1", "CYP1A2", "nahAc", "nahAd", "andAa", "andAb", "antC", "HPGDS", "GSTP", "GST", "GSTK1", "nahAa", "tynA", "tynB", "CYP2C", "CYP1B1", "CYP2J", "ASPG", "QCT"],
+    "frequencies": [2690, 1806, 1634, 1456, 1372, 1266, 1266, 1266, 1210, 1122, 1100, 1092, 1088, 1076, 1076, 1032, 946, 946, 858, 834]
+  },
+  "top_20_genenames": {
+    "names": ["S-alkyl-thiohydroximate lyase SUR1", "cytochrome P450 family 1 subfamily A1", "glutaminyl-peptide cyclotransferase", "protein-glutamine gamma-glutamyltransferase", "mimosinase", "cytochrome P450 family 1 subfamily A2", "naphthalene 1,2-dioxygenase subunit alpha", "naphthalene 1,2-dioxygenase subunit beta", "anthranilate 1,2-dioxygenase ferredoxin component", "anthranilate 1,2-dioxygenase ferredoxin reductase component", "anthranilate 1,2-dioxygenase reductase component", "prostaglandin-H2 D-isomerase / glutathione transferase", "[histone H3]-dimethyl-L-lysine9 demethylase", "glutathione S-transferase P", "glutathione S-transferase", "glutathione S-transferase kappa 1", "naphthalene 1,2-dioxygenase ferredoxin reductase component", "tyramine oxidase subunit A", "tyramine oxidase subunit B", "cytochrome P450 family 2 subfamily C"],
+    "frequencies": [2690, 1806, 1666, 1664, 1652, 1634, 1456, 1372, 1266, 1266, 1266, 1210, 1188, 1122, 1100, 1092, 1088, 1076, 1076, 1032]
+  }
+}
