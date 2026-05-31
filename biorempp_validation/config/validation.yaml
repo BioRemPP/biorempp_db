@@ -5,7 +5,13 @@ policy:
   fail_on_warning: true
   generate_data_docs: true
 
-strict_exact: true
+validation_modes:
+  internal_consistency: true
+  regression_detection: true
+
+# Deprecated compatibility alias:
+# - If `validation_modes` is omitted, `strict_exact: true` enables both modes.
+# - If `validation_modes` is omitted, `strict_exact: false` keeps only internal consistency.
 
 csv:
   delimiter: ";"
@@ -13,6 +19,7 @@ csv:
 paths:
   # Relative to biorempp_validation/ project root.
   input_results_root: ../biorempp_snakemake_version/results
+  regression_baseline_root: baselines/release_v1_1_0_kegg_118_0plus
   output_dir: results
   expectations_dir: great_expectations/expectations
   checkpoints_dir: great_expectations/checkpoints
@@ -68,9 +75,9 @@ database_contract:
     - Sulfur-containing
 
 drift_thresholds:
-  row_count: {min: 7000, max: 20000}
-  unique_compounds: {min: 250, max: 700}
-  unique_ko: {min: 900, max: 2500}
-  unique_genesymbol: {min: 1000, max: 2200}
-  unique_genename: {min: 900, max: 2200}
-  unique_enzyme_activity: {min: 120, max: 400}
+  row_count: {min: 100000, max: 150000}
+  unique_compounds: {min: 300, max: 500}
+  unique_ko: {min: 1200, max: 1800}
+  unique_genesymbol: {min: 1200, max: 1800}
+  unique_genename: {min: 1100, max: 1700}
+  unique_enzyme_activity: {min: 150, max: 260}

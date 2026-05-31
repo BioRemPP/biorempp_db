@@ -1,0 +1,40 @@
+{
+  "total_unique_compounds": 384,
+  "compounds_per_class": {
+    "Aromatic": 123,
+    "Chlorinated": 117,
+    "Nitrogen-containing": 115,
+    "Polyaromatic": 98,
+    "Aliphatic": 94,
+    "Metal": 29,
+    "Inorganic": 26,
+    "Sulfur-containing": 20,
+    "Organophosphorus": 13,
+    "Organometallic": 9,
+    "Halogenated": 8,
+    "Organosulfur": 1
+  },
+  "compounds_per_agency": {
+    "ATSDR": 191,
+    "IARC2B": 130,
+    "PSL": 99,
+    "EPC": 91,
+    "WFD": 84,
+    "EPA": 83,
+    "IARC1": 56,
+    "CONAMA": 43,
+    "IARC2A": 29
+  },
+  "top_20_compounds": {
+    "compound_ids": ["C00014", "C00067", "C06790", "C00084", "C07535", "C00090", "C14343", "C00829", "C18428", "C06604", "C00088", "C14322", "C11090", "C14430", "C07561", "C19425", "C10928", "C00805", "C00230", "C11146"],
+    "compound_names": ["Ammonia", "Formaldehyde", "Trichloroethene", "Acetaldehyde", "Benzo[a]pyrene", "Catechol", "Trifluralin", "Naphthalene", "Diuron", "Parathion", "Nitrite", "Chlorpyrifos", "Endosulfan", "Dichlorvos", "Carbon tetrachloride", "Fluoranthene", "Alachlor", "Salicylate", "3,4-Dihydroxybenzoate", "Methylmercury chloride"],
+    "frequencies": [60806, 14997, 5100, 2232, 2135, 1735, 1602, 1326, 1251, 1056, 934, 834, 816, 714, 625, 624, 600, 492, 488, 486]
+  },
+  "class_distribution_summary": {
+    "total_classes": 12,
+    "min_compounds_per_class": 1,
+    "max_compounds_per_class": 123,
+    "mean_compounds_per_class": 54.4167,
+    "median_compounds_per_class": 27.5
+  }
+}
