@@ -7,6 +7,19 @@ from typing import Any
 import pandas as pd
 
 
+ANALYSIS_PAYLOAD_FILES = {
+    "basic_statistics": "basic_statistics.json",
+    "compound_statistics": "compound_statistics.json",
+    "ko_statistics": "ko_statistics.json",
+    "enzyme_statistics": "enzyme_statistics.json",
+    "gene_statistics": "gene_statistics.json",
+    "crosstab_statistics": "crosstab_statistics.json",
+    "database_metadata": "database_metadata.json",
+    "executive_summary": "executive_summary.json",
+    "complete_analysis": "complete_analysis.json",
+}
+
+
 def resolve_required_paths(results_root: Path, required_files: list[str]) -> dict[str, Path]:
     return {relative: (results_root / relative).resolve() for relative in required_files}
 
@@ -26,15 +39,4 @@ def load_database_csv(path: Path, sep: str = ",") -> pd.DataFrame:
 
 def load_analysis_payloads(results_root: Path) -> dict[str, dict[str, Any]]:
     analysis_dir = results_root / "analysis"
-    payloads = {
-        "basic_statistics": load_json(analysis_dir / "basic_statistics.json"),
-        "compound_statistics": load_json(analysis_dir / "compound_statistics.json"),
-        "ko_statistics": load_json(analysis_dir / "ko_statistics.json"),
-        "enzyme_statistics": load_json(analysis_dir / "enzyme_statistics.json"),
-        "gene_statistics": load_json(analysis_dir / "gene_statistics.json"),
-        "crosstab_statistics": load_json(analysis_dir / "crosstab_statistics.json"),
-        "database_metadata": load_json(analysis_dir / "database_metadata.json"),
-        "executive_summary": load_json(analysis_dir / "executive_summary.json"),
-        "complete_analysis": load_json(analysis_dir / "complete_analysis.json"),
-    }
-    return payloads
+    return {name: load_json(analysis_dir / filename) for name, filename in ANALYSIS_PAYLOAD_FILES.items()}
