@@ -279,6 +279,7 @@ def build_analysis_exact_df(
     analysis_payloads: dict[str, dict[str, Any]],
     kegg_release: dict[str, Any],
     expected_columns: list[str],
+    observed_kegg_release: dict[str, Any] | None = None,
 ) -> pd.DataFrame:
     basic = analysis_payloads["basic_statistics"]
     compound = analysis_payloads["compound_statistics"]
@@ -401,6 +402,10 @@ def build_analysis_exact_df(
         "enzyme_types_identified": observed_basic["unique_enzyme_activities"],
         "gene_symbols_mapped": observed_basic["unique_gene_symbols"],
     }
+    expected_metadata_kegg = metadata.get("data_sources", {}).get("kegg_release", {})
+    metadata_kegg_exact_match = expected_metadata_kegg == kegg_release
+    if observed_kegg_release is not None:
+        metadata_kegg_exact_match = metadata_kegg_exact_match and observed_kegg_release == kegg_release
 
     row = {
         "basic_stats_exact_match": observed_basic == expected_basic,
@@ -424,6 +429,6 @@ def build_analysis_exact_df(
             and executive.get("highlights", {}) == computed_highlights
             and executive.get("coverage", {}) == computed_coverage
         ),
-        "metadata_kegg_exact_match": metadata.get("data_sources", {}).get("kegg_release", {}) == kegg_release,
+        "metadata_kegg_exact_match": metadata_kegg_exact_match,
     }
     return pd.DataFrame([row])
