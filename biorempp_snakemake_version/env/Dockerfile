@@ -26,6 +26,7 @@ RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/python-requireme
 RUN R -e "\
   install.packages('remotes', repos='https://cloud.r-project.org/', quiet=TRUE); \
   remotes::install_version('dplyr',    version='1.1.4', repos='https://cloud.r-project.org/', upgrade='never'); \
+  remotes::install_version('httr',     version='1.4.7', repos='https://cloud.r-project.org/', upgrade='never'); \
   remotes::install_version('readxl',   version='1.4.3', repos='https://cloud.r-project.org/', upgrade='never'); \
   remotes::install_version('tidyr',    version='1.3.1', repos='https://cloud.r-project.org/', upgrade='never'); \
   remotes::install_version('stringr',  version='1.5.1', repos='https://cloud.r-project.org/', upgrade='never'); \
