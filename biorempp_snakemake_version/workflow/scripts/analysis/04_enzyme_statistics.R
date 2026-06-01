@@ -18,7 +18,7 @@ enzyme_frequency <- db %>%
     unique_ko = dplyr::n_distinct(ko),
     .groups = "drop"
   ) %>%
-  dplyr::arrange(dplyr::desc(frequency))
+  dplyr::arrange(dplyr::desc(frequency), enzyme_activity)
 
 top_enzymes <- utils::head(enzyme_frequency, top_n)
 

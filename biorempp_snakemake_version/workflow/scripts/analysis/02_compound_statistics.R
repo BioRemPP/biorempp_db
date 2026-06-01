@@ -23,7 +23,7 @@ compounds_per_agency <- db %>%
 top_compounds <- db %>%
   dplyr::group_by(cpd, compoundname) %>%
   dplyr::summarise(frequency = dplyr::n(), .groups = "drop") %>%
-  dplyr::arrange(dplyr::desc(frequency)) %>%
+  dplyr::arrange(dplyr::desc(frequency), cpd) %>%
   utils::head(top_n)
 
 stats <- list(
