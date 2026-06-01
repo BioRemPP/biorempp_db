@@ -11,3 +11,17 @@ services:
       - TZ=UTC
     command: >
       snakemake --snakefile Snakefile --configfile config/config.yaml --cores 2 --printshellcmds
+
+  validation:
+    build:
+      context: ../..
+      dockerfile: biorempp_validation/env/Dockerfile
+    working_dir: /workspace
+    volumes:
+      - ../../:/workspace
+    environment:
+      - TZ=UTC
+    command:
+      - biorempp-validate
+      - --config
+      - biorempp_validation/config/validation.yaml

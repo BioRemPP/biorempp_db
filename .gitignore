@@ -46,6 +46,8 @@ venv.bak/
 # Keep Snakemake pipeline runtime environment files versioned
 !biorempp_snakemake_version/env/
 !biorempp_snakemake_version/env/**
+!biorempp_validation/env/
+!biorempp_validation/env/**
 !biorempp_snakemake_version/workflow/lib/
 !biorempp_snakemake_version/workflow/lib/**
 
@@ -191,7 +193,7 @@ site/
 # Node modules (if any JavaScript tools are used)
 node_modules/
 
-# Lock files (keep requirements.txt but ignore lock files)
+# Lock files managed intentionally per tool
 poetry.lock
 Pipfile.lock
 .archive
