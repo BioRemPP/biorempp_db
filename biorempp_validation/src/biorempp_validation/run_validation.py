@@ -232,14 +232,14 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
         json.dump(payload, handle, indent=2)
 
 
-def _write_data_docs_placeholder(output_dir: Path, summary: dict[str, Any]) -> None:
+def _write_summary_page(output_dir: Path, summary: dict[str, Any]) -> None:
     data_docs_dir = output_dir / "data_docs"
     data_docs_dir.mkdir(parents=True, exist_ok=True)
     html = f"""<!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><title>BioRemPP Validation Data Docs</title></head>
+<head><meta charset="utf-8"><title>BioRemPP Validation Summary</title></head>
 <body>
-  <h1>BioRemPP Validation Data Docs</h1>
+  <h1>BioRemPP Validation Summary</h1>
   <p>Generated at: {summary["run_timestamp_utc"]}</p>
   <p>Critical checkpoint success: {summary["critical_checkpoint_success"]}</p>
   <p>Warning checkpoint success: {summary["warning_checkpoint_success"]}</p>
@@ -536,8 +536,8 @@ def run(settings: ValidationSettings) -> int:
     _write_json(output_dir / "warning_checkpoint_result.json", warning_payload)
     _write_json(output_dir / "validation_summary.json", summary)
 
-    if settings.generate_data_docs:
-        _write_data_docs_placeholder(output_dir=output_dir, summary=summary)
+    if settings.generate_summary_page:
+        _write_summary_page(output_dir=output_dir, summary=summary)
 
     if settings.fail_on_critical and not critical_payload.get("success", False):
         return 1

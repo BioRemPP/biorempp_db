@@ -21,7 +21,7 @@ class ValidationSettings:
     version: str
     fail_on_critical: bool
     fail_on_warning: bool
-    generate_data_docs: bool
+    generate_summary_page: bool
     validation_modes: ValidationModes
     csv_delimiter: str
     input_results_root: Path
@@ -81,7 +81,7 @@ def load_settings(config_path: str | Path) -> ValidationSettings:
         version=str(cfg.get("version", "1.1.0")),
         fail_on_critical=bool(policy.get("fail_on_critical", True)),
         fail_on_warning=bool(policy.get("fail_on_warning", False)),
-        generate_data_docs=bool(policy.get("generate_data_docs", True)),
+        generate_summary_page=bool(policy.get("generate_summary_page", True)),
         validation_modes=validation_modes,
         csv_delimiter=str(csv_cfg.get("delimiter", ",")),
         input_results_root=_resolve_from_project_root(project_root, paths["input_results_root"]),
