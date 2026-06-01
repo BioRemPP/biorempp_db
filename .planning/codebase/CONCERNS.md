@@ -20,7 +20,7 @@ original debt items from the March 2024 map are re-evaluated with current status
 
 ## Critical Concerns
 
-### C1 — `strict_exact` validator is self-referential — not a regression guard
+### C1 **FIXED** — `strict_exact` validator is self-referential — not a regression guard
 
 - **File**: `biorempp_validation/src/biorempp_validation/run_validation.py:75-155`
 - **Issue**: When `strict_exact: true` (the default), every numeric threshold — row count, unique
@@ -38,7 +38,7 @@ original debt items from the March 2024 map are re-evaluated with current status
   note in `validation.yaml` explaining the self-referential behaviour.
 - **Confidence**: HIGH (directly observed in `run_validation.py:75-155`)
 
-### C2 — Fallback drift thresholds are an order of magnitude below current row count
+### C2 **FIXED** — Fallback drift thresholds are an order of magnitude below current row count
 
 - **File**: `biorempp_validation/config/validation.yaml:70-76`
 - **Issue**: The `drift_thresholds` block sets `row_count: {min: 7000, max: 20000}`. The actual
@@ -56,7 +56,7 @@ original debt items from the March 2024 map are re-evaluated with current status
 
 ## High Concerns
 
-### H1 — Four analysis producers sort by single key — exact-match checks fragile on ties
+### H1 **FIXED** — Four analysis producers sort by single key — exact-match checks fragile on ties
 
 - **Files**:
   - `biorempp_snakemake_version/workflow/scripts/analysis/02_compound_statistics.R:23-27`
@@ -81,7 +81,7 @@ original debt items from the March 2024 map are re-evaluated with current status
   - `06_crosstab_statistics.R`: add lexical secondary keys matching Python recomputation
 - **Confidence**: HIGH (directly observed in code; confirmed by baseline audit F5)
 
-### H2 — GE validator does not cover three first-class pipeline outputs
+### H2 **FIXED** — GE validator does not cover three first-class pipeline outputs
 
 - **Files**:
   - `biorempp_validation/config/validation.yaml:20-31` (required_files list)
