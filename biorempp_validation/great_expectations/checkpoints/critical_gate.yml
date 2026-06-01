@@ -10,3 +10,5 @@ validations:
     dataset: metadata_kegg
   - suite: cross_consistency_critical
     dataset: cross_consistency
+  - suite: pipeline_reports_critical
+    dataset: pipeline_reports
