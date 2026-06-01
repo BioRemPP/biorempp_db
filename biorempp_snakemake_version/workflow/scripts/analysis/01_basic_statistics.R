@@ -31,7 +31,8 @@ stats <- list(
     compoundname = sum(is.na(db$compoundname)),
     genesymbol = sum(is.na(db$genesymbol)),
     genename = sum(is.na(db$genename)),
-    enzyme_activity = sum(is.na(db$enzyme_activity))
+    enzyme_activity = sum(is.na(db$enzyme_activity)),
+    support_stage = sum(is.na(db$support_stage))
   )
 )
 

@@ -233,12 +233,12 @@ expand_keys_with_consistent_mapping <- function(key_universe, links) {
     dplyr::distinct()
 
   rows <- dplyr::bind_rows(
-    dense_rows,
-    fallback_dense_rows,
-    compound_bridge_dense_rows,
-    ec_rows,
-    reaction_rows,
-    unsupported_rows
+    dense_rows                 %>% dplyr::mutate(support_stage = "dense"),
+    fallback_dense_rows        %>% dplyr::mutate(support_stage = "fallback_dense"),
+    compound_bridge_dense_rows %>% dplyr::mutate(support_stage = "compound_bridge"),
+    ec_rows                    %>% dplyr::mutate(support_stage = "ec_only"),
+    reaction_rows              %>% dplyr::mutate(support_stage = "reaction_only"),
+    unsupported_rows           %>% dplyr::mutate(support_stage = "unsupported")
   ) %>%
     dplyr::distinct()
 
