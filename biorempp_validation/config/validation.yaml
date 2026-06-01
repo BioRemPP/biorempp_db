@@ -9,10 +9,6 @@ validation_modes:
   internal_consistency: true
   regression_detection: true
 
-# Deprecated compatibility alias:
-# - If `validation_modes` is omitted, `strict_exact: true` enables both modes.
-# - If `validation_modes` is omitted, `strict_exact: false` keeps only internal consistency.
-
 csv:
   delimiter: ";"
 
@@ -75,9 +71,9 @@ database_contract:
     - Sulfur-containing
 
 drift_thresholds:
-  row_count: {min: 100000, max: 150000}
-  unique_compounds: {min: 300, max: 500}
-  unique_ko: {min: 1200, max: 1800}
-  unique_genesymbol: {min: 1200, max: 1800}
-  unique_genename: {min: 1100, max: 1700}
-  unique_enzyme_activity: {min: 150, max: 260}
+  row_count: {min: 118000, max: 130000}
+  unique_compounds: {min: 360, max: 410}
+  unique_ko: {min: 1440, max: 1650}
+  unique_genesymbol: {min: 1410, max: 1625}
+  unique_genename: {min: 1320, max: 1525}
+  unique_enzyme_activity: {min: 185, max: 230}
