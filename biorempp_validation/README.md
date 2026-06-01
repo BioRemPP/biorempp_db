@@ -92,6 +92,9 @@ Expected files under that results root:
 - `analysis/executive_summary.json`
 - `analysis/complete_analysis.json`
 - `metadata/kegg_release.json`
+- `metadata/keys_consistency_report.json`
+- `metadata/links_groundtruth_policy_report.json`
+- `reports/workflow_summary.json`
 
 Expected regression baseline root:
 
@@ -118,6 +121,7 @@ Expected files under that baseline root:
 - `analysis_json_exact_critical`: exact parity checks for analytics metrics/top-N/crosstabs/executive summary
 - `metadata_kegg_critical`: KEGG traceability contract
 - `cross_consistency_critical`: parity checks between CSV and `basic_statistics.json`
+- `pipeline_reports_critical`: sentinel checks for three first-class pipeline report outputs
 
 At runtime, `analysis_json_exact_critical` is expanded into two concrete uses:
 - `analysis_json_internal_consistency_critical`

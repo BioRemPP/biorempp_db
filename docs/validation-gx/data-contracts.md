@@ -68,6 +68,14 @@ The current run must provide:
 - `analysis/executive_summary.json`
 - `analysis/complete_analysis.json`
 - `metadata/kegg_release.json`
+- `metadata/keys_consistency_report.json`
+- `metadata/links_groundtruth_policy_report.json`
+- `reports/workflow_summary.json`
+
+The three pipeline report files (`keys_consistency_report.json`,
+`links_groundtruth_policy_report.json`, `reports/workflow_summary.json`) are
+always required regardless of validation mode and are validated by the
+`pipeline_reports_critical` suite.
 
 When `internal_consistency: false`, the validator still requires the current
 CSV and current `metadata/kegg_release.json`, but it skips loading the current
