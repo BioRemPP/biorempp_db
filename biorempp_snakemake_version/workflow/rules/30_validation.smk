@@ -1,6 +1,6 @@
 from os.path import join
 
-KEGG_LINK_CACHE_DIR = join(WORK_DIR, "kegg_link_cache")
+KEGG_LINK_CACHE_DIR = "cache/kegg_link_cache"
 KEGG_LINK_CACHE = {name: join(KEGG_LINK_CACHE_DIR, f"{name}.tsv")
                    for name in ("ko_ec", "ko_reaction", "cpd_ec", "cpd_reaction", "ec_reaction")}
 
