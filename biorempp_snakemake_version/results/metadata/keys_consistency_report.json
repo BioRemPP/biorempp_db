@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-05-18T15:14:07Z",
+  "generated_at_utc": "2026-06-01T01:37:35Z",
   "input": {
     "database_csv": "results/database/biorempp_database_v1.1.0.csv",
     "csv_delimiter": ";",
@@ -8,11 +8,11 @@
   "kegg_api": {
     "cache_source": "work/kegg_link_cache/",
     "endpoints": {
-      "ko_ec": "work/kegg_link_cache/ko_ec.tsv",
-      "ko_reaction": "work/kegg_link_cache/ko_reaction.tsv",
-      "cpd_ec": "work/kegg_link_cache/cpd_ec.tsv",
-      "cpd_reaction": "work/kegg_link_cache/cpd_reaction.tsv",
-      "ec_reaction": "work/kegg_link_cache/ec_reaction.tsv"
+      "ko_ec": "cache/kegg_link_cache/ko_ec.tsv",
+      "ko_reaction": "cache/kegg_link_cache/ko_reaction.tsv",
+      "cpd_ec": "cache/kegg_link_cache/cpd_ec.tsv",
+      "cpd_reaction": "cache/kegg_link_cache/cpd_reaction.tsv",
+      "ec_reaction": "cache/kegg_link_cache/ec_reaction.tsv"
     }
   },
   "api_parse_stats": {
