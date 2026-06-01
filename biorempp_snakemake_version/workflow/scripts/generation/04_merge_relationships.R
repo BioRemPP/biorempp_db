@@ -267,6 +267,7 @@ add_compound_names <- function(compounds, compound_list) {
       compoundname = normalize_na_text(compoundname)
     ) %>%
     dplyr::filter(!is.na(cpd), !is.na(compoundname)) %>%
+    dplyr::arrange(cpd, compoundname) %>%
     dplyr::group_by(cpd) %>%
     dplyr::summarise(compoundname = dplyr::first(compoundname), .groups = "drop")
 
