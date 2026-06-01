@@ -3,7 +3,7 @@
     "name": "BioRemPP Snakemake Pipeline",
     "version": "1.1.0",
     "config_file": "config/config.yaml",
-    "generated_at_utc": "2026-06-01T00:21:40Z"
+    "generated_at_utc": "2026-06-01T00:53:02Z"
   },
   "kegg_reference": {
     "source_url": "https://rest.kegg.jp/info/kegg",
@@ -2017,7 +2017,8 @@
       "unsupported": 73
     },
     "consistency_sentinels": {
-      "duplicate_full_rows": 74552,
+      "duplicate_full_rows": 0,
+      "duplicate_link_signature_rows": 74552,
       "resolvable_pair_count": 2249,
       "mixed_sparse_on_resolvable_pairs": 0,
       "mixed_sparse_on_resolvable_examples": []
@@ -2041,13 +2042,13 @@
     },
     "database_metadata_json": {
       "path": "results/analysis/database_metadata.json",
-      "size_bytes": 25074,
-      "sha256": "ac9b8a86f8c631311ad43f82ac3f4284776f019eb4edf60be16a6eba829babbb"
+      "size_bytes": 25116,
+      "sha256": "32545d7dc65864148e2e1bbcca08615af016d493a0861312512dd430db991492"
     },
     "complete_analysis_json": {
       "path": "results/analysis/complete_analysis.json",
-      "size_bytes": 60978,
-      "sha256": "ae3d95e102a7d84133168f2bb5b825ca803b885d88883937e390fac7044bebdd"
+      "size_bytes": 61022,
+      "sha256": "4c5af625e295dc88c81f34d2a5ce8e83a1cdd408c6bd5261416ab195ab11998c"
     },
     "kegg_release_json": {
       "path": "results/metadata/kegg_release.json",

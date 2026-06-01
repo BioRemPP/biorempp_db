@@ -172,7 +172,8 @@
       "unsupported": 73
     },
     "consistency_sentinels": {
-      "duplicate_full_rows": 74552,
+      "duplicate_full_rows": 0,
+      "duplicate_link_signature_rows": 74552,
       "resolvable_pair_count": 2249,
       "mixed_sparse_on_resolvable_pairs": 0,
       "mixed_sparse_on_resolvable_examples": []

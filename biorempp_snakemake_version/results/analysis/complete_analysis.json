@@ -3,7 +3,7 @@
     "database_info": {
       "name": "BioRemPP Database",
       "version": "1.1.0",
-      "generation_date": "2026-05-18",
+      "generation_date": "2026-06-01",
       "description": "Comprehensive biological remediation database integrating KEGG data, environmental agency compound lists, manual curations, and enzyme classifications"
     },
     "data_sources": {
@@ -2104,7 +2104,8 @@
         "unsupported": 73
       },
       "consistency_sentinels": {
-        "duplicate_full_rows": 74552,
+        "duplicate_full_rows": 0,
+        "duplicate_link_signature_rows": 74552,
         "resolvable_pair_count": 2249,
         "mixed_sparse_on_resolvable_pairs": 0,
         "mixed_sparse_on_resolvable_examples": []
