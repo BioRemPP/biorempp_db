@@ -251,7 +251,9 @@ build_link_match <- function(database, links) {
     pair_class_named[[class_name]] <- as.integer(pair_class_counts$count[[i]])
   }
 
-  duplicate_full_rows <- as.integer(nrow(db_norm) - nrow(dplyr::distinct(db_norm)))
+  duplicate_full_rows <- as.integer(nrow(database) - nrow(dplyr::distinct(database)))
+  # counts duplicate 5-col link signatures (cpd+ko+ec+reaction+reaction_description), non-NA cpd+ko only
+  duplicate_link_signature_rows <- as.integer(nrow(db_norm) - nrow(dplyr::distinct(db_norm)))
 
   list(
     policy = list(
@@ -290,6 +292,7 @@ build_link_match <- function(database, links) {
     row_provenance = row_provenance_named,
     consistency_sentinels = list(
       duplicate_full_rows = duplicate_full_rows,
+      duplicate_link_signature_rows = duplicate_link_signature_rows,
       resolvable_pair_count = nrow(resolvable_pairs),
       mixed_sparse_on_resolvable_pairs = nrow(mixed_sparse_on_resolvable),
       mixed_sparse_on_resolvable_examples = utils::head(mixed_sparse_on_resolvable, 50)
