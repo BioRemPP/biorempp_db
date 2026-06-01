@@ -14,7 +14,6 @@ DEFAULT_REGRESSION_BASELINE_ROOT = "baselines/release_v1_1_0_kegg_118_0plus"
 class ValidationModes:
     internal_consistency: bool
     regression_detection: bool
-    resolved_from_legacy_strict_exact: bool
 
 
 @dataclass(frozen=True)
@@ -24,7 +23,6 @@ class ValidationSettings:
     fail_on_warning: bool
     generate_data_docs: bool
     validation_modes: ValidationModes
-    strict_exact_legacy: bool | None
     csv_delimiter: str
     input_results_root: Path
     regression_baseline_root: Path
@@ -46,38 +44,23 @@ def _resolve_from_project_root(project_root: Path, candidate: str) -> Path:
     return (project_root / path).resolve()
 
 
-def _resolve_validation_modes(cfg: dict[str, Any]) -> tuple[ValidationModes, bool | None]:
+def _resolve_validation_modes(cfg: dict[str, Any]) -> ValidationModes:
     validation_modes = cfg.get("validation_modes")
-    strict_exact_raw = cfg.get("strict_exact")
-    strict_exact_legacy = bool(strict_exact_raw) if strict_exact_raw is not None else None
+    if "strict_exact" in cfg:
+        raise ValueError(
+            "`strict_exact` is no longer supported. Use `validation_modes.internal_consistency` "
+            "and `validation_modes.regression_detection`."
+        )
 
     if isinstance(validation_modes, dict):
-        return (
-            ValidationModes(
-                internal_consistency=bool(validation_modes.get("internal_consistency", True)),
-                regression_detection=bool(validation_modes.get("regression_detection", True)),
-                resolved_from_legacy_strict_exact=False,
-            ),
-            strict_exact_legacy,
+        return ValidationModes(
+            internal_consistency=bool(validation_modes.get("internal_consistency", True)),
+            regression_detection=bool(validation_modes.get("regression_detection", True)),
         )
 
-    if strict_exact_legacy is not None:
-        return (
-            ValidationModes(
-                internal_consistency=True,
-                regression_detection=strict_exact_legacy,
-                resolved_from_legacy_strict_exact=True,
-            ),
-            strict_exact_legacy,
-        )
-
-    return (
-        ValidationModes(
-            internal_consistency=True,
-            regression_detection=True,
-            resolved_from_legacy_strict_exact=False,
-        ),
-        None,
+    return ValidationModes(
+        internal_consistency=True,
+        regression_detection=True,
     )
 
 
@@ -92,7 +75,7 @@ def load_settings(config_path: str | Path) -> ValidationSettings:
     policy = cfg["policy"]
     db_contract = cfg["database_contract"]
     csv_cfg = cfg.get("csv", {})
-    validation_modes, strict_exact_legacy = _resolve_validation_modes(cfg)
+    validation_modes = _resolve_validation_modes(cfg)
 
     return ValidationSettings(
         version=str(cfg.get("version", "1.1.0")),
@@ -100,7 +83,6 @@ def load_settings(config_path: str | Path) -> ValidationSettings:
         fail_on_warning=bool(policy.get("fail_on_warning", False)),
         generate_data_docs=bool(policy.get("generate_data_docs", True)),
         validation_modes=validation_modes,
-        strict_exact_legacy=strict_exact_legacy,
         csv_delimiter=str(csv_cfg.get("delimiter", ",")),
         input_results_root=_resolve_from_project_root(project_root, paths["input_results_root"]),
         regression_baseline_root=_resolve_from_project_root(
