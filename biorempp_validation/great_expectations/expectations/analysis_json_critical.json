@@ -122,8 +122,8 @@
       "type": "expect_column_values_to_be_between",
       "kwargs": {
         "column": "basic_total_columns",
-        "min_value": 8,
-        "max_value": 8
+        "min_value": 11,
+        "max_value": 11
       },
       "severity": "critical",
       "meta": {}
