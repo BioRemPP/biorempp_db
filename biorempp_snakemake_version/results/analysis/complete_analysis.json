@@ -106,6 +106,12 @@
           "type": "character",
           "description": "Extracted enzyme activity term",
           "example": "dehydrogenase"
+        },
+        "support_stage": {
+          "name": "support_stage",
+          "type": "character",
+          "description": "Pipeline stage that produced this row's EC/reaction mapping",
+          "example": "dense"
         }
       }
     },
@@ -121,7 +127,8 @@
         "compoundname": 100,
         "genesymbol": 100,
         "genename": 100,
-        "enzyme_activity": 100
+        "enzyme_activity": 100,
+        "support_stage": 100
       }
     },
     "link_match": {
@@ -2119,7 +2126,7 @@
   },
   "basic_stats": {
     "total_entries": 123759,
-    "total_columns": 11,
+    "total_columns": 12,
     "column_names": [
       "cpd",
       "compoundclass",
@@ -2131,7 +2138,8 @@
       "compoundname",
       "genesymbol",
       "genename",
-      "enzyme_activity"
+      "enzyme_activity",
+      "support_stage"
     ],
     "unique_compounds": 384,
     "unique_ko_entries": 1543,
@@ -2151,7 +2159,8 @@
       "compoundname": 0,
       "genesymbol": 0,
       "genename": 0,
-      "enzyme_activity": 0
+      "enzyme_activity": 0,
+      "support_stage": 0
     }
   },
   "compound_stats": {
