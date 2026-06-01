@@ -3,7 +3,7 @@
     "name": "BioRemPP Snakemake Pipeline",
     "version": "1.1.0",
     "config_file": "config/config.yaml",
-    "generated_at_utc": "2026-05-18T15:14:08Z"
+    "generated_at_utc": "2026-06-01T00:21:40Z"
   },
   "kegg_reference": {
     "source_url": "https://rest.kegg.jp/info/kegg",
