@@ -399,6 +399,7 @@ def _build_validation_dataframes(
             database_df=database_csv,
             analysis_payloads=current_analysis_payloads,
             expected_columns=settings.expected_columns,
+            nullable_columns=settings.nullable_columns,
         )
         dataframe_by_dataset["analysis_warning"] = build_analysis_warning_df(
             analysis_payloads=current_analysis_payloads
