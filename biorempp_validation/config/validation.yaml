@@ -37,6 +37,10 @@ required_files:
   - reports/workflow_summary.json
 
 database_contract:
+  nullable_columns:
+    - ec
+    - reaction
+    - reaction_description
   expected_columns:
     - cpd
     - compoundclass

@@ -33,6 +33,7 @@ class ValidationSettings:
     expected_columns: list[str]
     expected_reference_agencies: list[str]
     expected_compound_classes: list[str]
+    nullable_columns: list[str]
     drift_thresholds: dict[str, dict[str, int]]
     config_path: Path
 
@@ -96,6 +97,7 @@ def load_settings(config_path: str | Path) -> ValidationSettings:
         expected_columns=list(db_contract["expected_columns"]),
         expected_reference_agencies=list(db_contract["expected_reference_agencies"]),
         expected_compound_classes=list(db_contract["expected_compound_classes"]),
+        nullable_columns=list(db_contract.get("nullable_columns", [])),
         drift_thresholds=dict(cfg["drift_thresholds"]),
         config_path=config_path,
     )

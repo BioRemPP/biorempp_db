@@ -14,6 +14,7 @@ def build_analysis_critical_df(
     database_df: pd.DataFrame,
     analysis_payloads: dict[str, dict[str, Any]],
     expected_columns: list[str],
+    nullable_columns: list[str],
 ) -> pd.DataFrame:
     basic = analysis_payloads["basic_statistics"]
     compound = analysis_payloads["compound_statistics"]
@@ -26,7 +27,7 @@ def build_analysis_critical_df(
     complete = analysis_payloads["complete_analysis"]
 
     missing_values = basic.get("missing_values", {})
-    optional_na_columns = {"ec", "reaction", "reaction_description"}
+    optional_na_columns = set(nullable_columns)
     reaction_description_consistent_with_reaction = bool(
         (
             (database_df["reaction"].isna() | (database_df["reaction"].astype(str).str.strip().str.upper() == "NA"))
