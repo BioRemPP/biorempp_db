@@ -5,3 +5,5 @@ logs/*
 !input_data/.gitkeep
 !work/.gitkeep
 !logs/.gitkeep
+cache/*
+!cache/.gitkeep
