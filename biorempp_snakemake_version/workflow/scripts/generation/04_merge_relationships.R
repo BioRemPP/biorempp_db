@@ -196,6 +196,7 @@ expand_keys_with_consistent_mapping <- function(key_universe, links) {
 
   residual_keys <- non_dense_keys %>%
     dplyr::anti_join(fallback_dense_keys, by = c("cpd", "ko", "referenceAG"))
+  n_stage3_entry <- nrow(residual_keys)
 
   compound_bridge_dense_rows <- build_compound_bridge_dense(residual_keys, links)
 
@@ -204,6 +205,7 @@ expand_keys_with_consistent_mapping <- function(key_universe, links) {
 
   residual_keys <- residual_keys %>%
     dplyr::anti_join(compound_bridge_dense_keys, by = c("cpd", "ko", "referenceAG"))
+  n_stage45_entry <- nrow(residual_keys)
 
   ec_rows <- residual_keys %>%
     dplyr::inner_join(links$ko_ec, by = "ko", relationship = "many-to-many") %>%
@@ -249,7 +251,12 @@ expand_keys_with_consistent_mapping <- function(key_universe, links) {
     compound_bridge_dense_rows = compound_bridge_dense_rows,
     partial_ec_rows = ec_rows,
     partial_reaction_rows = reaction_rows,
-    unsupported_rows = unsupported_rows
+    unsupported_rows = unsupported_rows,
+    n_total_keys       = nrow(key_universe),
+    n_stage2_entry     = nrow(non_dense_keys),
+    n_stage3_entry     = n_stage3_entry,
+    n_stage45_entry    = n_stage45_entry,
+    n_unsupported_keys = nrow(unsupported_rows)
   )
 }
 
@@ -276,6 +283,35 @@ universe <- build_key_universe(agency_norm, curated_norm, links)
 expanded <- expand_keys_with_consistent_mapping(universe$key_universe, links)
 merged_compounds <- add_compound_names(expanded$rows, kegg_data$compound_list)
 
+UNSUPPORTED_KEY_WARN_THRESHOLD <- 5.0
+
+pct <- function(n, d) if (d > 0) sprintf("%.1f%%", n / d * 100) else "n/a"
+n_total <- expanded$n_total_keys
+n_s2    <- expanded$n_stage2_entry
+n_s3    <- expanded$n_stage3_entry
+n_s45   <- expanded$n_stage45_entry
+n_unsup <- expanded$n_unsupported_keys
+
+log_message(
+  sprintf(
+    paste0(
+      "Key funnel: %d total | ",
+      "Stage1 dense: %d matched (%s) -> %d residual | ",
+      "Stage2 fallback: %d matched (%s) -> %d residual | ",
+      "Stage3 bridge: %d matched (%s) -> %d residual | ",
+      "Stage4+5 ec/reaction: %d keys | ",
+      "Unsupported: %d (%s of total)"
+    ),
+    n_total,
+    n_total - n_s2, pct(n_total - n_s2, n_total), n_s2,
+    n_s2 - n_s3,    pct(n_s2 - n_s3,    n_s2),    n_s3,
+    n_s3 - n_s45,   pct(n_s3 - n_s45,   n_s3),    n_s45,
+    n_s45,
+    n_unsup, pct(n_unsup, n_total)
+  ),
+  "INFO"
+)
+
 log_message(
   sprintf(
     "Universe keys: %d | Direct EC keys: %d | Direct reaction keys: %d | Curated keys: %d | KO complete tuples: %d | KO fallback tuples: %d | Dense rows: %d | Fallback dense rows: %d | Compound-bridge dense rows: %d | Partial EC rows: %d | Partial reaction rows: %d | Unsupported rows: %d | Merged rows: %d",
@@ -295,6 +331,16 @@ log_message(
   ),
   "INFO"
 )
+
+if (n_total > 0 && (n_unsup / n_total * 100) > UNSUPPORTED_KEY_WARN_THRESHOLD) {
+  log_message(
+    sprintf(
+      "Unsupported key rate %.1f%% exceeds %.1f%% threshold (%d of %d keys)",
+      n_unsup / n_total * 100, UNSUPPORTED_KEY_WARN_THRESHOLD, n_unsup, n_total
+    ),
+    "WARNING"
+  )
+}
 
 ensure_parent_dir(output_file)
 saveRDS(merged_compounds, output_file)
