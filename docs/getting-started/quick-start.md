@@ -457,9 +457,7 @@ After the Snakemake pipeline completes you can run the **biorempp-validation**
 module to verify all outputs automatically:
 
 ```bash
-cd biorempp_validation
-pip install -e .
-python -m biorempp_validation.run_validation --config config/validation.yaml
+docker compose -f biorempp_snakemake_version/env/docker-compose.yml run --rm validation
 ```
 
 See [Data Validation (GX) — Architecture](../validation-gx/architecture.md)

@@ -1,42 +1,34 @@
 # Configuration Reference
 
-All runtime behaviour of the validation module is controlled by a single
-YAML file located at `biorempp_validation/config/validation.yaml`.
+All runtime behavior of the validation module is controlled by
+`biorempp_validation/config/validation.yaml`.
 
----
-
-## Full Annotated Configuration
-
-Below is the shipped `validation.yaml` with inline annotations for every key.
+## Shipped Configuration
 
 ```yaml
-# ── Metadata ────────────────────────────────────────────────────────
-version: "1.0.0"                # Tracks the configuration schema version.
+version: "1.1.0"
 
-# ── Policy Flags ────────────────────────────────────────────────────
 policy:
-  fail_on_critical: true        # Exit code ≠ 0 when any critical expectation fails.
-  fail_on_warning: true         # Exit code ≠ 0 when any warning expectation fails.
-  generate_data_docs: true      # Produce the GX HTML Data Docs site after validation.
+  fail_on_critical: true
+  fail_on_warning: true
+  generate_data_docs: true
 
-# ── Strict Exact ────────────────────────────────────────────────────
-strict_exact: true              # Pin warning-level drift thresholds to exact observed
-                                # values (min == max == actual). See below.
+validation_modes:
+  internal_consistency: true
+  regression_detection: true
 
-# ── Paths ───────────────────────────────────────────────────────────
+csv:
+  delimiter: ";"
+
 paths:
   input_results_root: ../biorempp_snakemake_version/results
-                                # Where the Snakemake pipeline writes its outputs.
-                                # Relative to the biorempp_validation/ project root.
-  output_dir: results           # Where validation artefacts are written.
+  regression_baseline_root: baselines/release_v1_1_0_kegg_118_0plus
+  output_dir: results
   expectations_dir: great_expectations/expectations
-                                # Directory containing the 7 expectation-suite JSONs.
   checkpoints_dir: great_expectations/checkpoints
-                                # Directory containing the 2 checkpoint YAMLs.
 
-# ── Required Files ──────────────────────────────────────────────────
 required_files:
-  - database/biorempp_database_v1.0.0.csv
+  - database/biorempp_database_v1.1.0.csv
   - analysis/basic_statistics.json
   - analysis/compound_statistics.json
   - analysis/ko_statistics.json
@@ -48,205 +40,132 @@ required_files:
   - analysis/complete_analysis.json
   - metadata/kegg_release.json
 
-# ── Database Contract ───────────────────────────────────────────────
 database_contract:
-  expected_columns:             # Column names the CSV must contain (order matters).
+  expected_columns:
     - cpd
     - compoundclass
     - ko
+    - ec
+    - reaction
+    - reaction_description
     - referenceAG
     - compoundname
     - genesymbol
     - genename
     - enzyme_activity
-  expected_reference_agencies:  # Valid values for the referenceAG column.
-    - ATSDR
-    - CONAMA
-    - EPA
-    - EPC
-    - IARC1
-    - IARC2A
-    - IARC2B
-    - PSL
-    - WFD
-  expected_compound_classes:    # Valid values for the compoundclass column.
-    - Aliphatic
-    - Aromatic
-    - Chlorinated
-    - Halogenated
-    - Inorganic
-    - Metal
-    - Nitrogen-containing
-    - Organometallic
-    - Organophosphorus
-    - Organosulfur
-    - Polyaromatic
-    - Sulfur-containing
 
-# ── Drift Thresholds ───────────────────────────────────────────────
 drift_thresholds:
-  row_count:              {min: 7000,  max: 20000}
-  unique_compounds:       {min: 250,   max: 700}
-  unique_ko:              {min: 900,   max: 2500}
-  unique_genesymbol:      {min: 1000,  max: 2200}
-  unique_genename:        {min: 900,   max: 2200}
-  unique_enzyme_activity: {min: 120,   max: 400}
+  row_count: {min: 118000, max: 130000}
+  unique_compounds: {min: 360, max: 410}
+  unique_ko: {min: 1440, max: 1650}
+  unique_genesymbol: {min: 1410, max: 1625}
+  unique_genename: {min: 1320, max: 1525}
+  unique_enzyme_activity: {min: 185, max: 230}
 ```
-
----
 
 ## Section Reference
 
-### `version`
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `version` | string | `"1.0.0"` | Configuration schema version. Currently informational only. |
-
 ### `policy`
 
-Controls how the orchestrator translates validation results into exit codes.
+Controls how validation outcomes map to exit codes.
 
-| Key | Type | Code Default | Shipped Value | Description |
-|-----|------|-------------|---------------|-------------|
-| `fail_on_critical` | bool | `True` | `true` | When `true`, any critical expectation failure causes a non-zero exit code. |
-| `fail_on_warning` | bool | `False` | `true` | When `true`, any warning expectation failure also causes a non-zero exit code. |
-| `generate_data_docs` | bool | `True` | `true` | When `true`, generates `data_docs/` HTML site in the output directory after validation completes. |
+| Key | Type | Shipped value | Meaning |
+|-----|------|---------------|---------|
+| `fail_on_critical` | bool | `true` | Return exit code `1` when any critical expectation fails. |
+| `fail_on_warning` | bool | `true` | Return exit code `1` when any warning expectation fails. |
+| `generate_data_docs` | bool | `true` | Write `results/data_docs/index.html`. |
 
-!!! note "Code default vs shipped value"
-    The code default for `fail_on_warning` is `False` (tolerant), but the
-    shipped configuration sets it to `true` for release-grade strictness.
-    Developers may override it to `false` during iteration.
+### `validation_modes`
 
-### `strict_exact`
+This is the only supported mode-selection interface.
 
-| Key | Type | Code Default | Shipped Value | Description |
-|-----|------|-------------|---------------|-------------|
-| `strict_exact` | bool | `False` | `true` | Controls how warning-level drift thresholds are computed. |
+| Key | Type | Default | Meaning |
+|-----|------|---------|---------|
+| `internal_consistency` | bool | `true` | Validate the current CSV against the current run's analysis JSON artifacts. |
+| `regression_detection` | bool | `true` | Validate the current CSV against the committed regression baseline snapshot. |
 
-When **`true`**, the `drift_thresholds` section is ignored for warning suites.
-Instead, min and max are pinned to the **exact observed values** from the
-analysis JSON payloads.  Any deviation — even adding a single row — triggers a
-warning failure.
+`strict_exact` is no longer supported and is rejected at config load time.
 
-When **`false`**, the wider `drift_thresholds` ranges below are used, allowing
-natural variation between KEGG releases.
+### `csv`
 
-See [Severity Policy](severity-policy.md#strict_exact-mode) for a detailed
-explanation.
+| Key | Type | Shipped value | Meaning |
+|-----|------|---------------|---------|
+| `delimiter` | string | `";"` | Delimiter used when loading the BioRemPP CSV. |
 
 ### `paths`
 
-All paths are resolved relative to the `biorempp_validation/` **project root**
-(the parent of the `config/` directory).  Absolute paths are also accepted.
+All relative paths are resolved from the `biorempp_validation/` project root.
 
-| Key | Type | Shipped Value | Description |
-|-----|------|---------------|-------------|
-| `input_results_root` | string | `../biorempp_snakemake_version/results` | Root directory containing pipeline outputs (CSV, JSON files). |
-| `output_dir` | string | `results` | Directory where validation artefacts are written. |
-| `expectations_dir` | string | `great_expectations/expectations` | Directory containing the 7 expectation-suite JSON files. |
-| `checkpoints_dir` | string | `great_expectations/checkpoints` | Directory containing the 2 checkpoint YAML files. |
+| Key | Shipped value | Meaning |
+|-----|---------------|---------|
+| `input_results_root` | `../biorempp_snakemake_version/results` | Snakemake output directory to validate. |
+| `regression_baseline_root` | `baselines/release_v1_1_0_kegg_118_0plus` | Frozen baseline snapshot for regression detection. |
+| `output_dir` | `results` | Directory where validation artifacts are written. |
+| `expectations_dir` | `great_expectations/expectations` | Expectation-suite templates. |
+| `checkpoints_dir` | `great_expectations/checkpoints` | Checkpoint YAML files. |
 
 ### `required_files`
 
-A flat list of 11 file paths (relative to `input_results_root`) that must exist
-before validation begins.  The preflight check in `loaders.py` verifies
-presence of every file and reports all missing files at once.
+Defines the minimum artifact set for the current run. The validator always
+requires the CSV and KEGG metadata. When `internal_consistency: true`, it also
+requires the current analysis JSON files. When `regression_detection: true`,
+baseline analysis JSON files are required under `regression_baseline_root`.
 
 ### `database_contract`
 
-Defines the structural and domain-value contracts for the CSV database.
+The contract declares:
 
-| Sub-Key | Type | Count | Description |
-|---------|------|-------|-------------|
-| `expected_columns` | list[str] | 8 | Column names the CSV must contain, in order. |
-| `expected_reference_agencies` | list[str] | 9 | Closed vocabulary for the `referenceAG` column. |
-| `expected_compound_classes` | list[str] | 12 | Closed vocabulary for the `compoundclass` column. |
+- the expected ordered CSV columns
+- the allowed `referenceAG` vocabulary
+- the allowed `compoundclass` vocabulary
 
-See [Data Contracts](data-contracts.md) for the full semantics of each
-vocabulary entry.
+These values are injected into Great Expectations suites at runtime.
 
 ### `drift_thresholds`
 
-Defines acceptable ranges for cardinality metrics.  These ranges are used
-**only** when `strict_exact: false`.
+These thresholds drive the warning-level drift checks in `database_warning`.
+They are range-based and version-controlled; they are not auto-pinned from the
+current run.
 
-| Metric | Min | Max | Description |
-|--------|----:|----:|-------------|
-| `row_count` | 7,000 | 20,000 | Total rows in the CSV. |
-| `unique_compounds` | 250 | 700 | Distinct `cpd` identifiers. |
-| `unique_ko` | 900 | 2,500 | Distinct `ko` identifiers. |
-| `unique_genesymbol` | 1,000 | 2,200 | Distinct gene symbols. |
-| `unique_genename` | 900 | 2,200 | Distinct gene names. |
-| `unique_enzyme_activity` | 120 | 400 | Distinct enzyme activities. |
+| Metric | Min | Max |
+|--------|----:|----:|
+| `row_count` | 118000 | 130000 |
+| `unique_compounds` | 360 | 410 |
+| `unique_ko` | 1440 | 1650 |
+| `unique_genesymbol` | 1410 | 1625 |
+| `unique_genename` | 1320 | 1525 |
+| `unique_enzyme_activity` | 185 | 230 |
 
-!!! tip "Choosing threshold ranges"
-    Ranges should be wide enough to absorb normal KEGG release fluctuations
-    but narrow enough to catch data-pipeline regressions.  Monitor the values
-    across several releases to calibrate appropriate bounds.
+## Common Scenarios
 
----
-
-## Path Resolution Logic
-
-The `settings.py` loader resolves paths as follows:
-
-```
-project_root = config_path.parent.parent   # e.g., biorempp_validation/
-resolved     = (project_root / relative_path).resolve()
-```
-
-This means all paths in the `paths:` section are anchored to the
-`biorempp_validation/` directory, **not** to the YAML file's own directory.
-
----
-
-## Common Configuration Scenarios
-
-### Release Validation (default)
+### Default release-grade validation
 
 ```yaml
-policy:
-  fail_on_critical: true
-  fail_on_warning: true
-strict_exact: true
+validation_modes:
+  internal_consistency: true
+  regression_detection: true
 ```
 
-Strictest mode.  Every expectation must pass, drift thresholds are pinned to
-exact values, and both warning and critical failures produce a non-zero exit
-code.
+Checks exact parity with current artifacts and with the frozen baseline.
 
-### CI / Nightly Builds
+### Internal consistency only
 
 ```yaml
-policy:
-  fail_on_critical: true
-  fail_on_warning: false
-strict_exact: true
+validation_modes:
+  internal_consistency: true
+  regression_detection: false
 ```
 
-Critical failures block the pipeline.  Warning-level drift (e.g., cardinality
-shifts) is logged but does not fail the build.
+Useful when iterating on intended pipeline changes before blessing a new
+baseline.
 
-### Development / Exploration
+### Regression-only gate
 
 ```yaml
-policy:
-  fail_on_critical: true
-  fail_on_warning: false
-strict_exact: false
+validation_modes:
+  internal_consistency: false
+  regression_detection: true
 ```
 
-Wide drift bands from `drift_thresholds` are used.  Schema and
-reproducibility checks still run at critical severity; only warnings are
-relaxed.
-
-### Custom Pipeline Output Location
-
-```yaml
-paths:
-  input_results_root: /data/pipeline_runs/2026-02-18/results
-```
-
-Point `input_results_root` to any directory containing the expected 11 files.
-Absolute paths are resolved as-is.
+Useful when the current analysis JSON artifacts are not part of the contract
+being verified, but drift against the blessed snapshot still matters.
