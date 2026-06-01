@@ -20,6 +20,7 @@ from .json_to_dataframe import (
     build_analysis_exact_df,
     build_analysis_warning_df,
     build_kegg_metadata_df,
+    build_pipeline_reports_critical_df,
 )
 from .loaders import (
     find_missing_paths,
@@ -298,22 +299,41 @@ def _resolve_database_csv_relative_path(required_files: list[str]) -> str:
     return candidates[0]
 
 
+_ALWAYS_REQUIRED_NON_CSV = (
+    "metadata/kegg_release.json",
+    "metadata/keys_consistency_report.json",
+    "metadata/links_groundtruth_policy_report.json",
+    "reports/workflow_summary.json",
+)
+
+
 def _resolve_current_required_files(settings: ValidationSettings) -> list[str]:
     database_csv_relative_path = _resolve_database_csv_relative_path(settings.required_files)
-    required_files = [database_csv_relative_path, "metadata/kegg_release.json"]
+    required_files = [database_csv_relative_path, *_ALWAYS_REQUIRED_NON_CSV]
 
     if settings.validation_modes.internal_consistency:
+        always_required_set = {database_csv_relative_path, *_ALWAYS_REQUIRED_NON_CSV}
         required_files.extend(
             item
             for item in settings.required_files
-            if item not in {database_csv_relative_path, "metadata/kegg_release.json"}
+            if item not in always_required_set
         )
 
     return list(dict.fromkeys(required_files))
 
 
+_PIPELINE_REPORT_FILES = frozenset({
+    "metadata/keys_consistency_report.json",
+    "metadata/links_groundtruth_policy_report.json",
+    "reports/workflow_summary.json",
+})
+
+
 def _resolve_regression_baseline_required_files(settings: ValidationSettings) -> list[str]:
-    return [item for item in settings.required_files if not item.startswith("database/")]
+    return [
+        item for item in settings.required_files
+        if not item.startswith("database/") and item not in _PIPELINE_REPORT_FILES
+    ]
 
 
 def _build_suite_payloads(settings: ValidationSettings) -> dict[str, dict[str, Any]]:
@@ -321,6 +341,7 @@ def _build_suite_payloads(settings: ValidationSettings) -> dict[str, dict[str, A
         "database_critical": _load_suite_payload(settings.expectations_dir / "database_critical.json"),
         "database_warning": _load_suite_payload(settings.expectations_dir / "database_warning.json"),
         "metadata_kegg_critical": _load_suite_payload(settings.expectations_dir / "metadata_kegg_critical.json"),
+        "pipeline_reports_critical": _load_suite_payload(settings.expectations_dir / "pipeline_reports_critical.json"),
     }
 
     if settings.validation_modes.internal_consistency or settings.validation_modes.regression_detection:
@@ -359,10 +380,18 @@ def _build_validation_dataframes(
     current_analysis_payloads: dict[str, dict[str, Any]] | None,
     baseline_analysis_payloads: dict[str, dict[str, Any]] | None,
     baseline_kegg_release: dict[str, Any] | None,
+    keys_consistency_report: dict[str, Any],
+    links_groundtruth_policy_report: dict[str, Any],
+    workflow_summary: dict[str, Any],
 ) -> dict[str, Any]:
     dataframe_by_dataset = {
         "database_csv": database_csv,
         "metadata_kegg": build_kegg_metadata_df(kegg_release=current_kegg_release),
+        "pipeline_reports": build_pipeline_reports_critical_df(
+            keys_consistency=keys_consistency_report,
+            links_groundtruth_policy=links_groundtruth_policy_report,
+            workflow_summary=workflow_summary,
+        ),
     }
 
     if settings.validation_modes.internal_consistency and current_analysis_payloads is not None:
@@ -420,6 +449,9 @@ def run(settings: ValidationSettings) -> int:
         sep=settings.csv_delimiter,
     )
     current_kegg_release = load_json(resolved_paths["metadata/kegg_release.json"])
+    keys_consistency_report = load_json(resolved_paths["metadata/keys_consistency_report.json"])
+    links_groundtruth_policy_report = load_json(resolved_paths["metadata/links_groundtruth_policy_report.json"])
+    workflow_summary = load_json(resolved_paths["reports/workflow_summary.json"])
 
     current_analysis_payloads: dict[str, dict[str, Any]] | None = None
     if settings.validation_modes.internal_consistency:
@@ -455,6 +487,9 @@ def run(settings: ValidationSettings) -> int:
         current_analysis_payloads=current_analysis_payloads,
         baseline_analysis_payloads=baseline_analysis_payloads,
         baseline_kegg_release=baseline_kegg_release,
+        keys_consistency_report=keys_consistency_report,
+        links_groundtruth_policy_report=links_groundtruth_policy_report,
+        workflow_summary=workflow_summary,
     )
 
     suite_payloads = _build_suite_payloads(settings)

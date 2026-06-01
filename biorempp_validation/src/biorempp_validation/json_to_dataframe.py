@@ -132,6 +132,26 @@ def build_kegg_metadata_df(kegg_release: dict[str, Any]) -> pd.DataFrame:
     return pd.DataFrame([row])
 
 
+def build_pipeline_reports_critical_df(
+    keys_consistency: dict[str, Any],
+    links_groundtruth_policy: dict[str, Any],
+    workflow_summary: dict[str, Any],
+) -> pd.DataFrame:
+    na_justified = keys_consistency["results"]["all_remaining_na_justified"]
+    policy_metrics = links_groundtruth_policy["policy_aware_metrics"]
+    artifacts = workflow_summary["artifacts"]
+    hashes_present = all(
+        isinstance(v.get("sha256"), str) and len(v["sha256"]) == 64
+        for v in artifacts.values()
+    )
+    return pd.DataFrame([{
+        "keys_consistency_na_justified": bool(na_justified),
+        "links_policy_union_rate_percent": float(policy_metrics["policy_union_rate_percent"]),
+        "links_no_policy_support": int(policy_metrics["no_policy_support"]),
+        "workflow_artifact_hashes_present": hashes_present,
+    }])
+
+
 def _ordered_dict_from_series(
     series: pd.Series,
     key_name: str,
