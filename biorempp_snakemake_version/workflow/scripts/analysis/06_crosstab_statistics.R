@@ -12,19 +12,19 @@ db <- read_database_csv(args[["input-csv"]], sep = args[["csv-sep"]])
 class_agency_crosstab <- db %>%
   dplyr::group_by(compoundclass, referenceAG) %>%
   dplyr::summarise(count = dplyr::n_distinct(cpd), .groups = "drop") %>%
-  dplyr::arrange(dplyr::desc(count)) %>%
+  dplyr::arrange(dplyr::desc(count), compoundclass, referenceAG) %>%
   utils::head(20)
 
 enzyme_class_crosstab <- db %>%
   dplyr::group_by(compoundclass, enzyme_activity) %>%
   dplyr::summarise(count = dplyr::n(), .groups = "drop") %>%
-  dplyr::arrange(dplyr::desc(count)) %>%
+  dplyr::arrange(dplyr::desc(count), compoundclass, enzyme_activity) %>%
   utils::head(20)
 
 ko_class_summary <- db %>%
   dplyr::group_by(compoundclass) %>%
   dplyr::summarise(unique_ko = dplyr::n_distinct(ko), .groups = "drop") %>%
-  dplyr::arrange(dplyr::desc(unique_ko)) %>%
+  dplyr::arrange(dplyr::desc(unique_ko), compoundclass) %>%
   utils::head(10)
 
 stats <- list(

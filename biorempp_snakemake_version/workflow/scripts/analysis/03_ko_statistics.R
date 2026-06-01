@@ -17,7 +17,7 @@ ko_frequency <- db %>%
     unique_compounds = dplyr::n_distinct(cpd),
     .groups = "drop"
   ) %>%
-  dplyr::arrange(dplyr::desc(frequency))
+  dplyr::arrange(dplyr::desc(frequency), ko)
 
 top_kos <- utils::head(ko_frequency, top_n)
 
