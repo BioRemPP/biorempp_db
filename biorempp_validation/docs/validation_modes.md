@@ -15,10 +15,8 @@ validation_modes:
   regression_detection: true
 ```
 
-`strict_exact` is deprecated and exists only as a migration alias when `validation_modes` is absent:
-
-- `strict_exact: true` -> enable both modes
-- `strict_exact: false` -> disable only `regression_detection`
+`validation_modes` is the only supported interface for selecting validator behavior.
+Legacy `strict_exact` configs are rejected at load time.
 
 ## Baseline Contract
 

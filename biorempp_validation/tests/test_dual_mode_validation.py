@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 
+import pytest
 import yaml
 
 from biorempp_validation.loaders import load_json
@@ -87,37 +88,10 @@ def test_missing_regression_baseline_fails_preflight(config_path):
     assert summary["failed_expectations"][0]["validation_mode"] == "regression_detection"
 
 
-def test_legacy_strict_exact_true_enables_both_modes(config_path):
+def test_legacy_strict_exact_key_is_rejected(config_path):
     cfg = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-    cfg.pop("validation_modes", None)
     cfg["strict_exact"] = True
     config_path.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
 
-    settings = load_settings(config_path)
-    assert settings.validation_modes.internal_consistency is True
-    assert settings.validation_modes.regression_detection is True
-    assert settings.validation_modes.resolved_from_legacy_strict_exact is True
-
-    exit_code = main(["--config", str(config_path)])
-    assert exit_code == 0
-
-    _, critical_payload = _load_critical_payload(config_path)
-    assert _suite_results_for_mode(critical_payload, "regression_detection")
-
-
-def test_legacy_strict_exact_false_disables_regression_detection(config_path):
-    cfg = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-    cfg.pop("validation_modes", None)
-    cfg["strict_exact"] = False
-    config_path.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
-
-    settings = load_settings(config_path)
-    assert settings.validation_modes.internal_consistency is True
-    assert settings.validation_modes.regression_detection is False
-    assert settings.validation_modes.resolved_from_legacy_strict_exact is True
-
-    exit_code = main(["--config", str(config_path)])
-    assert exit_code == 0
-
-    _, critical_payload = _load_critical_payload(config_path)
-    assert not _suite_results_for_mode(critical_payload, "regression_detection")
+    with pytest.raises(ValueError, match="strict_exact"):
+        load_settings(config_path)
