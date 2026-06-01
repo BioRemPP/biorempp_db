@@ -343,7 +343,8 @@ metadata <- list(
       compoundname = list(name = "compoundname", type = "character", description = "Compound name", example = "Water"),
       genesymbol = list(name = "genesymbol", type = "character", description = "Gene symbol", example = "ADH1"),
       genename = list(name = "genename", type = "character", description = "Gene name", example = "alcohol dehydrogenase"),
-      enzyme_activity = list(name = "enzyme_activity", type = "character", description = "Extracted enzyme activity term", example = "dehydrogenase")
+      enzyme_activity = list(name = "enzyme_activity", type = "character", description = "Extracted enzyme activity term", example = "dehydrogenase"),
+      support_stage = list(name = "support_stage", type = "character", description = "Pipeline stage that produced this row's EC/reaction mapping", example = "dense")
     )
   ),
   data_quality = list(
