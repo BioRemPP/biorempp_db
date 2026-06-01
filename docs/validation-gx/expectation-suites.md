@@ -15,6 +15,7 @@ verbatim: `run_validation.py` injects config-driven values at runtime.
 | `analysis_json_warning` | Warning | Soft checks on current analysis JSON artifacts. |
 | `metadata_kegg_critical` | Critical | Current KEGG metadata checks. |
 | `cross_consistency_critical` | Critical | Current CSV vs current `basic_statistics.json`. |
+| `pipeline_reports_critical` | Critical | Sentinel checks for `keys_consistency_report.json`, `links_groundtruth_policy_report.json`, and `workflow_summary.json`. |
 
 ## Runtime Expansion
 
