@@ -42,6 +42,15 @@ cd biorempp_snakemake_version
 docker compose -f env/docker-compose.yml run --rm snakemake
 ```
 
+### Validate Outputs (Docker)
+
+From repository root:
+
+```bash
+docker compose -f biorempp_snakemake_version/env/docker-compose.yml build validation
+docker compose -f biorempp_snakemake_version/env/docker-compose.yml run --rm validation
+```
+
 ### Dry Run (DAG check)
 
 ```bash
@@ -118,6 +127,7 @@ BioRemPP validation runs in two layers:
 2. External Great Expectations project
 - Located in `biorempp_validation`
 - Enforces schema, analysis consistency, metadata integrity, and cross-checks
+- Runs in a dedicated Docker service with pinned Python dependencies
 
 Interpretation rule:
 - `strict5` is a strict simultaneous 5-link criterion and is expected to be lower.
@@ -143,6 +153,9 @@ Reproducibility assets are versioned:
 - `biorempp_snakemake_version/env/docker-compose.yml`
 - `biorempp_snakemake_version/env/python-requirements.txt`
 - `biorempp_snakemake_version/env/r-packages.txt`
+- `biorempp_validation/env/Dockerfile`
+- `biorempp_validation/requirements.lock.txt`
+- `biorempp_validation/requirements-dev.lock.txt`
 
 KEGG traceability is captured per run:
 - release endpoint: `https://rest.kegg.jp/info/kegg`
@@ -183,6 +196,7 @@ BioRemPP_DB_1.0.0/
   - inspect:
     - `biorempp_snakemake_version/results/metadata/*.json`
     - `biorempp_validation/results/validation_summary.json`
+  - rerun the validator in the `validation` Docker service to reproduce the pinned runtime
 
 ## Documentation Map
 

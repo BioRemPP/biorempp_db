@@ -1,165 +1,91 @@
 # Severity Policy
 
-The validation module uses a **hybrid severity model** with two checkpoint
-gates and configurable policy flags that control whether failures block the
-pipeline.
+The validator uses two Great Expectations checkpoints:
 
----
+- `critical_gate`: hard failures that can block a release
+- `warning_report`: drift and advisory checks
 
-## Checkpoints
+Whether those failures return exit code `1` is controlled by
+`policy.fail_on_critical` and `policy.fail_on_warning`.
 
-Two checkpoint files orchestrate the 7 expectation suites:
+## Critical Gate
 
-### `critical_gate` — Hard Gate
+The critical gate is mode-aware. Depending on `validation_modes`, it runs up to
+six suites:
 
-| Suite | Dataset | Expectations |
-|-------|---------|-------------:|
-| `database_critical` | `database_csv` | 13 |
-| `analysis_json_critical` | `analysis_critical` | 14 |
-| `analysis_json_exact_critical` | `analysis_exact` | 16 |
-| `metadata_kegg_critical` | `metadata_kegg` | 9 |
-| `cross_consistency_critical` | `cross_consistency` | 5 |
-| **Total** | | **57** |
+| Suite | When it runs | Purpose |
+|-------|--------------|---------|
+| `database_critical` | Always | Schema, required columns, core null checks, identifier regex, row count >= 1. |
+| `analysis_json_critical` | `internal_consistency: true` | Required keys and structural checks on current analysis JSON artifacts. |
+| `analysis_json_internal_consistency_critical` | `internal_consistency: true` | Exact recomputation from the current CSV against the current analysis JSON artifacts. |
+| `analysis_json_regression_critical` | `regression_detection: true` | Exact recomputation from the current CSV against the committed baseline snapshot. |
+| `metadata_kegg_critical` | Always | Validates `metadata/kegg_release.json`. |
+| `cross_consistency_critical` | `internal_consistency: true` | Current CSV metrics must match `basic_statistics.json`. |
 
-Any single failure in this checkpoint constitutes a **data-contract
-violation** — the database or its analysis artifacts are structurally or
-semantically incorrect.
+Any failed suite in this checkpoint is treated as a contract break.
 
-### `warning_report` — Advisory Gate
+## Warning Gate
 
-| Suite | Dataset | Expectations |
-|-------|---------|-------------:|
-| `database_warning` | `database_csv` | 8 |
-| `analysis_json_warning` | `analysis_warning` | 6 |
-| **Total** | | **14** |
+The warning gate is lighter and focuses on bounded drift:
 
-Failures in this checkpoint indicate **drift** — the data is structurally
-valid but some cardinality or vocabulary metric has shifted beyond expected
-bounds.  Whether this blocks the pipeline is configurable.
+| Suite | When it runs | Purpose |
+|-------|--------------|---------|
+| `database_warning` | Always | Vocabulary checks plus row-count and cardinality drift thresholds. |
+| `analysis_json_warning` | `internal_consistency: true` | Soft checks on current analysis JSON content. |
 
----
+## Validation Modes
 
-## Policy Flags
+### `internal_consistency`
 
-Three policy flags in `validation.yaml` control the validation behaviour:
+Uses the current run's artifacts only. It answers:
 
-| Flag | Code Default | Config Value | Effect |
-|------|:------------:|:------------:|--------|
-| `fail_on_critical` | `True` | `true` | Exit `1` when any critical expectation fails |
-| `fail_on_warning` | `False` | `true` | Exit `1` when any warning expectation fails |
-| `generate_data_docs` | `True` | `true` | Write `data_docs/index.html` summary page |
+- is the current CSV internally coherent with the current JSON outputs?
+- were the analysis JSON files regenerated correctly from the same run?
 
-!!! note "Code defaults vs. config values"
-    The code defaults (`settings.py`) are fallbacks used only when a key is
-    absent from the YAML.  In practice, the shipped `validation.yaml` sets all
-    three to `true`, so both critical and warning failures block by default.
+This mode is exact, but not a cross-run regression guard by itself.
 
----
+### `regression_detection`
 
-## `strict_exact` Mode
+Uses the committed baseline under `paths.regression_baseline_root`. It answers:
 
-| Setting | Code Default | Config Value |
-|---------|:------------:|:------------:|
-| `strict_exact` | `False` | `true` |
+- does the current CSV still match the blessed baseline snapshot?
+- did a pipeline or upstream data change introduce output drift?
 
-When **`strict_exact: true`** (the default configuration):
+This is the strict regression check.
 
-- The `drift_thresholds` ranges in the YAML config are **ignored**.
-- Instead, thresholds are **pinned to the actual observed values** from the
-  analysis JSON payloads — e.g., if `unique_compounds` is 384, the expectation
-  becomes `min == max == 384`.
-- This converts all warning-level drift bands into **exact-match assertions**.
-- Any change in cardinality — even by a single row — triggers a warning failure.
+### Warning drift
 
-When **`strict_exact: false`**:
-
-- The wider `drift_thresholds` from config are used (e.g., `unique_compounds`:
-  250–700, `row_count`: 7,000–20,000).
-- Minor fluctuations within the band are tolerated.
-
-!!! tip "When to use each mode"
-    Use `strict_exact: true` (default) for **release validation** — ensures
-    the database is identical to the expected baseline.  Use
-    `strict_exact: false` for **development** when iterating on the pipeline
-    with evolving KEGG data.
-
----
+`database_warning` uses the ranges in `drift_thresholds`. Those ranges are
+intentionally approximate and version-controlled. They are not derived from the
+current run.
 
 ## Exit Code Logic
 
-The exit code is determined at the end of the `run()` function:
+The validator returns:
 
-```python
-if settings.fail_on_critical and not critical_payload.get("success", False):
-    return 1
-if settings.fail_on_warning and not warning_payload.get("success", False):
-    return 1
-return 0
+- `1` if a critical check fails and `fail_on_critical: true`
+- `1` if a warning check fails and `fail_on_warning: true`
+- `0` otherwise
+
+Missing files are handled before Great Expectations runs. The validator writes a
+synthetic critical result payload and exits `1`.
+
+## Recommended Default
+
+The shipped configuration is strict and stable:
+
+```yaml
+policy:
+  fail_on_critical: true
+  fail_on_warning: true
+
+validation_modes:
+  internal_consistency: true
+  regression_detection: true
 ```
 
-Critical failures are evaluated first.  The full decision matrix:
+That combination gives you:
 
-| Critical Result | Warning Result | `fail_on_critical` | `fail_on_warning` | Exit Code |
-|:---------------:|:--------------:|:-------------------:|:-----------------:|:---------:|
-| Pass | Pass | any | any | **0** |
-| **Fail** | any | `true` | any | **1** |
-| **Fail** | any | `false` | any | **0** |
-| Pass | **Fail** | any | `true` | **1** |
-| Pass | **Fail** | any | `false` | **0** |
-| Missing files | — | — | — | **1** |
-
-The **missing files** case is handled separately during preflight — the module
-writes a synthetic critical-failure payload to `critical_checkpoint_result.json`
-and exits with code `1` before GX even runs.
-
----
-
-## Decision Flow
-
-```mermaid
-flowchart TD
-    A["Preflight: check required files"] -->|files missing| Z1["Write synthetic failure → exit 1"]
-    A -->|all present| B["Run critical_gate checkpoint"]
-    B --> C{"Critical<br/>passed?"}
-    C -->|no| D{"fail_on_critical?"}
-    D -->|true| Z2["exit 1"]
-    D -->|false| E
-    C -->|yes| E["Run warning_report checkpoint"]
-    E --> F{"Warning<br/>passed?"}
-    F -->|no| G{"fail_on_warning?"}
-    G -->|true| Z3["exit 1"]
-    G -->|false| Z4["exit 0"]
-    F -->|yes| Z4
-
-    style Z1 fill:#ef9a9a
-    style Z2 fill:#ef9a9a
-    style Z3 fill:#ef9a9a
-    style Z4 fill:#a5d6a7
-```
-
----
-
-## Validation Summary Report
-
-After both checkpoints run, `report_builder.py` generates
-`validation_summary.json` containing:
-
-| Field | Description |
-|-------|-------------|
-| `run_timestamp_utc` | ISO 8601 UTC timestamp of the validation run |
-| `critical_checkpoint_success` | `true` / `false` |
-| `warning_checkpoint_success` | `true` / `false` |
-| `counts.critical_failed_expectations` | Number of critical failures |
-| `counts.warning_failed_expectations` | Number of warning failures |
-| `failed_expectations` | Array of objects with `severity`, `suite`, `dataset`, `expectation_type`, `kwargs` |
-| `recommendation` | Human-readable action item (see below) |
-
-### 3-Tier Recommendation
-
-The recommendation text follows a strict priority:
-
-| Priority | Condition | Recommendation |
-|:--------:|-----------|----------------|
-| 1 | Any critical failure | *"Critical expectations failed. Block release and fix data contract violations before publishing."* |
-| 2 | Warning failures only | *"No critical failures. Review warning-level drift and decide whether to recalibrate thresholds."* |
-| 3 | All pass | *"All critical and warning expectations passed."* |
+- exact same-run consistency checks
+- exact cross-run regression checks
+- bounded warning drift for scale and vocabulary changes

@@ -21,19 +21,18 @@ Default shipped behavior enables both modes:
 - `validation_modes.regression_detection: true`
 - `fail_on_warning: true`
 
-`strict_exact` is deprecated and kept only as a compatibility alias during migration:
-- if `validation_modes` is omitted and `strict_exact: true`, both modes are enabled;
-- if `validation_modes` is omitted and `strict_exact: false`, only `internal_consistency` remains enabled.
-
 ## Directory Architecture
 
 ```text
 biorempp_validation/
 |-- README.md
+|-- requirements.lock.txt
+|-- requirements-dev.lock.txt
 |-- pyproject.toml
-|-- requirements.txt
 |-- config/
 |   `-- validation.yaml
+|-- env/
+|   `-- Dockerfile
 |-- great_expectations/
 |   |-- great_expectations.yml
 |   |-- checkpoints/
@@ -131,28 +130,55 @@ At runtime, `analysis_json_exact_critical` is expanded into two concrete uses:
 
 ## Installation
 
-From repository root:
+Recommended interface: Docker.
+
+Build the validator image from repository root:
 
 ```bash
-pip install -e biorempp_validation
-```
-
-or:
-
-```bash
-pip install -r biorempp_validation/requirements.txt
+docker compose -f biorempp_snakemake_version/env/docker-compose.yml build validation
 ```
 
 ## Run
 
+Recommended:
+
 ```bash
-python -m biorempp_validation.run_validation --config biorempp_validation/config/validation.yaml
+docker compose -f biorempp_snakemake_version/env/docker-compose.yml run --rm validation
 ```
 
-Alternative entrypoint:
+Explicit entrypoint inside the container:
 
 ```bash
-biorempp-validate --config biorempp_validation/config/validation.yaml
+docker compose -f biorempp_snakemake_version/env/docker-compose.yml run --rm validation \
+  biorempp-validate --config biorempp_validation/config/validation.yaml
+```
+
+## Testing
+
+Run the validator test suite in the same pinned container:
+
+```bash
+docker compose -f biorempp_snakemake_version/env/docker-compose.yml run --rm validation \
+  python -m pytest biorempp_validation/tests -q
+```
+
+## Dependency Lockfiles
+
+The validator image installs from exact lockfiles generated from `pyproject.toml`:
+
+- `requirements.lock.txt`: runtime only
+- `requirements-dev.lock.txt`: runtime + test tooling
+
+Refresh them from the container:
+
+```bash
+docker compose -f biorempp_snakemake_version/env/docker-compose.yml run --rm validation \
+  pip-compile biorempp_validation/pyproject.toml -o biorempp_validation/requirements.lock.txt
+```
+
+```bash
+docker compose -f biorempp_snakemake_version/env/docker-compose.yml run --rm validation \
+  pip-compile biorempp_validation/pyproject.toml --extra dev -o biorempp_validation/requirements-dev.lock.txt
 ```
 
 ## Outputs
@@ -173,12 +199,6 @@ If `fail_on_warning: true`, any warning failure also returns `1`.
 
 Operational details for the dual-mode contract live in [docs/validation_modes.md](docs/validation_modes.md).
 
-## Testing
-
-```bash
-pytest biorempp_validation/tests -q
-```
-
 ## Baseline Refresh
 
 The regression baseline is a release artifact, not a runtime by-product. Update it only when a pipeline change is intentional and has been reviewed.
@@ -193,5 +213,7 @@ Recommended refresh flow:
 ## Notes
 
 - Validation is read-only against upstream Snakemake results.
+- `validation_modes` is the only supported mode-selection interface.
 - Warning thresholds and vocabularies are configurable in `config/validation.yaml`.
 - KEGG source URL is enforced as `https://rest.kegg.jp/info/kegg`.
+- Docker is the canonical runtime for consistent execution and pinned dependencies.
