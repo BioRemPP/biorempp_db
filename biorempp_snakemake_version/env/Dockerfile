@@ -2,7 +2,7 @@ FROM rocker/tidyverse:4.4@sha256:7b6ad006caffcbae246f8f3e761a2ec268b2101a25d5426
 
 LABEL maintainer="BioRemPP Development Team"
 LABEL description="BioRemPP Snakemake pipeline"
-LABEL version="1.0.0"
+LABEL version="1.1.0"
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=UTC
