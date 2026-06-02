@@ -1,169 +1,201 @@
-# INTEGRATIONS — BioRemPP DB 1.0.0
+# External Integrations
 
-> Last mapped: 2026-05-31
+_Last updated: 2026-05-31_
 
 ## Summary
 
-BioRemPP DB 1.0.0 integrates with a single external web service (the KEGG REST API) for live database construction, reads six locally curated flat-file inputs, and writes its outputs as CSV/XLSX/JSON. Two separate integration layers exist: the R-based KEGG fetcher that builds the database, and the Python-based KEGG cache fetcher used by validation. No cloud storage, message queues, authentication services, or relational databases are used. Documentation is published through GitHub Actions CI and Read the Docs.
+BioRemPP DB integrates with one external API — the KEGG REST API — for all biological relationship data. This API is called from two independent subsystems: the R generation pipeline (for database construction) and the Python validation scripts (for KEGG link caching and consistency checks). Great Expectations provides the internal data-contract validation layer, operating entirely offline against pipeline outputs. All other integrations are infrastructure-level (Docker Hub base images, Read the Docs, GitHub Actions).
 
 ---
 
-## External APIs & Web Services
+## APIs & External Services
 
 ### KEGG REST API
 
-**Purpose:** Authoritative source for KO–EC, KO–reaction, compound–EC, compound–reaction, EC–reaction links, compound names, reaction descriptions, and KEGG release metadata. All biologically meaningful relationships in the final database derive from these endpoints.
+**Base URL:** `https://rest.kegg.jp` (configured in `biorempp_snakemake_version/config/config.yaml`)
 
-**Base URL:** `https://rest.kegg.jp`  
-**Protocol:** HTTP GET, plain-text TSV responses (tab-separated)  
-**Authentication:** None (public API)
+**Purpose:** Primary biological data source. Provides all compound–KO–EC–reaction relationship data used to build the database.
 
-**Endpoints consumed:**
+**Endpoints used:**
 
-| Endpoint path | Data returned | Consumer |
-|---------------|---------------|----------|
-| `link/ko/ec` | KO ↔ EC pairs | `03_fetch_kegg_data.R` and `cache_kegg_links.py` |
-| `link/ko/reaction` | KO ↔ Reaction pairs | `03_fetch_kegg_data.R` and `cache_kegg_links.py` |
-| `link/compound/ec` | Compound ↔ EC pairs | `03_fetch_kegg_data.R` and `cache_kegg_links.py` |
-| `link/cpd/reaction` | Compound ↔ Reaction pairs | `03_fetch_kegg_data.R` and `cache_kegg_links.py` |
-| `link/ec/reaction` | EC ↔ Reaction pairs | `03_fetch_kegg_data.R` and `cache_kegg_links.py` |
-| `list/reaction` | Reaction IDs + descriptions | `03_fetch_kegg_data.R` |
-| `list/cpd/` | Compound IDs + names | `03_fetch_kegg_data.R` |
-| `info/kegg` | Release version metadata | `02_fetch_kegg_info.R` |
+| Endpoint Slug              | Config Key                 | Returns                              |
+|---------------------------|----------------------------|--------------------------------------|
+| `link/ko/ec`              | `ko_ec_links`              | KO ↔ EC number pairs                |
+| `link/ko/reaction`        | `ko_reaction_links`        | KO ↔ reaction ID pairs              |
+| `link/compound/ec`        | `compound_ec_links`        | Compound ↔ EC number pairs          |
+| `link/cpd/reaction`       | `compound_reaction_links`  | Compound ↔ reaction ID pairs        |
+| `link/ec/reaction`        | `ec_reaction_links`        | EC ↔ reaction ID pairs              |
+| `list/reaction`           | _(inline)_                 | Reaction ID → description list      |
+| `list/cpd/`               | _(inline)_                 | Compound ID → compound name list    |
+| `info/kegg`               | `info_endpoint`            | KEGG release metadata (version text)|
 
-**Configuration:** Base URL and all endpoint paths are externalized in `biorempp_snakemake_version/config/config.yaml` under the `kegg:` block. The R fetch layer uses `httr::GET`; the Python cache layer uses `urllib.request.urlopen`.
+**Response format:** Tab-separated plain text (`\t` delimiter); two-column pairs per line.
 
-**Retry policy (both layers, configurable via env vars):**
-- Max retries: 6 (`BIOREMPP_API_MAX_RETRIES`)
-- Timeout: 90 s (`BIOREMPP_API_TIMEOUT_SECONDS`)
-- Exponential backoff base: 1.0 s (`BIOREMPP_API_BACKOFF_BASE_SECONDS`)
-- Backoff cap: 30 s (`BIOREMPP_API_BACKOFF_MAX_SECONDS`)
-- Jitter ratio: 25 % (`BIOREMPP_API_BACKOFF_JITTER_RATIO`)
-- HTTP 429 and 5xx are retried; other non-200 status codes abort immediately
+**Authentication:** None (public API).
 
-**KEGG data caching:** Raw TSV payloads from the five link endpoints are persisted to `biorempp_snakemake_version/work/kegg_link_cache/` as `.tsv` files by `workflow/scripts/validation/cache_kegg_links.py` (Snakemake rule `fetch_kegg_link_cache`). Subsequent validation rules (`validate_keys_consistency`, `validate_links_groundtruth_policy`) read from disk rather than re-fetching.
+**Rate limiting:** No explicit rate limits enforced by the API; no `Retry-After` header handling. The pipeline implements defensive retry logic instead.
 
-**Token patterns matched against KEGG responses:**
-- KO: `K\d{5}` (e.g., `K00001`)
-- Compound: `C\d{5}` (e.g., `C00001`)
-- Reaction: `R\d{5}` (e.g., `R00001`)
-- EC: `\d+\.\d+\.\d+\.[0-9A-Za-z\-]+` (e.g., `1.1.1.1`)
+**Retry strategy (identical implementation in R and Python):**
+- Max retries: 6 (env var `BIOREMPP_API_MAX_RETRIES`)
+- Timeout per request: 90 s (env var `BIOREMPP_API_TIMEOUT_SECONDS`)
+- Backoff: exponential with jitter — `base * 2^(attempt-1)` capped at `max`, then multiplied by `uniform(1 ± jitter_ratio)`
+  - Base: 1.0 s (`BIOREMPP_API_BACKOFF_BASE_SECONDS`), Max: 30.0 s (`BIOREMPP_API_BACKOFF_MAX_SECONDS`), Jitter: ±25% (`BIOREMPP_API_BACKOFF_JITTER_RATIO`)
+- HTTP 429 and 5xx → retryable. HTTP 4xx (except 429) → non-retryable, fails immediately.
 
----
+**R client:** `biorempp_snakemake_version/workflow/scripts/generation/03_fetch_kegg_data.R`
+- Uses `httr::GET()` with `httr::timeout()`
+- Fetches all 7 endpoints; saves combined bundle as `work/kegg_data.rds` (R binary format)
+- Column orientation auto-detected and canonicalised via `canonicalize_link_endpoint()` using regex patterns defined in `biorempp_snakemake_version/workflow/lib/io_contracts.R`
 
-## Local File-Based Inputs
+**R info fetcher:** `biorempp_snakemake_version/workflow/scripts/generation/02_fetch_kegg_info.R`
+- Uses `readLines()` directly (no `httr`)
+- Fetches `info/kegg`; extracts release version via regex `[0-9]+(?:\.[0-9]+)?(?:\+)?`
+- Saves to `results/metadata/kegg_release.json`
 
-All input files reside in `input_data/` (and mirrored in `biorempp_snakemake_version/input_data/`). These are manually curated and version-controlled.
+**Python client:** `biorempp_snakemake_version/workflow/scripts/validation/kegg_api_client.py`
+- Uses `urllib.request.urlopen()` (stdlib only, no external HTTP library)
+- Same retry/backoff parameters as R client
 
-| File | Format | Contents | Loaded by |
-|------|--------|----------|-----------|
-| `kegglistcompounds.xlsx` | Excel (.xlsx) | KEGG compound ID → compound name mapping (pre-fetched, curated) | `01_load_local_data.R` → `load_kegg_compounds()` |
-| `compostos_todasagencias.xlsx` | Excel (.xlsx) | Compound IDs → environmental agency reference codes (`referenceAG`) | `01_load_local_data.R` → `load_agency_compounds()` |
-| `missing_compounds_founds_curated.xlsx` | Excel (.xlsx) | Manually curated compound–KO pairs not covered by KEGG links | `01_load_local_data.R` → `load_curated_compounds()` |
-| `confirm_class_CURATED.xlsx` | Excel (.xlsx) | Compound class classification (Aliphatic, Aromatic, Metal, etc.) | `01_load_local_data.R` → `load_compound_classes()` |
-| `kegglistko.txt` | TSV (.txt) | KO ID → gene symbol + gene name mapping | `01_load_local_data.R` → `load_kegg_ko_list()` |
-| `enzymes_unique.txt` | Plain text (.txt) | List of unique enzyme activity terms | `01_load_local_data.R` → `load_enzyme_terms()` |
+**Python cache script:** `biorempp_snakemake_version/workflow/scripts/validation/cache_kegg_links.py`
+- Fetches all 5 link endpoints; writes each to `cache/kegg_link_cache/{name}.tsv`
+- Cache is populated by Snakemake rule `fetch_kegg_link_cache` in `biorempp_snakemake_version/workflow/rules/30_validation.smk`
 
-**Environmental agencies encoded in `referenceAG`:** ATSDR, CONAMA, EPA, EPC, IARC1, IARC2A, IARC2B, PSL, WFD
+**Caching model:**
+- The R generation path does **not** cache to disk between steps; KEGG data is held in memory as an RDS file (`work/kegg_data.rds`).
+- The Python validation path caches KEGG link endpoints as `.tsv` files under `cache/kegg_link_cache/` before running validation rules. These are Snakemake outputs and are re-fetched only when missing or explicitly invalidated.
 
-**Compound classes encoded in `compoundclass`:** Aliphatic, Aromatic, Chlorinated, Halogenated, Inorganic, Metal, Nitrogen-containing, Organometallic, Organophosphorus, Organosulfur, Polyaromatic, Sulfur-containing
-
----
-
-## Pipeline Output Files (File-Based Integration Points)
-
-These files are produced by the Snakemake pipeline and consumed by the Great Expectations validation layer.
-
-| File | Format | Producer | Consumer |
-|------|--------|----------|----------|
-| `results/database/biorempp_database_v1.1.0.csv` | CSV (`;` delimiter, `"` quoted, UTF-8) | `07_extract_enzymes_export.R` | GX validation, reporting |
-| `results/database/biorempp_database_v1.1.0.xlsx` | Excel (.xlsx) | `07_extract_enzymes_export.R` | End users |
-| `results/analysis/*.json` (9 files) | JSON | Analysis R scripts (`01`–`09`) | GX validation, reporting |
-| `results/metadata/kegg_release.json` | JSON | `02_fetch_kegg_info.R` | Analysis `07_metadata.R`, reporting, GX validation |
-| `results/metadata/keys_consistency_report.json` | JSON | `01_validate_keys_consistency_api.py` | Reporting |
-| `results/metadata/links_groundtruth_policy_report.json` | JSON | `02_validate_links_groundtruth_policy_api.py` | Reporting |
-| `results/reports/workflow_summary.json` | JSON | `build_run_report.py` | End users, archival |
-| `work/kegg_link_cache/*.tsv` (5 files) | TSV | `cache_kegg_links.py` | Validation Python scripts |
-| `work/*.rds` | R binary (RDS) | Generation R scripts | Subsequent generation rules |
-
-**Database schema (CSV/XLSX columns):** `cpd`, `compoundclass`, `ko`, `ec`, `reaction`, `reaction_description`, `referenceAG`, `compoundname`, `genesymbol`, `genename`, `enzyme_activity`
+**Value patterns (used for response validation):**
+- KO: `^(ko:)?K\d{5}$`
+- EC: `^(ec:)?[0-9]+\.[0-9]+\.[0-9]+\.[0-9A-Za-z\-]+$`
+- Reaction: `^(rn:)?R\d{5}$`
+- Compound: `^(cpd:)?C\d{5}$`
 
 ---
 
-## CLI Tools Called as Subprocesses
+## Data Validation Layer — Great Expectations
 
-All subprocess invocations are declared in Snakemake `shell:` blocks.
+**Package:** `great_expectations` 1.12.3 (pinned in `biorempp_validation/requirements-dev.lock.txt`)
 
-| Command | Invoked from | Purpose |
-|---------|-------------|---------|
-| `Rscript workflow/scripts/generation/00_check_inputs.R` | `00_preflight.smk` | Validate presence of all input files |
-| `Rscript workflow/scripts/generation/01_load_local_data.R` | `10_generation.smk` | Load all local curated inputs into RDS bundle |
-| `Rscript workflow/scripts/generation/02_fetch_kegg_info.R` | `10_generation.smk` | Fetch KEGG release metadata |
-| `Rscript workflow/scripts/generation/03_fetch_kegg_data.R` | `10_generation.smk` | Fetch all KEGG link endpoints into RDS bundle |
-| `Rscript workflow/scripts/generation/04_merge_relationships.R` | `10_generation.smk` | Join local data with KEGG links |
-| `Rscript workflow/scripts/generation/05_add_classifications.R` | `10_generation.smk` | Attach compound class labels |
-| `Rscript workflow/scripts/generation/06_enrich_gene_info.R` | `10_generation.smk` | Attach gene symbol/name from KO list |
-| `Rscript workflow/scripts/generation/07_extract_enzymes_export.R` | `10_generation.smk` | Produce final CSV + XLSX database |
-| `Rscript workflow/scripts/analysis/01_basic_statistics.R` … `09_merge_complete_analysis.R` | `20_analysis.smk` | Generate JSON statistics outputs |
-| `python3 workflow/scripts/validation/cache_kegg_links.py` | `30_validation.smk` | Download and cache KEGG link TSVs |
-| `python3 workflow/scripts/validation/01_validate_keys_consistency_api.py` | `30_validation.smk` | Validate KO/EC/CPD/reaction key consistency |
-| `python3 workflow/scripts/validation/02_validate_links_groundtruth_policy_api.py` | `30_validation.smk` | Validate link coverage against KEGG ground truth |
-| `python3 workflow/scripts/reporting/build_run_report.py` | `90_reporting.smk` | Assemble workflow summary JSON |
-| `biorempp-validate --config biorempp_validation/config/validation.yaml` | Manual / CI | Run Great Expectations suite over pipeline outputs |
+**Entrypoint:** `biorempp_validation/src/biorempp_validation/run_validation.py`
+- CLI command: `biorempp-validate --config <path>` (registered in `biorempp_validation/pyproject.toml`)
+- Config: `biorempp_validation/config/validation.yaml`
 
----
+**Context type:** Ephemeral in-memory (`create_context()` in `biorempp_validation/src/biorempp_validation/gx_context.py`); no persistent GX store. All suites are loaded from JSON files at runtime.
 
-## Documentation & Deployment Integrations
+**Datasource type:** Pandas in-memory (`create_pandas_datasource()`). All data is loaded into DataFrames before being passed to GX.
 
-### GitHub Actions
+**Expectation suites (JSON files in `biorempp_validation/great_expectations/expectations/`):**
 
-- Workflow: `.github/workflows/docs-ci.yml`
-- Trigger: push/PR on `main`/`dev` when `docs/**`, `mkdocs.yml`, or `scripts/build-docs.sh` change
-- Runner: `ubuntu-latest`, Python 3.11
-- Steps: checkout → setup Python → `./scripts/build-docs.sh install` → `./scripts/build-docs.sh build` → upload artifact (`site/`, 7-day retention)
-- Repository referenced: `https://github.com/BioRemPP/biorempp_db`
+| Suite file                          | Severity  | Dataset target              | Validation mode                    |
+|------------------------------------|-----------|-----------------------------|------------------------------------|
+| `database_critical.json`           | Critical  | `database_csv`              | Always                             |
+| `database_warning.json`            | Warning   | `database_csv`              | Always                             |
+| `metadata_kegg_critical.json`      | Critical  | `metadata_kegg`             | `current_artifacts`                |
+| `pipeline_reports_critical.json`   | Critical  | `pipeline_reports`          | Always                             |
+| `analysis_json_critical.json`      | Critical  | `analysis_critical`         | `internal_consistency` mode only   |
+| `analysis_json_warning.json`       | Warning   | `analysis_warning`          | `internal_consistency` mode only   |
+| `analysis_json_exact_critical.json`| Critical  | `analysis_internal_consistency` / `analysis_regression` | Cloned per mode |
+| `cross_consistency_critical.json`  | Critical  | `cross_consistency`         | `internal_consistency` mode only   |
 
-### Read the Docs
+**Checkpoints:**
+- `biorempp_validation/great_expectations/checkpoints/critical_gate.yml` — halts pipeline on failure when `fail_on_critical: true`
+- `biorempp_validation/great_expectations/checkpoints/warning_report.yml` — halts pipeline on failure when `fail_on_warning: true`
 
-- Config: `.readthedocs.yaml`
-- OS: ubuntu-22.04, Python 3.11
-- Builds from `mkdocs.yml`
-- Published URL: `https://biorempp-database.readthedocs.io`
-- Formats: HTML (primary), PDF, ePub
-- Dependencies: `requirements.txt` (docs-only)
+**Validation modes (configured in `biorempp_validation/config/validation.yaml`):**
+- `internal_consistency` — checks that analysis JSON outputs are internally consistent with the database CSV
+- `regression_detection` — compares current outputs against a frozen baseline at `biorempp_validation/baselines/release_v1_1_0_kegg_118_0plus/`
 
-### External JavaScript (CDN, documentation only)
+**Config-driven thresholds** (applied dynamically at runtime, overriding suite JSON defaults):
+- `row_count`: 118,000–130,000
+- `unique_compounds`: 360–410
+- `unique_ko`: 1,440–1,650
+- `unique_genesymbol`: 1,410–1,625
+- `unique_genename`: 1,320–1,525
+- `unique_enzyme_activity`: 185–230
 
-- `https://polyfill.io/v3/polyfill.min.js?features=es6` — ES6 polyfills for MathJax
-- `https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js` — LaTeX math rendering in docs
-
----
-
-## Data Storage
-
-**Databases:** None. No SQL or NoSQL database is used. All persistent state is flat files.
-
-**File storage:** Local filesystem only. No S3, GCS, or Azure Blob integration.
-
-**Caching:** KEGG API responses are cached to `biorempp_snakemake_version/work/kegg_link_cache/*.tsv` by a dedicated Snakemake rule (`fetch_kegg_link_cache`). Snakemake's own `.snakemake/` metadata directory tracks rule completion and file timestamps.
+**Outputs (written to `biorempp_validation/results/`):**
+- `critical_checkpoint_result.json`
+- `warning_checkpoint_result.json`
+- `validation_summary.json`
+- `data_docs/index.html` (summary HTML page, when `generate_summary_page: true`)
 
 ---
 
-## Authentication & Secrets
+## Container Infrastructure
 
-No authentication is required for any integration:
-- KEGG REST API: public, unauthenticated
-- GitHub Actions: uses default `GITHUB_TOKEN` (no custom secrets observed)
-- Read the Docs: configured via `.readthedocs.yaml` in-repo
+### Docker Hub — rocker/tidyverse
 
-No `.env` file, secrets directory, or credential files were observed (existence checked, contents not read).
+**Image:** `rocker/tidyverse:4.4`
+**Digest:** `sha256:7b6ad006caffcbae246f8f3e761a2ec268b2101a25d54266a27c1bce6ced0689`
+**Dockerfile:** `biorempp_snakemake_version/env/Dockerfile`
+**Purpose:** R 4.4 runtime with tidyverse pre-installed; Python 3 added on top for Snakemake.
+
+### Docker Hub — python:3.11-slim-bookworm
+
+**Image:** `python:3.11-slim-bookworm`
+**Digest:** `sha256:8dca233de9f3d9bb410665f00a4da6dd06f331083137e0e98ccf227236fcc438`
+**Dockerfile:** `biorempp_validation/env/Dockerfile`
+**Purpose:** Minimal Python runtime for the Great Expectations validation package.
 
 ---
 
-## Confidence
+## Documentation Hosting — Read the Docs
 
-- HIGH: KEGG API base URL, all endpoint paths, and both HTTP client implementations observed directly in `config/config.yaml`, `02_fetch_kegg_info.R`, `03_fetch_kegg_data.R`, `kegg_api_client.py`, `io_contracts.R`
-- HIGH: All input file names and formats confirmed from `io_contracts.R` (`REQUIRED_INPUT_FILES`), `01_load_local_data.R`, and directory listing of `input_data/`
-- HIGH: All CLI subprocess invocations confirmed from `.smk` rule `shell:` blocks
-- HIGH: CI/CD integrations confirmed from `.github/workflows/docs-ci.yml` and `.readthedocs.yaml`
-- HIGH: Output file schema confirmed from `validation.yaml` `database_contract.expected_columns`
+**Platform:** Read the Docs
+**Config:** `.readthedocs.yaml`
+**Site URL:** `https://biorempp-database.readthedocs.io`
+**Build OS:** ubuntu-22.04, Python 3.11
+**Formats built:** HTML, PDF, ePub
+**Python deps:** `requirements.txt` (MkDocs + Material theme)
+**No authentication required** — public documentation site.
+
+---
+
+## CI/CD — GitHub Actions
+
+**Workflow:** `.github/workflows/docs-ci.yml`
+**Trigger:** Push/PR to `main`/`dev` touching `docs/**`, `mkdocs.yml`, or `scripts/build-docs.sh`
+**Actions used:**
+- `actions/checkout@v4`
+- `actions/setup-python@v5` (Python 3.11 with pip cache)
+- `actions/upload-artifact@v4`
+
+**No pipeline CI detected** — Snakemake pipeline is executed manually via Docker Compose; there is no automated CI workflow for running the database generation or validation pipeline.
+
+---
+
+## Local Input Data
+
+**Source:** Manual curation + environmental agency data (not fetched from an API).
+
+**Required input files** (must be placed in `../input_data/` relative to `biorempp_snakemake_version/`):
+
+| File                                  | Format  | Purpose                                |
+|---------------------------------------|---------|----------------------------------------|
+| `kegglistcompounds.xlsx`              | Excel   | KEGG compound list baseline            |
+| `compostos_todasagencias.xlsx`        | Excel   | Compounds from all environmental agencies |
+| `missing_compounds_founds_curated.xlsx` | Excel | Manually curated missing compounds    |
+| `confirm_class_CURATED.xlsx`          | Excel   | Curated compound class assignments     |
+| `kegglistko.txt`                      | Text    | KEGG KO list                           |
+| `enzymes_unique.txt`                  | Text    | Unique enzyme activity annotations     |
+
+These files are loaded in Snakemake rule `load_local_data` via `biorempp_snakemake_version/workflow/scripts/generation/01_load_local_data.R`.
+
+---
+
+## Monitoring & Observability
+
+**Error Tracking:** None (no Sentry, Datadog, or equivalent).
+**Logging:** Structured log messages via `log_message()` in `biorempp_snakemake_version/workflow/lib/utils.R` and `print()` statements in Python scripts. All rule output redirected to per-rule `.log` files under `biorempp_snakemake_version/logs/` via Snakemake `log:` directives.
+**Metrics:** No runtime metrics collection.
+
+---
+
+## Webhooks & Callbacks
+
+**Incoming:** None.
+**Outgoing:** None.
+
+---
+
+*Integration audit: 2026-05-31*

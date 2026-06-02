@@ -1,304 +1,278 @@
-# CONVENTIONS — BioRemPP DB 1.0.0
+# Coding Conventions
 
-> Last mapped: 2026-05-31
+_Last updated: 2026-05-31_
 
 ## Summary
 
-BioRemPP is a bilingual pipeline (Python + R) orchestrated by Snakemake. Python code lives in `biorempp_validation/` (a standalone installable package) and in `biorempp_snakemake_version/workflow/scripts/` (stand-alone CLI scripts). R code lives in `biorempp_snakemake_version/workflow/scripts/` and shared library files in `biorempp_snakemake_version/workflow/lib/`. Conventions are consistent within each language but there is no cross-language style enforcer (no `ruff`, `black`, `.eslintrc`, or `lintr` config found). The dominant style is explicit, verbose, and defensive — functions fail loudly rather than silently, all I/O goes through centralized helpers, and every script is independently runnable as a CLI tool.
+BioRemPP DB is a multi-language pipeline (R + Python + Snakemake) that enforces consistent conventions across all layers. R scripts follow a strict `source → load → parse → execute → log` structure. Python code uses frozen dataclasses and YAML-driven settings. Git history uses the Conventional Commits specification with a two-letter severity/scope code suffix.
 
 ---
 
-## Naming Conventions
+## R Style
 
-### Python (`biorempp_validation/` and `workflow/scripts/`)
+### File Header Pattern
 
-| Element | Pattern | Example |
-|---|---|---|
-| Files | `snake_case.py` with numeric prefix where order matters | `01_validate_keys_consistency_api.py`, `common_normalization.py` |
-| Functions — public | `snake_case` verbs | `build_cross_consistency_df`, `load_analysis_payloads`, `parse_args` |
-| Functions — private | Leading underscore `_snake_case` | `_extract_failed_expectations`, `_write_json`, `_load_suite_payload` |
-| Classes | `PascalCase` | `ValidationSettings` |
-| Constants | `UPPER_SNAKE_CASE` at module scope | `NA_MARKERS`, `PATTERNS`, `RETRY_MAX`, `BACKOFF_BASE` |
-| Variables | `snake_case` | `analysis_payloads`, `suite_results`, `checkpoint_success` |
-| Type aliases | `dict[str, Any]`, `list[str]` (no `TypeAlias`) | — |
+Every R script begins with a shebang and immediately sources the shared library:
 
-### R (`workflow/scripts/` and `workflow/lib/`)
-
-| Element | Pattern | Example |
-|---|---|---|
-| Files | `NN_descriptive_name.R` (two-digit prefix) | `01_load_local_data.R`, `07_metadata.R` |
-| Functions | `snake_case` | `load_required_packages`, `parse_cli_args`, `build_link_match` |
-| Variables | `snake_case` | `local_data`, `enzyme_frequency`, `top_enzymes` |
-| Constants | `UPPER_SNAKE_CASE` | `REQUIRED_INPUT_FILES`, `EXPECTED_DATABASE_COLUMNS`, `KEGG_ENDPOINTS` |
-| Nested lists | `snake_case` keys matching JSON output keys | `database_info`, `data_sources`, `pair_support` |
-
-### Snakemake rules (`workflow/rules/`)
-
-| Element | Pattern | Example |
-|---|---|---|
-| Rule files | `NN_phase_name.smk` | `10_generation.smk`, `30_validation.smk` |
-| Rule names | `snake_case` verbs | `fetch_kegg_info`, `validate_keys_consistency`, `build_run_report` |
-| Path constants | `UPPER_SNAKE_CASE` | `RESULTS_DIR`, `WORK_DIR`, `KEGG_LINK_CACHE` |
-
----
-
-## File Shebang and Header Convention
-
-All Python scripts that are invoked directly carry a shebang:
-```python
-#!/usr/bin/env python3
-```
-
-All R scripts carry:
 ```r
 #!/usr/bin/env Rscript
+
+source("workflow/lib/utils.R")
+source("workflow/lib/io_contracts.R")   # only when database column contracts are needed
 ```
 
-Python package modules in `biorempp_validation/src/` always open with:
-```python
-from __future__ import annotations
+Paths are always relative to the Snakemake working directory (`biorempp_snakemake_version/`), never absolute.
+
+### Package Loading
+
+All packages are loaded via `load_required_packages()` from `workflow/lib/utils.R`. Never call `library()` or `require()` directly in a script.
+
+```r
+load_required_packages(c("dplyr", "stringr", "jsonlite"))
 ```
 
----
+`load_required_packages()` suppresses startup messages and stops with an install hint if any package is missing. Defined in `biorempp_snakemake_version/workflow/lib/utils.R` (lines 3–27).
 
-## Type Annotations (Python)
+### CLI Argument Pattern
 
-All public and private functions in `biorempp_validation/src/` carry full return-type annotations. Parameter types are annotated consistently:
+All scripts receive inputs exclusively as `--key value` CLI pairs. The pattern is:
 
-```python
-def build_cross_consistency_df(database_df: pd.DataFrame, basic_stats: dict) -> pd.DataFrame:
-def load_settings(config_path: str | Path) -> ValidationSettings:
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-def _write_json(path: Path, payload: dict[str, Any]) -> None:
-```
-
-Standalone validation scripts in `workflow/scripts/` use lighter typing — return types are annotated on key functions like `sha256sum(path: Path) -> str` but not universally applied.
-
----
-
-## Script Organization Pattern
-
-### Python scripts (`workflow/scripts/`)
-
-Each script follows this layout:
-1. Module-level imports (stdlib, then third-party)
-2. Module-level constants (e.g. `NA_MARKERS`, `PATTERNS`)
-3. Pure helper functions
-4. One `main()` function that builds the `argparse` parser, loads data, runs logic, writes output
-5. `if __name__ == "__main__": main()`
-
-```python
-def build_parser():
-    parser = argparse.ArgumentParser(...)
-    parser.add_argument("--database-csv", required=True)
-    ...
-    return parser
-
-def main():
-    args = build_parser().parse_args()
-    ...
-    output_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
-
-if __name__ == "__main__":
-    main()
-```
-
-### Python package modules (`biorempp_validation/src/`)
-
-Each module owns one concern:
-- `settings.py` — `dataclass`-based config loading only
-- `loaders.py` — all file I/O (JSON, CSV)
-- `json_to_dataframe.py` — transforms raw JSON payloads into DataFrames for GX
-- `consistency_checks.py` — cross-source consistency metrics
-- `gx_context.py` — Great Expectations wiring
-- `report_builder.py` — summary dict construction
-- `run_validation.py` — orchestration entry point
-
-### R scripts (`workflow/scripts/`)
-
-Each script follows:
-1. `source("workflow/lib/utils.R")` and optionally `source("workflow/lib/io_contracts.R")`
-2. `load_required_packages(c(...))`
-3. `parse_cli_args()` + `require_cli_args(args, c(...))`
-4. Local function definitions (no global side-effects before args are parsed)
-5. Data loading, transformation, output
-6. `log_message(...)` call at end with level `"SUCCESS"`
-
----
-
-## CLI Argument Convention
-
-### R scripts
-
-Arguments are always `--kebab-case`:
 ```r
 args <- parse_cli_args()
-require_cli_args(args, c("input-csv", "csv-sep", "output", "top-n"))
-input_csv <- args[["input-csv"]]
+require_cli_args(args, c("input-csv", "output"))
+
+input_file <- args[["input-csv"]]
+output_file <- args[["output"]]
 ```
 
-### Python scripts
+- `parse_cli_args()` — parses `commandArgs(trailingOnly = TRUE)` into a named list (`workflow/lib/utils.R` lines 29–49).
+- `require_cli_args()` — stops with a clear error if any required key is absent (lines 51–56).
+- Argument keys use `kebab-case` (e.g., `--input-csv`, `--csv-sep`, `--base-url`).
 
-Arguments are always `--kebab-case`, declared with `argparse`, and always marked `required=True` unless optional with an explicit default:
-```python
-parser.add_argument("--database-csv", required=True)
-parser.add_argument("--max-invalid-line-ratio", type=float, default=0.01)
-```
+### Naming Conventions
 
----
+| Element | Convention | Example |
+|---|---|---|
+| Functions | `snake_case` verbs | `normalize_cpd()`, `build_key_universe()` |
+| Variables | `snake_case` nouns | `agency_norm`, `merged_compounds` |
+| Constants (module-level) | `UPPER_SNAKE_CASE` | `UNSUPPORTED_KEY_WARN_THRESHOLD`, `NA_MARKERS` |
+| Column names in data frames | `snake_case` (except legacy KEGG fields) | `reaction_description`, `referenceAG` (legacy exception) |
 
-## Data Handling Patterns
+### Function Structure
 
-### R — dplyr/tidyverse style
+Functions are small, single-purpose, and named with a verb prefix:
 
-All tabular transformations use `dplyr` pipelines with explicit namespace qualification:
+- `normalize_*` — strip prefixes, extract canonical IDs (e.g., `normalize_cpd`, `normalize_ko`)
+- `build_*` — construct a data structure from inputs (e.g., `build_key_universe`, `build_ko_complete`)
+- `extract_*` — pull a subset from a larger object (e.g., `extract_kegg_links`)
+- `compute_*` — derive numeric summaries (e.g., `compute_completeness`)
+- `add_*` — join/enrich an existing frame (e.g., `add_compound_names`)
+
+Functions defined inside a script are placed before the top-level execution block. The execution block follows all function definitions at the bottom of the file.
+
+### Logging Pattern
+
 ```r
-enzyme_frequency <- db %>%
-  dplyr::group_by(enzyme_activity) %>%
-  dplyr::summarise(
-    frequency = dplyr::n(),
-    unique_compounds = dplyr::n_distinct(cpd),
-    .groups = "drop"
-  ) %>%
-  dplyr::arrange(dplyr::desc(frequency))
+log_message("Saved merged data to path/to/file.rds", "SUCCESS")
+log_message("Unsupported key rate 6.2% exceeds 5.0% threshold", "WARNING")
+log_message(sprintf("Universe keys: %d | Dense rows: %d", n_total, n_dense), "INFO")
 ```
 
-Selection of final column order always uses `dplyr::select(dplyr::all_of(EXPECTED_DATABASE_COLUMNS))` to enforce the contract.
+`log_message(msg, level)` is defined in `workflow/lib/utils.R` (line 58). It writes to `stderr` with format `YYYY-MM-DD HH:MM:SS [LEVEL] message`. Levels used: `INFO`, `WARNING`, `SUCCESS`. Never use bare `message()` or `cat()` in scripts.
 
-### Python — pandas style
+### I/O Helpers
 
-DataFrames are constructed from scratch via `pd.DataFrame([row])` where `row` is a dict, rather than incremental mutations:
-```python
-row = {
-    "metric": ...,
-    "csv_value": ...,
-    "stats_value": ...,
-}
-return pd.DataFrame(metrics, columns=["metric", "csv_value", "stats_value"])
-```
+Always use these wrappers from `workflow/lib/utils.R` — never call base R I/O directly:
 
-Aggregations use `groupby(...).agg(...)` with named aggregation syntax:
-```python
-ko_df = (
-    database_df.groupby("ko")
-    .agg(frequency=("ko", "size"), unique_compounds_per_ko=("cpd", "nunique"))
-    .reset_index()
-    .sort_values(["frequency", "ko"], ascending=[False, True])
-    .head(top_n)
-)
-```
+| Helper | Purpose |
+|---|---|
+| `read_database_csv(path, sep)` | Read CSV with consistent `stringsAsFactors=FALSE`, `check.names=FALSE` |
+| `write_database_csv(df, path, sep, quote)` | Write CSV with UTF-8 encoding, `row.names=FALSE` |
+| `read_json_file(path)` | Reads JSON; stops if file not found |
+| `write_json_file(object, path)` | Writes pretty JSON with `auto_unbox=TRUE` |
+| `ensure_parent_dir(path)` | Creates parent directory if missing before writes |
 
-Deterministic sort order is enforced with secondary sort columns (e.g. `["frequency", "ko"]`, ascending `[False, True]`) to prevent tie-order drift.
+RDS files are used for intermediate work-dir objects (`saveRDS` / `readRDS`). CSV and JSON are used for final outputs.
 
-### NA handling
+### NA Handling
 
-A shared NA-marker registry is maintained in `biorempp_snakemake_version/workflow/lib/na_markers.txt` and loaded by both R (`utils.R: load_na_markers()`) and Python (`common_normalization.py: load_na_markers()`). This is the single source of truth for what constitutes a missing value (`""`, `"NA"`, `"NAN"`, `"<NA>"`, `"NONE"`, `"NULL"`, `"N/A"` and any custom additions).
+Use `is_na_like()` and `normalize_na_text()` from `workflow/lib/utils.R` instead of `is.na()` for data frames that may contain string NAs (`"NA"`, `"<NA>"`, `"NULL"`, `"NONE"`, `"N/A"`):
 
-R helpers: `is_na_like()`, `is_present_value()`, `normalize_na_text()` — all in `workflow/lib/utils.R`.
-Python helpers: `is_na_like()` — in `workflow/scripts/validation/common_normalization.py`.
-
----
-
-## I/O Contracts
-
-All file read/write operations go through centralized helpers. Direct `readLines`, `write.csv`, `open()`, `json.dump` are only used inside these helpers, not scattered in scripts.
-
-### R helpers (`workflow/lib/utils.R`)
-- `read_database_csv(path, sep)` — standardized CSV reader with `check.names=FALSE`
-- `write_database_csv(dataframe, path, sep, quote)` — standardized writer with `na="NA"`, UTF-8
-- `read_json_file(path)` — with existence check; raises on missing
-- `write_json_file(object, path)` — with `ensure_parent_dir()`; always `pretty=TRUE, auto_unbox=TRUE`
-- `ensure_parent_dir(path)` — creates parent directory if needed
-
-### Python helpers (`biorempp_validation/src/biorempp_validation/loaders.py`)
-- `load_json(path: Path)` — opens with `encoding="utf-8"`
-- `load_database_csv(path: Path, sep: str)` — `pd.read_csv`
-- `resolve_required_paths(...)` / `find_missing_paths(...)` — file presence check before loading
-
-All JSON output is written with `indent=2` and `encoding="utf-8"`.
-
----
-
-## Error Handling Patterns
-
-### R
-
-Errors always use `stop(..., call. = FALSE)` to suppress stack trace noise in CLI output:
 ```r
-if (length(missing_files) > 0) {
-  stop("Missing required input files: ", paste(missing_files, collapse = ", "), call. = FALSE)
-}
+dplyr::filter(!is.na(cpd), !is.na(ko))          # OK for columns already normalized
+text[is_na_like(values)] <- NA_character_        # use normalize_na_text() for raw input
 ```
 
-Missing files raise immediately — no silent fallback.
+`NA_MARKERS` is the global character vector loaded at `utils.R` line 97.
 
-### Python (workflow scripts)
+### dplyr Pipeline Style
 
-Errors use `raise RuntimeError(...)` with descriptive messages:
-```python
-if stats["parsed_pairs"] == 0:
-    raise RuntimeError(f"No valid pairs parsed for relation {left_type}->{right_type}")
-raise RuntimeError(f"Failed to fetch endpoint after {max_retries} attempts: {url} | {last_error}")
-```
+All data manipulation uses `%>%` pipelines with explicit `dplyr::` namespace prefixes. Never use `attach()` or base R indexing for data frames inside pipelines. Always end grouped operations with `.groups = "drop"`.
 
-File existence is checked before opening:
-```python
-for file_path in files.values():
-    if not file_path.exists():
-        raise FileNotFoundError(f"Required file does not exist: {file_path}")
-```
-
-### Python (validation package)
-
-The validation package uses exit codes (`return 1` / `return 0`) rather than exceptions to signal pass/fail to the CI layer. Exceptions surface real bugs; expected validation failures are captured in the summary JSON.
-
----
-
-## Logging / Output Conventions
-
-### R
-
-All progress messages go to `stderr` via the shared helper:
 ```r
-log_message(sprintf("Saved basic statistics", ...), "SUCCESS")
-# Output: 2026-05-31 12:34:56 [SUCCESS] Saved basic statistics
+agency_norm %>%
+  dplyr::inner_join(links$cpd_ec, by = "cpd", relationship = "many-to-many") %>%
+  dplyr::transmute(cpd, ko, referenceAG) %>%
+  dplyr::distinct()
 ```
 
-Levels used: `"INFO"` (default), `"SUCCESS"`, `"WARN"` (ad hoc in Python side).
+---
 
-### Python (workflow scripts)
+## Shared Library Files
 
-Progress and warnings use `print(f"[WARN] ...")` or `print(f"[WARNING] ...")` to stdout. No `logging` module is used in standalone scripts.
+### `workflow/lib/utils.R`
 
-### Python (validation package)
+Central utility library sourced by every R script. Provides:
+- `load_required_packages()` — package loader
+- `parse_cli_args()` / `require_cli_args()` — CLI parsing
+- `log_message()` — structured logging
+- `ensure_parent_dir()` — safe directory creation
+- `write_json_file()` / `read_json_file()` — JSON I/O wrappers
+- `read_database_csv()` / `write_database_csv()` — CSV I/O wrappers
+- `is_na_like()` / `is_present_value()` / `normalize_na_text()` — NA helpers
+- `NA_MARKERS` — global NA sentinel vector
 
-No explicit logging. Validation results are captured entirely in structured JSON (`validation_summary.json`, `critical_checkpoint_result.json`, `warning_checkpoint_result.json`).
+### `workflow/lib/io_contracts.R`
+
+Data contract constants. Sourced only by scripts that need to enforce schema or validate inputs against known keys.
+
+- `REQUIRED_INPUT_FILES` — list of mandatory input Excel/text files
+- `EXPECTED_DATABASE_COLUMNS` — ordered column list for the final database CSV
+- `KEGG_ENDPOINTS` — canonical endpoint definitions (name, endpoint path, column names, separator)
+- `KEGG_VALUE_PATTERNS` — regex patterns for `ko`, `ec`, `reaction`, `cpd` validation
 
 ---
 
-## Snakemake Rule Conventions
+## Python Style
 
-- All shell commands redirect stdout and stderr to a dedicated log file: `> {log} 2>&1`
-- Rule parameters use `config["section"]["key"]` directly, never inlined strings
-- Intermediate outputs go to `WORK_DIR`; final outputs go to `RESULTS_DIR`
-- Rule names match the script they invoke (`fetch_kegg_info` → `02_fetch_kegg_info.R`)
+### Module Structure
+
+Python code lives exclusively in `biorempp_validation/src/biorempp_validation/`. Each module has a single responsibility:
+
+| Module | Responsibility |
+|---|---|
+| `settings.py` | Load and validate `validation.yaml` into a frozen `ValidationSettings` dataclass |
+| `run_validation.py` | Orchestrate the full validation run |
+| `gx_context.py` | Create GE context, datasource, and run suites |
+| `loaders.py` | Load CSV, JSON, and analysis payloads from disk |
+| `json_to_dataframe.py` | Build pandas DataFrames from analysis JSON artifacts |
+| `consistency_checks.py` | Compute cross-consistency DataFrame |
+| `report_builder.py` | Build `validation_summary.json` from checkpoint results |
+
+### Naming Conventions
+
+| Element | Convention | Example |
+|---|---|---|
+| Functions (public) | `snake_case` verbs | `load_settings()`, `build_validation_summary()` |
+| Functions (private/internal) | `_snake_case` with leading underscore | `_apply_config_overrides_to_suite_payloads()`, `_build_checkpoint_validations()` |
+| Classes / dataclasses | `PascalCase` | `ValidationSettings`, `ValidationModes` |
+| Constants (module-level) | `UPPER_SNAKE_CASE` | `DEFAULT_REGRESSION_BASELINE_ROOT`, `_ALWAYS_REQUIRED_NON_CSV` |
+| Variables | `snake_case` | `suite_payloads`, `dataframe_by_dataset` |
+
+### Import Style
+
+All modules use `from __future__ import annotations` as the first line. Standard library imports come before third-party imports. Type annotations use `list[str]`, `dict[str, Any]`, `Path` (from `pathlib`) — never `List`, `Dict`, `Optional` from `typing` for simple cases.
+
+### Settings Pattern
+
+`ValidationSettings` is a frozen dataclass. It is constructed once by `load_settings(config_path)` from `settings.py` and passed through the call stack. Never read `validation.yaml` directly outside `settings.py`.
+
+```python
+settings = load_settings("biorempp_validation/config/validation.yaml")
+# settings.fail_on_critical, settings.drift_thresholds, etc.
+```
 
 ---
 
-## Configuration
+## Snakemake Rule Naming
 
-The pipeline has two configuration systems:
-1. `biorempp_snakemake_version/config/config.yaml` — Snakemake workflow config (paths, KEGG URLs, CSV options, version)
-2. `biorempp_validation/config/validation.yaml` — GX validation config (expected schema, drift thresholds, policy flags)
+Rules are defined in numbered `.smk` files under `workflow/rules/`:
 
-The database column contract is declared in `biorempp_snakemake_version/workflow/lib/io_contracts.R` (`EXPECTED_DATABASE_COLUMNS`) and mirrored in `biorempp_validation/config/validation.yaml` (`database_contract.expected_columns`). These two must be kept in sync manually — there is no automated cross-check.
+| File | Prefix | Rules |
+|---|---|---|
+| `00_preflight.smk` | `preflight_` | `preflight_check_inputs` |
+| `10_generation.smk` | none / descriptive | `fetch_kegg_info`, `load_local_data`, `fetch_kegg_data`, `merge_relationships` |
+| `20_analysis.smk` | none / descriptive | `basic_statistics`, `compound_statistics`, `ko_statistics`, `enzyme_statistics`, `gene_statistics`, `crosstab_statistics`, `database_metadata` |
+| `30_validation.smk` | `validate_` / `fetch_` | `fetch_kegg_link_cache`, `validate_keys_consistency`, `validate_links_groundtruth_policy` |
+| `90_reporting.smk` | `build_` | `build_run_report` |
+
+Rule names use `snake_case` and match their primary output artifact name. The shell command in every rule redirects both stdout and stderr to the Snakemake log: `> {log} 2>&1`.
 
 ---
 
-## Confidence
+## Configuration Pattern
 
-- HIGH: naming conventions, script structure patterns, I/O helpers, CLI arg style — directly observed in all scripts
-- HIGH: NA handling registry — confirmed shared across R and Python
-- HIGH: type annotations in validation package — directly observed
-- MEDIUM: no linter/formatter config found — inferred from absence of `.ruff.toml`, `pyproject.toml` tool sections, `.lintr`
-- MEDIUM: dplyr namespace qualification as convention — consistently observed but not enforced
+Three configuration files govern the pipeline. They are layered: Snakemake config drives pipeline execution, validation config drives the GE layer.
+
+### `biorempp_snakemake_version/config/config.yaml`
+
+Covers pipeline version, directory paths, output filenames, KEGG API endpoints, analysis `top_n` parameters, and the `validation.max_invalid_line_ratio` threshold. Consumed by Snakemake rules via `config["kegg"]["base_url"]`, etc.
+
+### `biorempp_validation/config/validation.yaml`
+
+Consumed exclusively by `load_settings()` in `settings.py`. Covers:
+- `policy` — `fail_on_critical`, `fail_on_warning`, `generate_summary_page`
+- `validation_modes` — `internal_consistency`, `regression_detection`
+- `paths` — all input/output paths relative to `biorempp_validation/`
+- `database_contract` — `expected_columns`, `expected_reference_agencies`, `expected_compound_classes`, `nullable_columns`
+- `drift_thresholds` — `{min, max}` bands for row count and unique-value counts per column
+
+The validation YAML is the single source of truth for the data contract. Never hard-code column lists or agency sets inside Python modules.
+
+---
+
+## Git Commit Style
+
+Commits follow the Conventional Commits specification with an additional severity/priority code:
+
+```
+<type>(<scope>): <severity-code> -- <description>
+```
+
+**Types in use:**
+
+| Type | When |
+|---|---|
+| `fix` | Bug fix or correction |
+| `feat` | New feature |
+| `chore` | Non-functional maintenance (regenerating outputs, dependency bumps) |
+| `docs` | Documentation changes only |
+| `refactor` | Structural improvement without behavior change |
+
+**Scopes in use:** `generation`, `analysis`, `validation`, `env`, `results`, `planning`
+
+**Severity codes (two-letter prefix after scope):**
+- `L2`, `L5` — low severity
+- `M5`, `M6`, `M7` — medium severity
+- `H1`, `H2` — high severity
+
+**Examples from the repo:**
+
+```
+fix(generation): L2 -- add support_stage provenance column to exported database
+fix(env): L5 -- pin httr 1.4.7 in r-packages.txt and Dockerfile
+chore(results): L2 -- regenerate outputs after support_stage schema addition
+fix(validation): M7 -- move KEGG link cache from work/ to cache/
+docs(planning): mark C1, C2, H1, H2 as [FIXED] in CONCERNS.md
+feat(validation): cover three first-class pipeline outputs in GE critical gate
+```
+
+When regenerating pipeline outputs without code changes, use `chore(results):`.
+
+---
+
+## Script Numbering Convention
+
+R scripts in `workflow/scripts/generation/` and `workflow/scripts/analysis/` are prefixed with two-digit numbers reflecting pipeline execution order:
+
+- `00_check_inputs.R` → preflight
+- `01_load_local_data.R` → load Excel inputs
+- `02_fetch_kegg_info.R` → KEGG metadata
+- `03_fetch_kegg_data.R` → KEGG API bulk fetch
+- `04_merge_relationships.R` → core merge logic
+- `05_add_classifications.R` → compound class enrichment
+- `06_enrich_gene_info.R` → gene info enrichment
+- `07_extract_enzymes_export.R` → final export to CSV/XLSX
+- `01_basic_statistics.R` through `09_merge_complete_analysis.R` → analysis layer
+
+Do not renumber existing scripts. New scripts in an existing stage insert at the next available number.

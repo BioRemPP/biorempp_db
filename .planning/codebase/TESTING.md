@@ -1,257 +1,330 @@
-# TESTING — BioRemPP DB 1.0.0
+# Testing & Validation Infrastructure
 
-> Last mapped: 2026-05-31
+_Last updated: 2026-05-31_
 
 ## Summary
 
-Testing in BioRemPP is layered across three distinct systems. The primary automated test suite lives in `biorempp_validation/tests/` and uses pytest against the `biorempp-validation` Python package. Structural and data-quality validation runs as a Great Expectations (GX) checkpoint suite invoked by the `biorempp-validate` CLI and by Snakemake rule `validate_keys_consistency`. The Snakemake pipeline itself embeds two additional validation scripts (`01_validate_keys_consistency_api.py`, `02_validate_links_groundtruth_policy_api.py`) that validate biological key consistency against a cached KEGG API. There is no CI pipeline for the Snakemake pipeline itself — the only CI workflow (`.github/workflows/docs-ci.yml`) tests documentation builds, not pipeline outputs.
+BioRemPP DB has no traditional unit test suite. Quality assurance is entirely handled by a Great Expectations (GE) validation layer in the `biorempp_validation/` package. Validation is split into two independent modes — internal consistency (current run vs. its own analysis JSONs) and regression detection (current run vs. a frozen baseline snapshot). Both modes must pass before a release is published.
 
 ---
 
-## Test Framework
+## Architecture Overview
 
-**Runner:** pytest  
-**Version:** `>=8.0,<9.0` (declared in `biorempp_validation/pyproject.toml`)  
-**Config:** `biorempp_validation/pyproject.toml`
-
-```toml
-[tool.pytest.ini_options]
-testpaths = ["tests"]
+```
+biorempp_validation/
+├── config/
+│   └── validation.yaml              ← single source of truth for all thresholds and contracts
+├── great_expectations/
+│   ├── checkpoints/
+│   │   ├── critical_gate.yml        ← blocks release on failure
+│   │   └── warning_report.yml       ← reports drift, configurable to block
+│   └── expectations/
+│       ├── database_critical.json
+│       ├── database_warning.json
+│       ├── analysis_json_critical.json
+│       ├── analysis_json_exact_critical.json
+│       ├── analysis_json_warning.json
+│       ├── cross_consistency_critical.json
+│       ├── metadata_kegg_critical.json
+│       └── pipeline_reports_critical.json
+├── baselines/
+│   └── release_v1_1_0_kegg_118_0plus/
+│       ├── analysis/                ← frozen analysis JSON snapshots
+│       └── metadata/                ← frozen KEGG release JSON
+├── results/
+│   ├── validation_summary.json      ← human/machine-readable pass/fail summary
+│   ├── critical_checkpoint_result.json
+│   └── warning_checkpoint_result.json
+└── src/biorempp_validation/
+    ├── run_validation.py            ← main entry point
+    ├── settings.py                  ← YAML → frozen dataclass
+    ├── gx_context.py                ← GE context and suite runner
+    ├── loaders.py                   ← file loading helpers
+    ├── json_to_dataframe.py         ← build pandas DataFrames from JSON artifacts
+    ├── consistency_checks.py        ← cross-consistency DataFrame builder
+    └── report_builder.py            ← build validation_summary.json
 ```
 
-**Run commands:**
+---
+
+## Validation Modes
+
+Two modes are configured in `validation.yaml` under `validation_modes:` and are completely independent:
+
+### `internal_consistency: true`
+Validates the current pipeline run's CSV against the analysis JSON artifacts produced in that same run. Catches bugs where the CSV and the analysis JSONs disagree (e.g., different row counts, column count mismatches). Uses suites: `analysis_json_critical`, `analysis_json_warning`, `analysis_json_internal_consistency_critical`, `cross_consistency_critical`.
+
+### `regression_detection: true`
+Validates the current pipeline run's CSV against the frozen baseline snapshot in `baselines/release_v1_1_0_kegg_118_0plus/`. Catches unexpected changes in compound counts, KO distribution, enzyme totals, etc. relative to the reference release. Uses suite: `analysis_json_regression_critical` (a clone of `analysis_json_exact_critical`).
+
+Both modes are enabled by default in the shipped `validation.yaml`.
+
+---
+
+## Checkpoints
+
+### `critical_gate` (`great_expectations/checkpoints/critical_gate.yml`)
+
+Blocks release (`exit 1`) on any failure. Runs these suite/dataset pairs:
+
+| Suite | Dataset | Mode |
+|---|---|---|
+| `database_critical` | `database_csv` | always |
+| `analysis_json_critical` | `analysis_critical` | `internal_consistency` |
+| `analysis_json_internal_consistency_critical` | `analysis_internal_consistency` | `internal_consistency` |
+| `analysis_json_regression_critical` | `analysis_regression` | `regression_detection` |
+| `metadata_kegg_critical` | `metadata_kegg` | always |
+| `cross_consistency_critical` | `cross_consistency` | `internal_consistency` |
+| `pipeline_reports_critical` | `pipeline_reports` | always |
+
+### `warning_report` (`great_expectations/checkpoints/warning_report.yml`)
+
+Reports drift. Configured to also block (`fail_on_warning: true` in `validation.yaml`). Runs:
+
+| Suite | Dataset | Mode |
+|---|---|---|
+| `database_warning` | `database_csv` | always |
+| `analysis_json_warning` | `analysis_warning` | `internal_consistency` |
+
+---
+
+## Expectation Suites
+
+### `database_critical.json`
+
+Applies to the final database CSV (`biorempp_database_v1.1.0.csv`). Critical checks:
+- Columns match the exact ordered list from `validation.yaml → database_contract.expected_columns` (12 columns, patched at runtime).
+- Row count ≥ 1.
+- No duplicate full rows (`expect_compound_columns_to_be_unique`).
+- Non-null: `cpd`, `compoundclass`, `ko`, `referenceAG`, `compoundname`, `genesymbol`, `genename`, `enzyme_activity`.
+- `cpd` matches `^C\d{5}$`.
+- `ko` matches `^K\d{5}$`.
+
+### `database_warning.json`
+
+Drift bands applied to the CSV at warning level. All `min`/`max` values are patched at runtime from `validation.yaml → drift_thresholds`:
+
+| Check | Column | Band (from validation.yaml) |
+|---|---|---|
+| `referenceAG` distinct values in set | `referenceAG` | 9 agencies |
+| `compoundclass` distinct values in set | `compoundclass` | 12 classes |
+| Unique compound count | `cpd` | 360–410 |
+| Unique KO count | `ko` | 1440–1650 |
+| Unique gene symbol count | `genesymbol` | 1410–1625 |
+| Unique gene name count | `genename` | 1320–1525 |
+| Unique enzyme activity count | `enzyme_activity` | 185–230 |
+| Row count | (table) | 118000–130000 |
+
+### `analysis_json_critical.json`
+
+Validates a single-row DataFrame built from the analysis JSON artifacts. Checks:
+- Required keys present in all analysis JSON files (`basic_required_keys_present`, `compound_required_keys_present`, etc.).
+- `basic_total_entries` ≥ 1.
+- `basic_total_columns` == number of expected columns (patched at runtime from `settings.expected_columns`).
+- `basic_expected_columns_match` is `true`.
+- `basic_all_missing_values_zero` is `true` (no NA in non-nullable columns).
+- `reaction_description_consistent_with_reaction` is `true`.
+
+### `analysis_json_exact_critical.json`
+
+Shared template for both `internal_consistency` and `regression_detection` modes. It is loaded once and cloned into two named suite instances at runtime:
+- `analysis_json_internal_consistency_critical` — current run vs. current analysis JSONs
+- `analysis_json_regression_critical` — current run vs. baseline snapshot
+
+Checks exact match for: `basic_stats_exact_match`, `compound_total_exact_match`, `compound_class_distribution_exact_match`, `compound_agency_distribution_exact_match`, `compound_top20_exact_match`, `ko_total_exact_match`, `ko_top20_exact_match`, `enzyme_total_exact_match`, `enzyme_top30_exact_match`, `gene_totals_exact_match`, `gene_top20_exact_match`, `crosstab_exact_match`, `executive_summary_exact_match`, `metadata_kegg_exact_match`.
+
+### `analysis_json_warning.json`
+
+Warning-level checks on analysis JSON artifacts:
+- `compound_top_n` ≥ 1
+- `ko_top_n` ≥ 1
+- `enzyme_top_n` ≥ 1
+- `executive_text_fields_non_empty` is `true`
+- `crosstab_required_sections_present` is `true`
+- `reaction_description_fill_rate_percent` between 0 and 100
+
+### `cross_consistency_critical.json`
+
+Validates a 12-row DataFrame where each row is a named metric (`total_entries`, `unique_compounds`, `unique_ko_entries`, etc.). Checks:
+- Exactly 12 rows (one per metric).
+- `csv_value == stats_value` (the CSV-derived value matches the analysis JSON-derived value for every metric).
+- Both `csv_value` and `stats_value` ≥ 0.
+
+### `metadata_kegg_critical.json`
+
+Validates KEGG release metadata (`kegg_release.json`). Checks:
+- `release_text`, `parsed_version`, `retrieved_at_utc`, `source_url` are non-null.
+- `source_url` is exactly `https://rest.kegg.jp/info/kegg`.
+- `parsed_version` matches `^\d+\.\d+\+?$`.
+- `retrieved_at_utc` matches ISO 8601 format `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$`.
+- `raw_response_len` ≥ 1.
+
+### `pipeline_reports_critical.json`
+
+Validates pipeline consistency reports. Checks:
+- `keys_consistency_na_justified` is `true`.
+- `links_policy_union_rate_percent` == 100.0 (all rows have a policy-supported link).
+- `links_no_policy_support` == 0.
+- `workflow_artifact_hashes_present` is `true`.
+
+---
+
+## Runtime Override Pattern
+
+The JSON suite files on disk contain placeholder values. At runtime, `_apply_config_overrides_to_suite_payloads()` in `run_validation.py` (lines 57–114) patches the loaded suite payloads in memory before handing them to GE:
+
+- `database_critical`: replaces `column_list` in `expect_table_columns_to_match_ordered_list` and `expect_compound_columns_to_be_unique` with `settings.expected_columns`.
+- `analysis_json_critical`: replaces `min_value`/`max_value` for the `basic_total_columns` check with `len(settings.expected_columns)`.
+- `database_warning`: replaces `value_set` for `referenceAG` and `compoundclass`, and all `{min_value, max_value}` pairs for unique-count expectations, using `settings.drift_thresholds` and `settings.expected_reference_agencies` / `settings.expected_compound_classes`.
+
+This means the JSON files in `great_expectations/expectations/` are not authoritative at runtime — `validation.yaml` is. Do not edit the JSON files to change thresholds; edit `validation.yaml` instead.
+
+---
+
+## Baseline Regression Detection
+
+The baseline lives at `biorempp_validation/baselines/release_v1_1_0_kegg_118_0plus/`. Its structure mirrors the pipeline's `results/analysis/` and `results/metadata/` directories:
+
+```
+baselines/release_v1_1_0_kegg_118_0plus/
+├── analysis/
+│   ├── basic_statistics.json
+│   ├── complete_analysis.json
+│   ├── compound_statistics.json
+│   ├── crosstab_statistics.json
+│   ├── database_metadata.json
+│   ├── enzyme_statistics.json
+│   ├── executive_summary.json
+│   ├── gene_statistics.json
+│   └── ko_statistics.json
+└── metadata/
+    └── kegg_release.json
+```
+
+The `regression_detection` mode builds a `build_analysis_exact_df()` DataFrame by diffing the current run's analysis payloads against these frozen files. Any change in compound totals, KO distributions, enzyme lists, etc. triggers a critical failure. To update the baseline after an intentional database change, replace the files in this directory and commit.
+
+The `DEFAULT_REGRESSION_BASELINE_ROOT` constant in `settings.py` (line 10) points to this path as the default.
+
+---
+
+## `validation_summary.json`
+
+Written to `biorempp_validation/results/validation_summary.json` after every run. Structure:
+
+```json
+{
+  "run_timestamp_utc": "2026-06-01T01:43:02Z",
+  "critical_checkpoint_success": true,
+  "warning_checkpoint_success": true,
+  "counts": {
+    "critical_failed_expectations": 0,
+    "warning_failed_expectations": 0
+  },
+  "failed_expectations": [],
+  "recommendation": "All critical and warning expectations passed."
+}
+```
+
+`failed_expectations` is a list of objects, each with: `severity`, `validation_mode`, `suite`, `dataset`, `expectation_type`, `kwargs`. This is the primary artifact for CI consumption.
+
+`recommendation` is one of three strings:
+- `"All critical and warning expectations passed."`
+- `"No critical failures. Review warning-level drift and decide whether to recalibrate thresholds."`
+- `"Critical expectations failed. Block release and fix data contract violations before publishing."`
+
+---
+
+## How to Run Validation
+
+### Docker (canonical, reproducible)
+
+From the project root (`BioRemPP_DB_1.0.0/`):
+
 ```bash
-# From the repo root
-cd biorempp_validation
-pytest tests/ -q
-
-# Confirmed passing as of 2026-05-31 baseline audit: 5 passed
+docker build -f biorempp_validation/env/Dockerfile -t biorempp-validator .
+docker run --rm \
+  -v "$(pwd)":/workspace \
+  biorempp-validator \
+  biorempp-validate --config biorempp_validation/config/validation.yaml
 ```
 
-**Install:**
+The Docker image is based on `python:3.11-slim-bookworm`. The entry point is the `biorempp-validate` CLI installed from the `biorempp_validation` package.
+
+### Direct Python (development)
+
 ```bash
-pip install -e "biorempp_validation[dev]"
-```
-
----
-
-## Test File Organization
-
-All tests live in `biorempp_validation/tests/`. They are flat (no subdirectories). Each test file covers a single failure scenario or the happy path.
-
-```
-biorempp_validation/tests/
-├── conftest.py                  # Shared fixtures (project_root, sample_results_root, config_path)
-├── test_happy_path.py           # Full pipeline passes with real outputs
-├── test_missing_files.py        # Missing required file → exit 1, critical failure
-├── test_schema_break.py         # Dropped column → critical expectation failure
-├── test_kegg_metadata.py        # Missing key in kegg_release.json → critical failure
-└── test_warning_only_drift.py   # Warning threshold breach → exit 1 when fail_on_warning=True
-```
-
----
-
-## Test Fixtures (`conftest.py`)
-
-Location: `biorempp_validation/tests/conftest.py`
-
-Three fixtures, all function-scoped:
-
-**`project_root`** — returns the `biorempp_validation/` directory as a `Path`.
-
-**`sample_results_root`** — copies the real pipeline outputs from `biorempp_snakemake_version/results/` into `tmp_path` via `shutil.copytree`. This means tests run against the committed pipeline artifacts, not generated data. Tests that need to inject failures mutate this copy.
-
-**`config_path`** — reads `biorempp_validation/config/validation.yaml`, rewrites the `paths` section to point at `tmp_path` locations (both input and output), then writes the patched config to `tmp_path/validation.yaml`. This isolates test runs from the real output directory.
-
-```python
-@pytest.fixture()
-def sample_results_root(tmp_path: Path) -> Path:
-    source = REPO_ROOT / "biorempp_snakemake_version" / "results"
-    destination = tmp_path / "results"
-    shutil.copytree(source, destination)
-    return destination
-
-@pytest.fixture()
-def config_path(tmp_path: Path, project_root: Path, sample_results_root: Path) -> Path:
-    template = project_root / "config" / "validation.yaml"
-    cfg = yaml.safe_load(template.read_text(encoding="utf-8"))
-    cfg["paths"]["input_results_root"] = str(sample_results_root.resolve())
-    cfg["paths"]["output_dir"] = str((tmp_path / "validation_results").resolve())
-    ...
-    path = tmp_path / "validation.yaml"
-    path.write_text(yaml.safe_dump(cfg, sort_keys=False), encoding="utf-8")
-    return path
-```
-
----
-
-## Test Structure Pattern
-
-Each test function:
-1. Optionally mutates the `sample_results_root` copy to inject a fault
-2. Calls `main(["--config", str(config_path)])` — the real CLI entry point
-3. Asserts `exit_code == 0` (pass) or `exit_code == 1` (fail)
-4. Reads `validation_summary.json` from the output dir and asserts on its structure
-
-```python
-def test_schema_break_fails_critical(config_path, sample_results_root):
-    settings = load_settings(config_path)
-    csv_path = sample_results_root / "database" / "biorempp_database_v1.1.0.csv"
-    df = pd.read_csv(csv_path, sep=settings.csv_delimiter)
-    df = df.drop(columns=["ko"])
-    df.to_csv(csv_path, sep=settings.csv_delimiter, index=False)
-
-    exit_code = main(["--config", str(config_path)])
-    assert exit_code == 1
-
-    summary = json.loads((settings.output_dir / "validation_summary.json").read_text(encoding="utf-8"))
-    failed_types = {item["expectation_type"] for item in summary["failed_expectations"]}
-    assert "expect_table_columns_to_match_ordered_list" in failed_types
-```
-
-No `pytest.mark` decorators, no parametrize, no `pytest.raises`. All assertions use plain `assert`.
-
----
-
-## Great Expectations Validation Layer
-
-This is the core data-quality system, not pytest tests. It runs independently of pytest.
-
-**Invocation:**
-```bash
-biorempp-validate --config biorempp_validation/config/validation.yaml
-# or
+cd BioRemPP_DB_1.0.0
+pip install -e biorempp_validation/
 python -m biorempp_validation.run_validation --config biorempp_validation/config/validation.yaml
+# or
+biorempp-validate --config biorempp_validation/config/validation.yaml
 ```
 
-**Architecture:**
-- Entry point: `biorempp_validation/src/biorempp_validation/run_validation.py`
-- GX context mode: `ephemeral` (no file-system GX store)
-- Datasource: in-memory pandas
+### Snakemake Integration
 
-**Two checkpoints:**
+Validation is triggered automatically at the end of the Snakemake pipeline through rules in `biorempp_snakemake_version/workflow/rules/30_validation.smk`:
+- `fetch_kegg_link_cache` — downloads fresh KEGG link tables to `cache/kegg_link_cache/`
+- `validate_keys_consistency` — produces `results/metadata/keys_consistency_report.json`
+- `validate_links_groundtruth_policy` — produces `results/metadata/links_groundtruth_policy_report.json`
 
-| Checkpoint | File | Failure mode |
+---
+
+## Required Input Files for Validation
+
+`validation.yaml → required_files` lists 14 files that must exist under `biorempp_snakemake_version/results/` before validation can proceed:
+
+```
+database/biorempp_database_v1.1.0.csv
+analysis/basic_statistics.json
+analysis/compound_statistics.json
+analysis/ko_statistics.json
+analysis/enzyme_statistics.json
+analysis/gene_statistics.json
+analysis/crosstab_statistics.json
+analysis/database_metadata.json
+analysis/executive_summary.json
+analysis/complete_analysis.json
+metadata/kegg_release.json
+metadata/keys_consistency_report.json
+metadata/links_groundtruth_policy_report.json
+reports/workflow_summary.json
+```
+
+If any file is missing, `run_validation.py` writes a `preflight` failure directly to the output JSONs and exits with code 1 before attempting any GE suite.
+
+---
+
+## What Is Covered
+
+| Area | Covered | Mechanism |
 |---|---|---|
-| `critical_gate` | `biorempp_validation/great_expectations/checkpoints/critical_gate.yml` | Blocks release; `exit_code=1` |
-| `warning_report` | `biorempp_validation/great_expectations/checkpoints/warning_report.yml` | Warning only (configurable via `fail_on_warning`) |
-
-**Seven expectation suites:**
-
-| Suite file | Dataset | Tier |
-|---|---|---|
-| `database_critical.json` | `database_csv` | critical |
-| `database_warning.json` | `database_csv` | warning |
-| `analysis_json_critical.json` | `analysis_critical` DataFrame | critical |
-| `analysis_json_exact_critical.json` | `analysis_exact` DataFrame | critical |
-| `analysis_json_warning.json` | `analysis_warning` DataFrame | warning |
-| `metadata_kegg_critical.json` | `metadata_kegg` DataFrame | critical |
-| `cross_consistency_critical.json` | `cross_consistency` DataFrame | critical |
-
-All suites live in `biorempp_validation/great_expectations/expectations/`.
-
-**Config-driven overrides:** Suite payloads are mutated at runtime in `run_validation.py:_apply_config_overrides_to_suite_payloads()` to inject expected column lists, drift thresholds, and cardinality constraints from `validation.yaml`. This means suite JSON files are templates, not fixed contracts.
-
-**`strict_exact` mode:** When `strict_exact: true` in `validation.yaml`, drift thresholds are replaced by exact counts re-read from the committed analysis JSON files. This makes the validation self-referential (it checks that the CSV is consistent with its own analysis outputs).
-
-**Output artifacts:**
-- `biorempp_validation/results/critical_checkpoint_result.json`
-- `biorempp_validation/results/warning_checkpoint_result.json`
-- `biorempp_validation/results/validation_summary.json`
-- `biorempp_validation/results/data_docs/index.html`
+| Database CSV schema (column order, types) | Yes | `database_critical` |
+| Database CSV row count sanity | Yes | `database_critical` + `database_warning` |
+| Non-nullable columns | Yes | `database_critical` |
+| KEGG ID format (`^C\d{5}$`, `^K\d{5}$`) | Yes | `database_critical` |
+| Duplicate row detection | Yes | `database_critical` (`expect_compound_columns_to_be_unique`) |
+| Allowed reference agencies | Yes | `database_warning` (runtime-patched from YAML) |
+| Allowed compound classes | Yes | `database_warning` (runtime-patched from YAML) |
+| Cardinality drift (unique cpd, ko, gene counts) | Yes | `database_warning` drift bands |
+| Analysis JSON structure (required keys) | Yes | `analysis_json_critical` |
+| Analysis JSON / CSV cross-consistency | Yes | `cross_consistency_critical` (12 metrics) |
+| Exact match to prior release (regression) | Yes | `analysis_json_regression_critical` vs. baseline |
+| KEGG metadata traceability | Yes | `metadata_kegg_critical` |
+| Pipeline report integrity | Yes | `pipeline_reports_critical` |
+| `reaction_description` / `reaction` consistency | Yes | `analysis_json_critical` |
+| EC number format validation | No | Not checked in GE suites |
+| Reaction ID format (`^R\d{5}$`) | No | Not checked in GE suites |
+| Support stage value enumeration | No | No expectation on `support_stage` values |
+| End-to-end pipeline execution testing | No | No automated test harness; relies on Snakemake run |
 
 ---
 
-## Snakemake Validation Scripts
+## Updating Thresholds
 
-Two additional validation scripts run as Snakemake rules in `biorempp_snakemake_version/workflow/rules/30_validation.smk`:
+When a KEGG version upgrade intentionally changes row counts or unique-value counts:
 
-### `01_validate_keys_consistency_api.py`
-- Location: `biorempp_snakemake_version/workflow/scripts/validation/01_validate_keys_consistency_api.py`
-- What it checks: For every row with `ec=NA` or `reaction=NA`, it checks whether KEGG link caches support filling the missing value. Rows where filling is possible are flagged `"incorrect"`.
-- Output: `biorempp_snakemake_version/results/metadata/keys_consistency_report.json`
-- Trigger: Snakemake rule `validate_keys_consistency`
-
-### `02_validate_links_groundtruth_policy_api.py`
-- Location: `biorempp_snakemake_version/workflow/scripts/validation/02_validate_links_groundtruth_policy_api.py`
-- What it checks: Row-level link support against KEGG ground truth (direct compound support, KO-level support, or unsupported)
-- Output: `biorempp_snakemake_version/results/metadata/links_groundtruth_policy_report.json`
-- Trigger: Snakemake rule `validate_links_groundtruth_policy`
-
-Both use a shared KEGG link cache in `biorempp_snakemake_version/work/kegg_link_cache/` (populated by rule `fetch_kegg_link_cache` via `cache_kegg_links.py`).
-
----
-
-## CI/CD Configuration
-
-**`.github/workflows/docs-ci.yml`** — the only active CI workflow. It:
-- Triggers on push/PR to `main`/`dev` when `docs/**` or `mkdocs.yml` changes
-- Builds the MkDocs documentation site
-- Verifies `site/index.html` exists
-- Uploads the built site as an artifact
-
-**No CI workflow exists for:**
-- Running the Snakemake pipeline
-- Running pytest on `biorempp_validation/`
-- Running the `biorempp-validate` CLI against pipeline outputs
-
----
-
-## Data Validation Patterns
-
-### Preflight (R, Snakemake)
-`workflow/scripts/generation/00_check_inputs.R` checks all `REQUIRED_INPUT_FILES` exist before the pipeline starts. Fails with `stop()` on first missing file. Output: `work/preflight_ok.json` (sentinel file used as Snakemake dependency by downstream rules).
-
-### Schema contract
-The 11-column schema is declared in two places:
-- `workflow/lib/io_contracts.R`: `EXPECTED_DATABASE_COLUMNS`
-- `biorempp_validation/config/validation.yaml`: `database_contract.expected_columns`
-
-Column order is enforced at export via `dplyr::select(dplyr::all_of(EXPECTED_DATABASE_COLUMNS))` in `07_extract_enzymes_export.R`.
-
-GX validates column presence and order via `expect_table_columns_to_match_ordered_list`.
-
-### Cross-consistency check
-`biorempp_validation/src/biorempp_validation/consistency_checks.py:build_cross_consistency_df()` recomputes key counts (row count, unique compounds, unique KOs, etc.) directly from the CSV and compares them against the committed analysis JSON. The GX suite `cross_consistency_critical.json` then asserts `csv_value == stats_value` for each metric.
-
-### KEGG value format validation
-Regex patterns for KEGG identifiers are declared in `workflow/lib/io_contracts.R` (`KEGG_VALUE_PATTERNS`) and also implemented in `workflow/scripts/validation/kegg_api_client.py` (`PATTERNS`). Both check:
-- `ko`: `K\d{5}`
-- `cpd`: `C\d{5}`
-- `reaction`: `R\d{5}`
-- `ec`: `(\d+\.){3}[0-9A-Za-z\-]+`
-
----
-
-## Benchmark Infrastructure
-
-The `.benchmarks/` directory exists in the repo but is empty — no benchmark results are committed. No pytest-benchmark or equivalent framework is configured.
-
----
-
-## Coverage Gaps
-
-The following are not covered by any automated test:
-
-| Gap | Details | Risk |
-|---|---|---|
-| Snakemake pipeline execution | No CI runs `snakemake` | Pipeline regressions go undetected until manual run |
-| `biorempp-validate` CLI in CI | No GitHub Actions workflow triggers pytest | Validation layer breaks silently on dependency updates |
-| R script unit testing | No `testthat` suite | All R logic tested only via full pipeline runs |
-| KEGG API client retries | `kegg_api_client.py:fetch_text()` has retry/backoff logic with no test coverage | Retry behavior untested |
-| `cache_kegg_links.py` | Not covered by any test | KEGG cache population untested |
-| `build_run_report.py` | Not covered by any test | Report generation untested |
-| `02_validate_links_groundtruth_policy_api.py` | Not covered by any test | Policy validation logic untested |
-| GX suite JSON files | No test exercises changes to expectation JSON directly | Suite edits can silently change validation behavior |
-| `strict_exact: false` mode | Only `strict_exact: true` path exercised in committed test suite | Drift threshold mode untested by default |
-
----
-
-## Confidence
-
-- HIGH: pytest test structure, conftest fixtures, test count (5) — directly observed
-- HIGH: GX checkpoint/suite architecture — directly observed from code and config files
-- HIGH: Snakemake validation scripts and their outputs — directly read
-- HIGH: CI workflow scope (docs only) — directly read from `.github/workflows/docs-ci.yml`
-- HIGH: coverage gaps — confirmed by absence of test files and CI workflow triggers
-- MEDIUM: `.benchmarks/` is empty — observed from directory listing (no files found)
+1. Run the pipeline to get new output.
+2. Update `drift_thresholds` in `biorempp_validation/config/validation.yaml`.
+3. Update the baseline snapshot in `biorempp_validation/baselines/release_v1_1_0_kegg_118_0plus/` with the new analysis JSONs.
+4. Re-run validation to confirm all expectations pass.
+5. Commit with `chore(results):` or `fix(validation):` depending on whether a bug was also fixed.
