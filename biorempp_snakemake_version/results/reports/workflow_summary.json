@@ -3,7 +3,7 @@
     "name": "BioRemPP Snakemake Pipeline",
     "version": "1.1.0",
     "config_file": "config/config.yaml",
-    "generated_at_utc": "2026-06-24T00:45:07Z"
+    "generated_at_utc": "2026-06-24T19:45:37Z"
   },
   "kegg_reference": {
     "source_url": "https://rest.kegg.jp/info/kegg",
@@ -2032,23 +2032,23 @@
   "artifacts": {
     "database_csv": {
       "path": "results/database/biorempp_database_v1.1.0.csv",
-      "size_bytes": 34437977,
-      "sha256": "4f7664bf01be353d504b1bd67c212aff6c8843b3f1d70a9b161ed9702181f6c6"
+      "size_bytes": 32582930,
+      "sha256": "8d9d74fc1cb25fe8277bcb1e820679ae79fb00cec4fe41d95513c9141709a80d"
     },
     "database_xlsx": {
       "path": "results/database/biorempp_database_v1.1.0.xlsx",
-      "size_bytes": 7432890,
-      "sha256": "686121aaa20f61d83f3c00f4bf337a89d326090cfe3de111bfd7468d6a0d4c7c"
+      "size_bytes": 7015541,
+      "sha256": "3031231fa165796fc6d6bf0f04e3d8cdd76fb9d20a8ea34acfebe8db895e19b6"
     },
     "database_metadata_json": {
       "path": "results/analysis/database_metadata.json",
-      "size_bytes": 25353,
-      "sha256": "211699e8de68db35fe37a3cde29286766ab8b659beacd7f39cb90a7dc31c57d7"
+      "size_bytes": 25116,
+      "sha256": "a74ee444a908bbc784b03cf3de5f393ebed97fcade981bfb61de7b1b3c28ef0f"
     },
     "complete_analysis_json": {
       "path": "results/analysis/complete_analysis.json",
-      "size_bytes": 61322,
-      "sha256": "f6a8d131f2204130cffe88f7c9fa824fb4c514aa82263990005ab13c3f7e4e47"
+      "size_bytes": 61022,
+      "sha256": "73fab7e27c8a3023882257c5860ae5e048056ab0dc923bcea76f809b5d0fb792"
     },
     "kegg_release_json": {
       "path": "results/metadata/kegg_release.json",
@@ -2058,12 +2058,12 @@
     "keys_consistency_json": {
       "path": "results/metadata/keys_consistency_report.json",
       "size_bytes": 2580,
-      "sha256": "7cf55d18bbf8cf05838960df90f42f927dbf82185f65f8cca7c643c9ab06e143"
+      "sha256": "14cf68a9e16d28fd790762c793e594d0e63f824e8408a5a33d55a472ca483aad"
     },
     "links_groundtruth_policy_json": {
       "path": "results/metadata/links_groundtruth_policy_report.json",
-      "size_bytes": 227748,
-      "sha256": "cda06fa941880d138ab70a4d7fabdd8ce0c5a69b05ec9546252831208f37b158"
+      "size_bytes": 227701,
+      "sha256": "5af55b9e53d6efa7daf1991de48986f87d3af9180cdf51a31e2aab4097040434"
     }
   }
 }
