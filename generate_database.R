@@ -312,7 +312,7 @@ fetch_compound_ec_links <- function() {
 #' 
 #' @return Data frame with columns: reaction, cpd
 fetch_compound_reaction_links <- function() {
-  fetch_kegg_api("link/cpd/reaction", c("reaction", "cpd"), sep = "")
+  fetch_kegg_api("link/compound/reaction", c("reaction", "cpd"), sep = "")
 }
 
 
