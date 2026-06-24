@@ -67,7 +67,7 @@ message("✓ Working directory set to: ", getwd())
 #' Loads all necessary packages for database generation.
 #' Stops execution with informative error if any package is missing.
 load_required_packages <- function() {
-  required_packages <- c("readxl", "dplyr", "tidyr", "stringr", "readr", "xlsx")
+  required_packages <- c("readxl", "dplyr", "tidyr", "stringr", "readr", "writexl")
   
   missing_packages <- c()
   for (pkg in required_packages) {
@@ -87,7 +87,7 @@ load_required_packages <- function() {
   library(tidyr)
   library(stringr)
   library(readr)
-  library(xlsx)
+  library(writexl)
   
   message("✓ All required packages loaded successfully")
 }
@@ -729,7 +729,7 @@ main_pipeline <- function() {
   # Save as Excel (optional)
   output_xlsx <- "output_data/biorempp_database_v1.0.0.xlsx"
   tryCatch({
-    write.xlsx(final_database, output_xlsx, row.names = FALSE)
+    writexl::write_xlsx(final_database, output_xlsx)
     message("✓ Saved database to: ", output_xlsx)
   }, error = function(e) {
     message("⚠ Could not save Excel file: ", e$message)
