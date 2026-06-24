@@ -20,8 +20,7 @@ EXPECTED_DATABASE_COLUMNS <- c(
   "compoundname",
   "genesymbol",
   "genename",
-  "enzyme_activity",
-  "support_stage"
+  "enzyme_activity"
 )
 
 KEGG_ENDPOINTS <- list(
