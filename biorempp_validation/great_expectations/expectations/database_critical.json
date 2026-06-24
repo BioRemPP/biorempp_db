@@ -15,8 +15,7 @@
           "compoundname",
           "genesymbol",
           "genename",
-          "enzyme_activity",
-          "support_stage"
+          "enzyme_activity"
         ]
       },
       "severity": "critical",
@@ -44,8 +43,7 @@
           "compoundname",
           "genesymbol",
           "genename",
-          "enzyme_activity",
-          "support_stage"
+          "enzyme_activity"
         ]
       },
       "severity": "critical",
