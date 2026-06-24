@@ -28,7 +28,7 @@
   "top_20_compounds": {
     "compound_ids": ["C00014", "C00067", "C06790", "C00084", "C07535", "C00090", "C14343", "C00829", "C18428", "C06604", "C00088", "C14322", "C11090", "C14430", "C07561", "C19425", "C10928", "C00805", "C00230", "C11146"],
     "compound_names": ["Ammonia", "Formaldehyde", "Trichloroethene", "Acetaldehyde", "Benzo[a]pyrene", "Catechol", "Trifluralin", "Naphthalene", "Diuron", "Parathion", "Nitrite", "Chlorpyrifos", "Endosulfan", "Dichlorvos", "Carbon tetrachloride", "Fluoranthene", "Alachlor", "Salicylate", "3,4-Dihydroxybenzoate", "Methylmercury chloride"],
-    "frequencies": [60806, 14997, 5100, 2232, 2135, 1735, 1602, 1326, 1251, 1056, 934, 834, 816, 714, 625, 624, 600, 492, 488, 486]
+    "frequencies": [60806, 14997, 5100, 2208, 2135, 1735, 1602, 1326, 1251, 1056, 934, 834, 816, 714, 625, 624, 600, 492, 488, 486]
   },
   "class_distribution_summary": {
     "total_classes": 12,

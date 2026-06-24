@@ -3,7 +3,7 @@
     "database_info": {
       "name": "BioRemPP Database",
       "version": "1.1.0",
-      "generation_date": "2026-06-01",
+      "generation_date": "2026-06-24",
       "description": "Comprehensive biological remediation database integrating KEGG data, environmental agency compound lists, manual curations, and enzyme classifications"
     },
     "data_sources": {
@@ -120,9 +120,9 @@
         "cpd": 100,
         "compoundclass": 100,
         "ko": 100,
-        "ec": 99.2235,
-        "reaction": 98.2038,
-        "reaction_description": 98.2038,
+        "ec": 99.2221,
+        "reaction": 98.2006,
+        "reaction_description": 98.2006,
         "referenceAG": 100,
         "compoundname": 100,
         "genesymbol": 100,
@@ -2100,32 +2100,32 @@
         "false_na_pairs_examples": []
       },
       "row_shapes": {
-        "dense": 120648,
+        "dense": 120432,
         "ec_only": 2150,
         "reaction_only": 888,
         "both_na": 73
       },
       "row_provenance": {
-        "direct_compound_supported": 98688,
-        "ko_supported_only": 24998,
+        "direct_compound_supported": 98640,
+        "ko_supported_only": 24830,
         "unsupported": 73
       },
       "consistency_sentinels": {
         "duplicate_full_rows": 0,
-        "duplicate_link_signature_rows": 74552,
+        "duplicate_link_signature_rows": 74432,
         "resolvable_pair_count": 2249,
         "mixed_sparse_on_resolvable_pairs": 0,
         "mixed_sparse_on_resolvable_examples": []
       },
       "reaction_description": {
-        "with_reaction_rows": 121536,
-        "with_reaction_description_rows": 121536,
+        "with_reaction_rows": 121320,
+        "with_reaction_description_rows": 121320,
         "unmatched_reaction_id_count": 0
       }
     }
   },
   "basic_stats": {
-    "total_entries": 123759,
+    "total_entries": 123543,
     "total_columns": 12,
     "column_names": [
       "cpd",
@@ -2239,7 +2239,7 @@
         60806,
         14997,
         5100,
-        2232,
+        2208,
         2135,
         1735,
         1602,
@@ -2339,7 +2339,7 @@
     "ko_frequency_summary": {
       "min_frequency": 1,
       "max_frequency": 2690,
-      "mean_frequency": 80.2067,
+      "mean_frequency": 80.0668,
       "median_frequency": 6
     },
     "compounds_per_ko_summary": {
@@ -2388,7 +2388,7 @@
         17729,
         11414,
         7818,
-        7029,
+        6813,
         6314,
         6273,
         5852,
@@ -2484,7 +2484,7 @@
     "enzyme_frequency_summary": {
       "min_frequency": 1,
       "max_frequency": 17729,
-      "mean_frequency": 600.7718,
+      "mean_frequency": 599.7233,
       "median_frequency": 27
     }
   },
@@ -2712,11 +2712,11 @@
         3003,
         2994,
         2844,
-        2723,
+        2715,
         2517,
         2262,
         2129,
-        1976,
+        1888,
         1774,
         1696
       ]
@@ -2750,7 +2750,7 @@
   },
   "executive_summary": {
     "overview": {
-      "total_entries": 123759,
+      "total_entries": 123543,
       "unique_compounds": 384,
       "unique_ko_entries": 1543,
       "unique_enzyme_activities": 206,
