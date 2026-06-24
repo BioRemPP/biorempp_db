@@ -1,87 +1,118 @@
+<!--
+Page status: verified
+Audience: maintainers, reviewers
+Applies to: GX
+Version scope: GX validator v1.1.0
+Last verified on: 2026-06-24
+Primary sources:
+- biorempp_validation/great_expectations/checkpoints/critical_gate.yml
+- biorempp_validation/great_expectations/checkpoints/warning_report.yml
+- biorempp_validation/great_expectations/expectations/database_critical.json
+- biorempp_validation/great_expectations/expectations/database_warning.json
+- biorempp_validation/great_expectations/expectations/analysis_json_critical.json
+- biorempp_validation/great_expectations/expectations/analysis_json_warning.json
+- biorempp_validation/great_expectations/expectations/analysis_json_exact_critical.json
+- biorempp_validation/great_expectations/expectations/metadata_kegg_critical.json
+- biorempp_validation/great_expectations/expectations/cross_consistency_critical.json
+- biorempp_validation/great_expectations/expectations/pipeline_reports_critical.json
+- biorempp_validation/src/biorempp_validation/run_validation.py
+Observed artifacts:
+- biorempp_validation/results/critical_checkpoint_result.json
+- biorempp_validation/results/warning_checkpoint_result.json
+-->
+
 # Expectation Suites
 
-The validator ships Great Expectations JSON templates under
-`biorempp_validation/great_expectations/expectations/`. They are not executed
-verbatim: `run_validation.py` injects config-driven values at runtime.
+The validator ships eight expectation suite JSON files under `biorempp_validation/great_expectations/expectations/`. At runtime, one of them is cloned into two concrete suite names so the active checkpoint execution surface contains nine distinct suite identities.
 
 ## Suite Inventory
 
-| Suite template | Severity | Purpose |
-|----------------|----------|---------|
-| `database_critical` | Critical | CSV schema, core null checks, regex checks, uniqueness, non-empty table. |
-| `database_warning` | Warning | Vocabulary checks and drift thresholds. |
-| `analysis_json_critical` | Critical | Required keys and structural checks for current analysis JSON artifacts. |
-| `analysis_json_exact_critical` | Critical template | Cloned at runtime for internal consistency and regression detection. |
-| `analysis_json_warning` | Warning | Soft checks on current analysis JSON artifacts. |
-| `metadata_kegg_critical` | Critical | Current KEGG metadata checks. |
-| `cross_consistency_critical` | Critical | Current CSV vs current `basic_statistics.json`. |
-| `pipeline_reports_critical` | Critical | Sentinel checks for `keys_consistency_report.json`, `links_groundtruth_policy_report.json`, and `workflow_summary.json`. |
+| Suite file | Checkpoint | Runtime dataset | Active when | Main role |
+|---|---|---|---|---|
+| `database_critical.json` | `critical_gate` | `database_csv` | always | enforce ordered schema, non-null critical columns, identifier regexes, and full-row uniqueness |
+| `database_warning.json` | `warning_report` | `database_csv` | always | enforce controlled vocabularies and drift windows |
+| `analysis_json_critical.json` | `critical_gate` | `analysis_critical` | `internal_consistency` | verify required sections and structural consistency of the current analysis bundle |
+| `analysis_json_warning.json` | `warning_report` | `analysis_warning` | `internal_consistency` | verify top-N lengths, summary text presence, and reaction-description coverage range |
+| `analysis_json_exact_critical.json` | `critical_gate` via runtime clones | template only | `internal_consistency` and/or `regression_detection` | exact parity checks between current CSV-derived metrics and a reference analysis snapshot |
+| `metadata_kegg_critical.json` | `critical_gate` | `metadata_kegg` | always | enforce KEGG provenance fields and URL/timestamp format |
+| `cross_consistency_critical.json` | `critical_gate` | `cross_consistency` | `internal_consistency` | enforce metric parity between the CSV and `basic_statistics.json` |
+| `pipeline_reports_critical.json` | `critical_gate` | `pipeline_reports` | always | enforce sentinel expectations on the integrated pipeline validation reports and workflow summary |
 
-## Runtime Expansion
+## Runtime Clones
 
-`analysis_json_exact_critical.json` is cloned into mode-specific suites:
+`analysis_json_exact_critical.json` is a template suite. `run_validation.py` clones it into:
 
 - `analysis_json_internal_consistency_critical`
 - `analysis_json_regression_critical`
 
-Both suites use the same expectation structure, but they run on different
-DataFrames.
+The current observed critical checkpoint payload confirms both concrete suite names when both validation modes are enabled.
 
-## Runtime Overrides
+## Mode Wiring
 
-At runtime the validator injects:
+The suites split into three groups:
 
-- `database_contract.expected_columns` into ordered-column and composite
-  uniqueness expectations
-- the configured `referenceAG` vocabulary
-- the configured `compoundclass` vocabulary
-- `drift_thresholds` into `database_warning`
-- the expected column count into `analysis_json_critical`
+### Mode-agnostic suites
 
-The template JSON files therefore define the shape of the suites, while the
-canonical values come from `validation.yaml`.
+These suites run regardless of the two GX mode flags:
 
-## `database_warning`
+- `database_critical`
+- `database_warning`
+- `metadata_kegg_critical`
+- `pipeline_reports_critical`
 
-This suite is the bounded-drift layer. After runtime override, it checks:
+### Internal-consistency suites
 
-| Metric | Shipped range |
-|--------|---------------|
-| Unique compounds | `360-410` |
-| Unique KOs | `1440-1650` |
-| Unique gene symbols | `1410-1625` |
-| Unique gene names | `1320-1525` |
-| Unique enzyme activities | `185-230` |
-| Total row count | `118000-130000` |
+These suites run only when `validation_modes.internal_consistency: true`:
 
-It also checks that the observed distinct values for `referenceAG` and
-`compoundclass` stay inside the configured vocabularies.
+- `analysis_json_critical`
+- `analysis_json_warning`
+- `cross_consistency_critical`
+- `analysis_json_internal_consistency_critical`
 
-## Exact-Match Suites
+### Regression-only suite
 
-The exact-match template validates boolean columns produced by
-`build_analysis_exact_df()`. Those columns cover:
+This suite runs only when `validation_modes.regression_detection: true`:
 
-- basic statistics
-- column order
-- compound summaries and top compounds
-- KO summaries and top KOs
-- enzyme summaries and top enzymes
-- gene summaries and top genes
-- cross-tab summaries
-- executive summary
-- KEGG metadata parity
+- `analysis_json_regression_critical`
 
-All boolean columns must be `true`.
+## Config-Driven Overrides
 
-## When to Edit a Suite Template
+The suite JSON files are not completely static. `run_validation.py` mutates some expectation kwargs at runtime using `validation.yaml`.
 
-Edit the JSON templates only when the expectation structure changes, for
-example:
+### `database_critical`
 
-- a new expectation type is needed
-- a dataset gains a new critical boolean field
-- a checkpoint should include a different suite
+Runtime overrides inject:
 
-Do not edit template values just to change column lists, vocabularies, or drift
-thresholds. Those come from `validation.yaml`.
+- `database_contract.expected_columns` into `expect_table_columns_to_match_ordered_list`
+- the same column list into `expect_compound_columns_to_be_unique`
+
+### `analysis_json_critical`
+
+Runtime overrides set the `basic_total_columns` expectation so that both `min_value` and `max_value` equal `len(database_contract.expected_columns)`.
+
+### `database_warning`
+
+Runtime overrides inject:
+
+- `database_contract.expected_reference_agencies`
+- `database_contract.expected_compound_classes`
+- `drift_thresholds.row_count`
+- `drift_thresholds.unique_compounds`
+- `drift_thresholds.unique_ko`
+- `drift_thresholds.unique_genesymbol`
+- `drift_thresholds.unique_genename`
+- `drift_thresholds.unique_enzyme_activity`
+
+This means the effective validator contract is the combination of suite JSON plus runtime config.
+
+## About `expect_compound_columns_to_be_unique`
+
+The repository does not define a local custom expectation class for `expect_compound_columns_to_be_unique`. The suite references it in `database_critical.json`, and the current `critical_checkpoint_result.json` shows that expectation executing successfully in the active runtime.
+
+That matters for documentation because the behavior is present, but it is not implemented as repository-local extension code under `src/`.
+
+## Related Pages
+
+- [Architecture](architecture.md)
+- [Validation Modes](validation-modes.md)
+- [Configuration Reference](configuration.md)

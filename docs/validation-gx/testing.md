@@ -1,88 +1,94 @@
-# Test Suite
+<!--
+Page status: verified
+Audience: maintainers, reviewers, advanced operators
+Applies to: GX
+Version scope: GX validator v1.1.0
+Last verified on: 2026-06-24
+Primary sources:
+- biorempp_snakemake_version/env/docker-compose.yml
+- biorempp_validation/pyproject.toml
+- biorempp_validation/env/Dockerfile
+- biorempp_validation/tests/conftest.py
+- biorempp_validation/tests/test_happy_path.py
+- biorempp_validation/tests/test_dual_mode_validation.py
+- biorempp_validation/tests/test_missing_files.py
+- biorempp_validation/tests/test_schema_break.py
+- biorempp_validation/tests/test_kegg_metadata.py
+- biorempp_validation/tests/test_warning_only_drift.py
+-->
 
-The validation module uses mutation-based tests against a copied real results
-directory. Each test mutates one artifact or one config branch and asserts that
-the validator reports the expected failure.
+# Testing
 
-## Run the Tests
+The GX validator ships a pytest suite under `biorempp_validation/tests/`. These tests exercise the validator as an integration-style Python entrypoint rather than as isolated unit mocks.
 
-The supported path is the Docker runtime:
+## Canonical Test Command
+
+The verified containerized command path is:
 
 ```bash
 docker compose -f biorempp_snakemake_version/env/docker-compose.yml run --rm validation \
   python -m pytest biorempp_validation/tests -q
 ```
 
-The container already contains the pinned runtime and test dependencies.
+This uses the same `validation` service that runs the packaged CLI, so the tests execute against the pinned validator environment declared by:
 
-## Test Infrastructure
+- `biorempp_validation/env/Dockerfile`
+- `biorempp_validation/requirements-dev.lock.txt`
 
-Core fixtures in `biorempp_validation/tests/conftest.py`:
+## Test Harness Design
 
-| Fixture | Purpose |
-|---------|---------|
-| `sample_results_root` | Copies `biorempp_snakemake_version/results/` into a temp directory. |
-| `config_path` | Rewrites config paths to the temp results and temp output directory. |
-| `project_root` | Resolves the repository-local validation project root. |
+The fixtures in `tests/conftest.py` build temporary test environments by:
 
-This keeps every mutation isolated from the committed baseline and from the
-real pipeline outputs.
+- copying the real Snakemake `results/` tree into a temp directory
+- copying the real regression baseline into a temp directory
+- rewriting `validation.yaml` so that all runtime paths point at those temp copies
 
-## Coverage Areas
+This means the tests exercise the validator against repository-realistic artifacts, not against synthetic toy schemas alone.
 
-### Happy path
+## Invocation Style
 
-Verifies that the shipped results pass with the shipped configuration.
+The tests call the validator in-process through:
 
-### Missing-file preflight
+- `from biorempp_validation.run_validation import main`
 
-Deletes a required file and expects a synthetic critical failure before Great
-Expectations runs.
+They do not shell out to a subprocess. Each test passes a temporary `--config` path directly into `main([...])`.
 
-### Schema break
+## Test Coverage By File
 
-Mutates the CSV structure and expects `database_critical` to fail.
+| Test file | Main coverage |
+|---|---|
+| `test_happy_path.py` | passing end-to-end run and presence of both analysis modes in the critical checkpoint payload |
+| `test_dual_mode_validation.py` | isolation between `internal_consistency` and `regression_detection`, missing baseline preflight failure, and rejection of legacy `strict_exact` |
+| `test_missing_files.py` | current-results preflight failure when required files are absent |
+| `test_schema_break.py` | critical schema failure after dropping the `ko` column from the CSV |
+| `test_kegg_metadata.py` | KEGG metadata contract failure when `source_url` is missing |
+| `test_warning_only_drift.py` | warning-threshold behavior, shipped drift-window coverage, and blocking on warning failure when configured |
 
-### Warning drift
+## What The Tests Inspect
 
-Uses:
+The current tests validate behavior through the same public artifacts the validator writes in normal operation:
 
-- `validation_modes.regression_detection: false`
-- `policy.fail_on_warning: true`
-- narrowed `drift_thresholds.row_count`
+- `validation_summary.json`
+- `critical_checkpoint_result.json`
+- `warning_checkpoint_result.json`
 
-The test expects:
+This keeps the test contract aligned with the operator-facing outputs.
 
-- no critical failures
-- at least one warning failure
-- failure type `expect_table_row_count_to_be_between`
+## Why These Tests Matter
 
-### Internal consistency failure
+The GX validator has several moving parts that are easy to oversimplify in prose:
 
-Mutates a current analysis JSON artifact while keeping the CSV and baseline
-intact. The test expects the internal-consistency exact suite to fail while
-regression detection remains independent.
+- mode-specific suite wiring
+- preflight failure behavior
+- config-driven overrides
+- blocking policy for warnings
+- baseline isolation from current-artifact checks
 
-### Regression detection failure
+The pytest suite is the strongest executable evidence that those behaviors are wired correctly.
 
-Mutates the copied baseline snapshot while keeping the current run intact. The
-test expects only the regression exact suite to fail.
+## Related Pages
 
-### Baseline preflight
-
-Enables regression detection with a missing or incomplete baseline and expects a
-critical preflight failure.
-
-### Legacy-config rejection
-
-Asserts that `strict_exact` is rejected at settings-load time. This protects the
-codebase from silently reviving the old compatibility path.
-
-## Warning Threshold Guardrails
-
-`test_warning_only_drift.py` now also verifies that:
-
-- the shipped thresholds accept the current baseline
-- warning-only mode remains usable when regression detection is disabled
-
-This prevents stale threshold ranges from re-entering the repository.
+- [Architecture](architecture.md)
+- [Validation Modes](validation-modes.md)
+- [Configuration Reference](configuration.md)
+- [Baseline Management](baseline-management.md)
