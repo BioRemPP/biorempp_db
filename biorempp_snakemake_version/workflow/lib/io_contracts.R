@@ -2,11 +2,11 @@
 
 REQUIRED_INPUT_FILES <- c(
   "kegglistcompounds.xlsx",
-  "compostos_todasagencias.xlsx",
-  "missing_compounds_founds_curated.xlsx",
-  "confirm_class_CURATED.xlsx",
+  "curated_regulated_compounds.xlsx",
+  "curated_programatic_missing_compounds.xlsx",
+  "curated_compound_classes.xlsx",
   "kegglistko.txt",
-  "enzymes_unique.txt"
+  "curated_enzyem_names_extracted.txt"
 )
 
 EXPECTED_DATABASE_COLUMNS <- c(
