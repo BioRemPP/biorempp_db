@@ -1,326 +1,109 @@
+<!--
+Page status: verified
+Audience: researchers, operators, maintainers, reviewers
+Applies to: Snakemake and GX
+Version scope: Snakemake output contract v1.1.0 and GX validator v1.1.0
+Last verified on: 2026-06-24
+Primary sources:
+- biorempp_snakemake_version/config/config.yaml
+- biorempp_snakemake_version/workflow/lib/io_contracts.R
+- biorempp_snakemake_version/workflow/scripts/generation/00_check_inputs.R
+- biorempp_snakemake_version/workflow/scripts/generation/01_load_local_data.R
+- biorempp_snakemake_version/workflow/scripts/generation/02_fetch_kegg_info.R
+- biorempp_snakemake_version/workflow/scripts/generation/03_fetch_kegg_data.R
+- biorempp_snakemake_version/workflow/scripts/generation/04_merge_relationships.R
+- biorempp_snakemake_version/workflow/scripts/generation/05_add_classifications.R
+- biorempp_snakemake_version/workflow/scripts/generation/06_enrich_gene_info.R
+- biorempp_snakemake_version/workflow/scripts/generation/07_extract_enzymes_export.R
+- biorempp_validation/config/validation.yaml
+- input_data directory listing
+-->
+
 # Data Sources
 
-This document provides a comprehensive reference of all data sources used in the BioRemPP Database v1.0.0.
+BioRemPP combines repository-local curated inputs with KEGG REST data fetched at runtime. This page describes those source families and their roles in the active pipeline contract.
 
----
+## Source Families
 
-## Purpose of Data Source Documentation
+The current implementation uses three distinct source families:
 
-This reference documents the **provenance, scope, and role** of all data sources integrated into BioRemPP Database. It ensures:
+| Source family | Location | Owned by | Used for |
+|---|---|---|---|
+| Curated local inputs | `input_data/` | repository | release-specific compound, class, KO, and enzyme curation |
+| External runtime source | `https://rest.kegg.jp` | KEGG | link expansion, release metadata, compound names, and reaction descriptions |
+| Validation reference inputs | `biorempp_snakemake_version/results/` and `biorempp_validation/baselines/` | repository | GX validation against current outputs and frozen regression snapshots |
 
-- **Transparency** — Clear attribution of data origins
-- **Reproducibility** — Version-specific source identification
-- **Traceability** — Ability to verify data lineage
-- **Sustainability** — Understanding of data update dependencies
+The final database is therefore not assembled from one upstream table. It is derived from curated inputs plus multiple KEGG endpoints, then validated against repository-owned contracts.
 
----
+## Curated Local Inputs
 
-## External Data Sources
+The Snakemake workflow checks these exact files in repository-root `input_data/`:
 
-### KEGG (Kyoto Encyclopedia of Genes and Genomes)
+| File | Main fields used by the workflow | Role in the active implementation |
+|---|---|---|
+| `kegglistcompounds.xlsx` | `cpd`, `compoundname` | loaded during local-data bundling and enforced by preflight; the current final export still takes public `compoundname` values from KEGG `compound_list` |
+| `curated_regulated_compounds.xlsx` | `cpd`, `referenceAG` | defines the regulated compound universe and agency provenance |
+| `curated_programatic_missing_compounds.xlsx` | `cpd`, `ko` | adds curated compound-KO pairs before KEGG expansion |
+| `curated_compound_classes.xlsx` | `cpd`, `compoundclass` | provides class assignments later normalized and expanded into one row per class value |
+| `kegglistko.txt` | `ko`, `genesymbol`, `genename` | provides KO-linked gene annotations |
+| `curated_enzyem_names_extracted.txt` | one enzyme term per line | provides the curated term list used to derive `enzyme_activity` |
 
-**Description:** Comprehensive database of biological systems, integrating genomic, chemical, and systemic functional information.
+For column-level loading details and filename rules, see [Input Data Contract](../user-guide/input-data.md).
 
-**Provider:** Kanehisa Laboratories, Kyoto University
+## KEGG Runtime Sources
 
-**URL:** [https://www.kegg.jp/](https://www.kegg.jp/)
+The generation layer fetches KEGG data from `kegg.base_url`, currently `https://rest.kegg.jp`. The exact endpoint contract used by `03_fetch_kegg_data.R` is defined in `workflow/lib/io_contracts.R`.
 
-**Role in BioRemPP:**
+| Endpoint | Current purpose in the workflow |
+|---|---|
+| `info/kegg` | captures release metadata into `results/metadata/kegg_release.json` |
+| `link/ko/ec` | maps KO identifiers to EC identifiers |
+| `link/ko/reaction` | maps KO identifiers to reaction identifiers |
+| `link/compound/ec` | maps compounds to EC identifiers |
+| `link/compound/reaction` | maps compounds to reaction identifiers |
+| `link/enzyme/reaction` | maps EC identifiers to reaction identifiers |
+| `list/reaction` | supplies `reaction_description` text |
+| `list/cpd/` | supplies the final `compoundname` values used in export |
 
-- Primary source of compound identifiers (`cpd`)
-- Primary source of gene orthology identifiers (`ko`)
-- Source of compound names
-- Source of gene symbols and functional descriptions
-- Source of compound-gene relationships via EC numbers and reactions
+The generation script validates endpoint orientation and identifier structure before saving the KEGG bundle to `work/`.
 
-**Version/Access date:** KEGG Release Dec,25 (December 2025)
+## How The Sources Are Combined
 
-**Specific resources used:**
+The current assembly path is:
 
-| Resource | Endpoint/File | Rows | Purpose |
-|----------|---------------|------|---------|
-| KEGG Compound | `https://rest.kegg.jp/list/cpd/` | 10,871 | Compound IDs and names |
-| KEGG Orthology | `https://rest.kegg.jp/list/ko/` | 47,421 | KO IDs, gene symbols, gene names |
-| KO-EC links | `https://rest.kegg.jp/link/ko/ec` | Variable | Compound-gene relationships |
-| KO-Reaction links | `https://rest.kegg.jp/link/ko/reaction` | Variable | Compound-gene relationships |
-| Compound-EC links | `https://rest.kegg.jp/link/compound/ec` | Variable | Compound-gene relationships |
-| Compound-Reaction links | `https://rest.kegg.jp/link/cpd/reaction` | Variable | Compound-gene relationships |
+1. curated regulated compounds define the compound and agency key space
+2. curated missing compounds add explicit compound-KO pairs
+3. KEGG links expand those keys into `ec` and `reaction` combinations
+4. curated compound classes add `compoundclass`
+5. curated KO annotations add `genesymbol` and `genename`
+6. curated enzyme terms extract `enzyme_activity`
+7. KEGG `list/reaction` adds `reaction_description`
+8. KEGG `list/cpd/` adds public `compoundname`
 
-**License:** KEGG data is freely available for academic use; commercial use requires license.
+This division matters because not every public field comes from the same source family.
 
-**Citation:**
-> Kanehisa M, Goto S. KEGG: Kyoto Encyclopedia of Genes and Genomes. Nucleic Acids Res. 2000;28(1):27-30.
+## Validation Reference Inputs
 
----
+The GX validator does not read curated inputs directly. It reads:
 
-### Environmental Regulatory Agencies
+| Validator source | Current location | Role |
+|---|---|---|
+| Current release artifacts | `../biorempp_snakemake_version/results` | validate the just-generated database, analysis JSON files, metadata, and workflow summary |
+| Frozen regression baseline | `biorempp_validation/baselines/release_v1_1_0_kegg_118_0plus` | compare release-shape statistics and KEGG release metadata against a committed reference snapshot |
 
-**Description:** International and national agencies that classify environmental pollutants and contaminants of concern.
+That means GX is validating pipeline outputs, not rebuilding the database from the original curated files.
 
-**Role in BioRemPP:** Source of priority pollutant lists; defines compound scope and regulatory relevance.
+## Source Boundaries
 
-**Number of agencies:** 9
+Some boundaries are easy to miss:
 
-**Agencies included:**
+- `input_data/` is the curated input contract, not a complete representation of every public output field.
+- KEGG is the only runtime external source used by the active Snakemake workflow.
+- `results/` contains derived artifacts, not authoritative upstream source tables.
+- the regression baseline is a repository-owned validation reference, not an upstream biological data source.
 
-1. **ATSDR** — Agency for Toxic Substances and Disease Registry (USA)
-2. **EPA** — Environmental Protection Agency (USA)
-3. **IARC Group 1** — International Agency for Research on Cancer (Carcinogenic to humans)
-4. **IARC Group 2A** — International Agency for Research on Cancer (Probably carcinogenic to humans)
-5. **IARC Group 2B** — International Agency for Research on Cancer (Possibly carcinogenic to humans)
-6. **PSL** — Priority Substances List (Canada)
-7. **EPC** — European Priority Contaminants (EU)
-8. **WFD** — Water Framework Directive (EU)
-9. **CONAMA** — National Environment Council (Brazil)
+## Related Pages
 
-**Data format:** Manually curated compound lists with KEGG Compound ID mappings.
-
-**Total compounds:** 806 compound-agency associations (representing 384 unique compounds after KEGG matching).
-
-**Access date:** December 2025 (agency lists compiled from official sources).
-
-**Limitations:**
-
-- Agency lists reflect regulatory priorities at time of compilation
-- Not all agency-listed compounds have KEGG Compound IDs
-- Lists may become outdated as agencies update priorities
-
-**See also:** [Environmental Agencies Reference](environmental-agencies.md) for detailed agency descriptions.
-
----
-
-## Curated and Manually Assembled Sources
-
-### Manual Compound-KO Curations
-
-**File:** `missing_compounds_founds_curated.xlsx`
-
-**Description:** Manually curated of missing compound-KO relationships.
-
-**Scope:** Compounds identified by environmental agencies but lacking automated KEGG linkage.
-
-**Number of entries:** 62 compound-KO relationships
-
-**Curation methodology:**
-
-- Identification of genes/enzymes responsible for degradation
-- Mapping to KEGG Orthology IDs
-
-**Rationale for inclusion:** Fills gaps in automated KEGG API queries; captures known biodegradation relationships not represented in KEGG pathway maps.
-
-**Curation date:** December 2025
-
-**Limitations:**
-
-
-- Curation reflects knowledge available at time of compilation
-
----
-
-### Compound Chemical Classifications
-
-**File:** `confirm_class_CURATED.xlsx`
-
-**Description:** Expert-curated chemical classifications for environmental pollutants.
-
-**Scope:** All 384 compounds in BioRemPP Database.
-
-**Classification system:** 12 standardized chemical classes based on structural features.
-
-**Classes:**
-
-1. Aromatic
-2. Chlorinated
-3. Nitrogen-containing
-4. Polyaromatic
-5. Aliphatic
-6. Metal
-7. Inorganic
-8. Sulfur-containing
-9. Organophosphorus
-10. Organometallic
-11. Halogenated
-12. Organosulfur
-
-**Curation methodology:**
-
-- Manual inspection of chemical structures
-- Assignment of one or more classes per compound
-
-**Rationale for inclusion:** Enables filtering and analysis by chemical class; supports structure-activity relationship studies.
-
-**Curation date:** December 2025
-
-**Limitations:**
-
-- No hierarchical classification (e.g., Polyaromatic is not explicitly a subset of Aromatic)
-- Emerging chemical classes (e.g., nanomaterials) not represented
-
----
-
-### Enzyme Activity Lexicon
-
-**File:** `enzymes_unique.txt`
-
-**Description:** Curated lexicon of standardized enzyme activity terms for feature engineering from KEGG gene annotations.
-
-**Scope:** 218 unique enzyme terms.
-
-**Source:** Feature engineering from KEGG gene functional descriptions (accessible via KEGG API).
-
-**Examples:** `cytochrome P450`, `dioxygenase`, `monooxygenase`, `dehydrogenase`, `reductase`, `dehalogenase`
-
-**Curation methodology:**
-
-- Extraction of enzyme activity terms from KEGG gene functional descriptions
-- Standardization and deduplication of enzyme nomenclature
-- Pattern matching for consistent enzyme activity annotation
-
-**Rationale for inclusion:** Enables extraction of standardized enzyme activities from KEGG gene names; supports enzyme-centric analysis. Original KEGG gene descriptions can be verified via KEGG API calls.
-
-**Curation date:** December 2025
-
-**Limitations:**
-
-- Lexicon may not cover all biodegradation enzymes
-- Novel enzyme activities may be missed
-- No mapping to EC numbers or Gene Ontology terms
-
-**Traceability:** Original enzyme terms are derived from KEGG gene annotations and can be verified via:
-```
-https://rest.kegg.jp/get/[KO_ID]
-```
-
----
-
-## Data Source Limitations and Dependencies
-
-### Temporal Dependency on KEGG
-
-**Issue:** KEGG database is updated quarterly; BioRemPP uses a static snapshot.
-
-**Impact:**
-
-- Database content reflects KEGG state as of Dec,25
-- Newer KEGG entries (compounds, KO, pathways) not included
-- Deprecated KEGG entries may be present
-
-**Mitigation:** Document KEGG release version; recommend periodic database regeneration.
-
----
-
-### Agency List Currency
-
-**Issue:** Environmental agency lists are updated irregularly.
-
-**Impact:**
-
-- Emerging contaminants may not be included
-- Regulatory priorities may shift over time
-- Geographic bias toward well-represented regions
-
-**Mitigation:** Document agency list access date; recommend periodic review of agency updates.
-
----
-
-### Manual Curation Scalability
-
-**Issue:** Manual curations are time-intensive and not scalable.
-
-**Impact:**
-
-- Limited coverage of literature-derived relationships
-- Potential for human error
-- Difficult to maintain with rapid literature growth
-
-**Mitigation:** Document curation provenance; recommend community contributions via GitHub.
-
----
-
-### External Database Availability
-
-**Issue:** BioRemPP depends on external databases (KEGG) that may change access policies.
-
-**Impact:**
-
-- KEGG API may introduce rate limits or authentication
-- KEGG may retire or restructure databases
-- Commercial use of KEGG data requires licensing
-
-**Mitigation:** Use local snapshots of KEGG reference files; document KEGG license requirements.
-
----
-
-## Notes on Data Updates and Sustainability
-
-### Recommended Update Frequency
-
-| Data Source | Update Frequency | Rationale |
-|-------------|------------------|-----------|
-| **KEGG** | Annually | KEGG releases quarterly; annual updates balance currency and stability |
-| **Agency lists** | Biennially | Agency lists update irregularly; biennial review captures major changes |
-| **Manual curations** | Ongoing | Literature-derived curations added as discovered |
-| **Enzyme lexicon** | As needed | Lexicon is relatively stable; updates only when new enzyme families emerge |
-
----
-
-### Data Update Procedure
-
-1. **Download latest KEGG reference files**
-   - `kegglistcompounds.xlsx` (KEGG Compound list)
-   - `kegglistko.txt` (KEGG Orthology list)
-
-2. **Review agency lists for updates**
-   - Check EPA, IARC, EU, and other agency websites
-   - Update `compostos_todasagencias.xlsx` with new compounds
-
-3. **Add new manual curations**
-   - Review recent biodegradation literature
-   - Add new compound-KO relationships to `missing_compounds_founds_curated.xlsx`
-
-4. **Re-generate database**
-   - Run the Snakemake pipeline (`snakemake --cores 2` or via Docker)
-   - Validate output statistics
-
-5. **Document changes**
-   - Update `CHANGELOG.md` with version-specific changes
-   - Update KEGG release version in documentation
-
----
-
-### Data Sustainability Considerations
-
-**Long-term sustainability depends on:**
-
-- **KEGG availability** — KEGG is a well-established resource but requires ongoing funding
-- **Agency list accessibility** — Agency websites may reorganize or remove historical lists
-- **Community contributions** — Manual curations benefit from community input
-- **Version control** — Git ensures historical data is preserved
-
-**Recommendations:**
-
-- Archive KEGG reference files in long-term repository (e.g., Zenodo)
-- Document agency list sources with URLs and access dates
-- Encourage community contributions via GitHub Issues and Pull Requests
-- Maintain version control for all curated files
-
----
-
-## Data Source Summary Table
-
-| Source | Type | Rows/Entries | Version/Date | Role |
-|--------|------|--------------|--------------|------|
-| **KEGG Compound** | External DB | 10,871 | Dec,25 | Compound IDs, names |
-| **KEGG Orthology** | External DB | 47,421 | Dec,25 | KO IDs, gene symbols, names |
-| **KEGG API** | External API | Variable | Dec,25 | Compound-gene relationships |
-| **Environmental Agencies** | Curated lists | 806 | Dec 2025 | Priority pollutant scope |
-| **Manual curations** | Literature-derived | 62 | Dec 2025 | Gap-filling compound-KO links |
-| **Compound classes** | Expert curation | 384 | Dec 2025 | Chemical classifications |
-| **Enzyme lexicon** | Literature review | 218 | Dec 2025 | Enzyme activity extraction |
-
----
-
-## Questions?
-
-**GitHub Repository:** [https://github.com/BioRemPP/biorempp_db](https://github.com/BioRemPP/biorempp_db)  
-**Email:** biorempp@gmail.com
+- [Input Data Contract](../user-guide/input-data.md)
+- [Configuration And IO Contracts](../pipeline-architecture/configuration-and-io.md)
+- [Configuration Reference](../validation-gx/configuration.md)
