@@ -1,171 +1,181 @@
+<!--
+Page status: verified
+Audience: maintainers, reviewers, advanced operators
+Applies to: GX
+Version scope: GX validator v1.1.0
+Last verified on: 2026-06-24
+Primary sources:
+- biorempp_validation/config/validation.yaml
+- biorempp_validation/src/biorempp_validation/settings.py
+- biorempp_validation/src/biorempp_validation/run_validation.py
+- biorempp_validation/src/biorempp_validation/gx_context.py
+- biorempp_validation/src/biorempp_validation/json_to_dataframe.py
+- biorempp_validation/src/biorempp_validation/loaders.py
+- biorempp_validation/great_expectations/great_expectations.yml
+- biorempp_validation/great_expectations/checkpoints/critical_gate.yml
+- biorempp_validation/great_expectations/checkpoints/warning_report.yml
+Known gaps:
+- `version` is loaded into `ValidationSettings`, but the current runtime does not consume it elsewhere in `src/`
+-->
+
 # Configuration Reference
 
-All runtime behavior of the validation module is controlled by
-`biorempp_validation/config/validation.yaml`.
+The GX validator is configured by `biorempp_validation/config/validation.yaml`. `settings.py` resolves that file into a `ValidationSettings` object and normalizes every configured path relative to the `biorempp_validation/` project root.
 
-## Shipped Configuration
+## Top-Level Sections
 
-```yaml
-version: "1.1.0"
+| Section | Role |
+|---|---|
+| `version` | release label stored in settings |
+| `policy` | blocking behavior and summary-page toggle |
+| `validation_modes` | enable or disable the two analysis-comparison mode families |
+| `csv` | delimiter used to load the database CSV |
+| `paths` | input, baseline, output, expectations, and checkpoint locations |
+| `required_files` | current results contract used by preflight and downstream loading |
+| `database_contract` | public schema, nullable fields, and controlled vocabularies |
+| `drift_thresholds` | warning-level row count and uniqueness windows |
 
-policy:
-  fail_on_critical: true
-  fail_on_warning: true
-  generate_data_docs: true
+## `policy`
 
-validation_modes:
-  internal_consistency: true
-  regression_detection: true
+The shipped config currently sets:
 
-csv:
-  delimiter: ";"
+- `fail_on_critical: true`
+- `fail_on_warning: true`
+- `generate_summary_page: true`
 
-paths:
-  input_results_root: ../biorempp_snakemake_version/results
-  regression_baseline_root: baselines/release_v1_1_0_kegg_118_0plus
-  output_dir: results
-  expectations_dir: great_expectations/expectations
-  checkpoints_dir: great_expectations/checkpoints
+Runtime behavior:
 
-required_files:
-  - database/biorempp_database_v1.1.0.csv
-  - analysis/basic_statistics.json
-  - analysis/compound_statistics.json
-  - analysis/ko_statistics.json
-  - analysis/enzyme_statistics.json
-  - analysis/gene_statistics.json
-  - analysis/crosstab_statistics.json
-  - analysis/database_metadata.json
-  - analysis/executive_summary.json
-  - analysis/complete_analysis.json
-  - metadata/kegg_release.json
+- `fail_on_critical` determines whether a failed critical checkpoint returns exit code `1`
+- `fail_on_warning` determines whether a failed warning checkpoint also returns exit code `1`
+- `generate_summary_page` controls whether `results/data_docs/index.html` is written
 
-database_contract:
-  expected_columns:
-    - cpd
-    - compoundclass
-    - ko
-    - ec
-    - reaction
-    - reaction_description
-    - referenceAG
-    - compoundname
-    - genesymbol
-    - genename
-    - enzyme_activity
+If `fail_on_warning` is omitted, `settings.py` defaults it to `false`. The shipped config overrides that default to `true`.
 
-drift_thresholds:
-  row_count: {min: 118000, max: 130000}
-  unique_compounds: {min: 360, max: 410}
-  unique_ko: {min: 1440, max: 1650}
-  unique_genesymbol: {min: 1410, max: 1625}
-  unique_genename: {min: 1320, max: 1525}
-  unique_enzyme_activity: {min: 185, max: 230}
-```
+## `validation_modes`
 
-## Section Reference
+The validator supports exactly two mode keys:
 
-### `policy`
+- `internal_consistency`
+- `regression_detection`
 
-Controls how validation outcomes map to exit codes.
+If the legacy key `strict_exact` appears in the YAML, `settings.py` raises `ValueError` at load time.
 
-| Key | Type | Shipped value | Meaning |
-|-----|------|---------------|---------|
-| `fail_on_critical` | bool | `true` | Return exit code `1` when any critical expectation fails. |
-| `fail_on_warning` | bool | `true` | Return exit code `1` when any warning expectation fails. |
-| `generate_data_docs` | bool | `true` | Write `results/data_docs/index.html`. |
+## `csv`
 
-### `validation_modes`
+The current config sets:
 
-This is the only supported mode-selection interface.
+- `delimiter: ";"`
 
-| Key | Type | Default | Meaning |
-|-----|------|---------|---------|
-| `internal_consistency` | bool | `true` | Validate the current CSV against the current run's analysis JSON artifacts. |
-| `regression_detection` | bool | `true` | Validate the current CSV against the committed regression baseline snapshot. |
+This value is passed into `load_database_csv()` and therefore controls how the final database file is parsed by the validator.
 
-`strict_exact` is no longer supported and is rejected at config load time.
+## `paths`
 
-### `csv`
+The current path block is:
 
-| Key | Type | Shipped value | Meaning |
-|-----|------|---------------|---------|
-| `delimiter` | string | `";"` | Delimiter used when loading the BioRemPP CSV. |
+| Key | Current value | Meaning |
+|---|---|---|
+| `paths.input_results_root` | `../biorempp_snakemake_version/results` | current Snakemake results tree |
+| `paths.regression_baseline_root` | `baselines/release_v1_1_0_kegg_118_0plus` | frozen baseline snapshot |
+| `paths.output_dir` | `results` | GX validator output directory |
+| `paths.expectations_dir` | `great_expectations/expectations` | suite JSON directory |
+| `paths.checkpoints_dir` | `great_expectations/checkpoints` | checkpoint YAML directory |
 
-### `paths`
+All relative paths are resolved from the `biorempp_validation/` project root, not from the repository root.
 
-All relative paths are resolved from the `biorempp_validation/` project root.
+## `required_files`
 
-| Key | Shipped value | Meaning |
-|-----|---------------|---------|
-| `input_results_root` | `../biorempp_snakemake_version/results` | Snakemake output directory to validate. |
-| `regression_baseline_root` | `baselines/release_v1_1_0_kegg_118_0plus` | Frozen baseline snapshot for regression detection. |
-| `output_dir` | `results` | Directory where validation artifacts are written. |
-| `expectations_dir` | `great_expectations/expectations` | Expectation-suite templates. |
-| `checkpoints_dir` | `great_expectations/checkpoints` | Checkpoint YAML files. |
+`required_files` is the current-results contract used by preflight. The shipped list includes:
 
-### `required_files`
+- one database CSV file
+- nine analysis JSON files
+- three metadata/report JSON files
+- one workflow summary JSON file
 
-Defines the minimum artifact set for the current run. The validator always
-requires the CSV and KEGG metadata. When `internal_consistency: true`, it also
-requires the current analysis JSON files. When `regression_detection: true`,
-baseline analysis JSON files are required under `regression_baseline_root`.
+The validator does not use that list uniformly across every mode.
 
-### `database_contract`
+### Current results preflight
 
-The contract declares:
+`_resolve_current_required_files()` always requires:
 
-- the expected ordered CSV columns
-- the allowed `referenceAG` vocabulary
-- the allowed `compoundclass` vocabulary
+- the database CSV
+- `metadata/kegg_release.json`
+- `metadata/keys_consistency_report.json`
+- `metadata/links_groundtruth_policy_report.json`
+- `reports/workflow_summary.json`
 
-These values are injected into Great Expectations suites at runtime.
+It adds the remaining analysis JSON files only when `internal_consistency` is enabled.
 
-### `drift_thresholds`
+### Regression baseline preflight
 
-These thresholds drive the warning-level drift checks in `database_warning`.
-They are range-based and version-controlled; they are not auto-pinned from the
-current run.
+`_resolve_regression_baseline_required_files()` derives the baseline contract from the same `required_files` list but excludes:
 
-| Metric | Min | Max |
-|--------|----:|----:|
-| `row_count` | 118000 | 130000 |
-| `unique_compounds` | 360 | 410 |
-| `unique_ko` | 1440 | 1650 |
-| `unique_genesymbol` | 1410 | 1625 |
-| `unique_genename` | 1320 | 1525 |
-| `unique_enzyme_activity` | 185 | 230 |
+- all `database/*` files
+- `metadata/keys_consistency_report.json`
+- `metadata/links_groundtruth_policy_report.json`
+- `reports/workflow_summary.json`
 
-## Common Scenarios
+That is why the regression baseline snapshot contains analysis JSON plus KEGG release metadata, not a full copy of the current results tree.
 
-### Default release-grade validation
+## `database_contract`
 
-```yaml
-validation_modes:
-  internal_consistency: true
-  regression_detection: true
-```
+The contract block currently defines:
 
-Checks exact parity with current artifacts and with the frozen baseline.
+- `nullable_columns`
+- `expected_columns`
+- `expected_reference_agencies`
+- `expected_compound_classes`
 
-### Internal consistency only
+These values are consumed at runtime in two ways.
 
-```yaml
-validation_modes:
-  internal_consistency: true
-  regression_detection: false
-```
+### DataFrame construction
 
-Useful when iterating on intended pipeline changes before blessing a new
-baseline.
+`json_to_dataframe.py` uses:
 
-### Regression-only gate
+- `expected_columns` to compare ordered schema and compute exact analysis parity
+- `nullable_columns` to exclude allowed nullable fields from the zero-missing check in `build_analysis_critical_df()`
 
-```yaml
-validation_modes:
-  internal_consistency: false
-  regression_detection: true
-```
+### Suite overrides
 
-Useful when the current analysis JSON artifacts are not part of the contract
-being verified, but drift against the blessed snapshot still matters.
+`run_validation.py` injects:
+
+- `expected_columns` into `database_critical`
+- `expected_reference_agencies` into `database_warning`
+- `expected_compound_classes` into `database_warning`
+
+## `drift_thresholds`
+
+The shipped threshold keys are:
+
+- `row_count`
+- `unique_compounds`
+- `unique_ko`
+- `unique_genesymbol`
+- `unique_genename`
+- `unique_enzyme_activity`
+
+`run_validation.py` wires these values into the warning suite at runtime. They do not affect the critical checkpoint.
+
+## Runtime Override Summary
+
+Three configuration areas materially rewrite suite behavior at runtime:
+
+| Config area | Affected suite(s) | Effect |
+|---|---|---|
+| `database_contract.expected_columns` | `database_critical`, `analysis_json_critical` | ordered schema and total-column expectations |
+| `database_contract.expected_reference_agencies`, `database_contract.expected_compound_classes` | `database_warning` | controlled vocabulary sets |
+| `drift_thresholds.*` | `database_warning` | warning-level range limits |
+
+This means `validation.yaml` is not just environment configuration. It is part of the effective validation contract.
+
+## Great Expectations Assets
+
+The config also points to filesystem locations for suite JSON files and checkpoint YAML files. In the current runtime, those assets are loaded directly by Python code from `expectations_dir` and `checkpoints_dir`.
+
+The validator does not currently load suites or checkpoints through GE stores in `great_expectations.yml`.
+
+## Related Pages
+
+- [Architecture](architecture.md)
+- [Expectation Suites](expectation-suites.md)
+- [Validation Modes](validation-modes.md)
+- [Baseline Management](baseline-management.md)
