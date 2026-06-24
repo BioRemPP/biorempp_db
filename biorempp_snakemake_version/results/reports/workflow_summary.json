@@ -3,7 +3,7 @@
     "name": "BioRemPP Snakemake Pipeline",
     "version": "1.1.0",
     "config_file": "config/config.yaml",
-    "generated_at_utc": "2026-06-01T01:41:36Z"
+    "generated_at_utc": "2026-06-24T00:45:07Z"
   },
   "kegg_reference": {
     "source_url": "https://rest.kegg.jp/info/kegg",
@@ -18,7 +18,7 @@
       "incorrect": 0
     },
     "totals": {
-      "rows_in_database": 123759,
+      "rows_in_database": 123543,
       "rows_with_any_na_in_ec_or_reaction": 3111,
       "ec_na_rows": 888,
       "reaction_na_rows": 2150,
@@ -26,14 +26,14 @@
     }
   },
   "links_groundtruth_policy": {
-    "dense_total": 120648,
-    "strict5_rate_percent": 2.4169484782176247,
+    "dense_total": 120432,
+    "strict5_rate_percent": 2.419622691643417,
     "policy_union_rate_percent": 100.0,
     "no_policy_support": 0
   },
   "reaction_description_coverage": {
-    "rows_with_reaction": 121536,
-    "rows_with_reaction_description": 121536,
+    "rows_with_reaction": 121320,
+    "rows_with_reaction_description": 121320,
     "fill_rate_percent": 100.0,
     "unmatched_reaction_id_count": 0
   },
@@ -2006,49 +2006,49 @@
       "false_na_pairs_examples": []
     },
     "row_shapes": {
-      "dense": 120648,
+      "dense": 120432,
       "ec_only": 2150,
       "reaction_only": 888,
       "both_na": 73
     },
     "row_provenance": {
-      "direct_compound_supported": 98688,
-      "ko_supported_only": 24998,
+      "direct_compound_supported": 98640,
+      "ko_supported_only": 24830,
       "unsupported": 73
     },
     "consistency_sentinels": {
       "duplicate_full_rows": 0,
-      "duplicate_link_signature_rows": 74552,
+      "duplicate_link_signature_rows": 74432,
       "resolvable_pair_count": 2249,
       "mixed_sparse_on_resolvable_pairs": 0,
       "mixed_sparse_on_resolvable_examples": []
     },
     "reaction_description": {
-      "with_reaction_rows": 121536,
-      "with_reaction_description_rows": 121536,
+      "with_reaction_rows": 121320,
+      "with_reaction_description_rows": 121320,
       "unmatched_reaction_id_count": 0
     }
   },
   "artifacts": {
     "database_csv": {
       "path": "results/database/biorempp_database_v1.1.0.csv",
-      "size_bytes": 34493800,
-      "sha256": "5fe9624dc9b990e3e342d6e729cee2d8f54706037675be24ac28db3af0f89f8c"
+      "size_bytes": 34437977,
+      "sha256": "4f7664bf01be353d504b1bd67c212aff6c8843b3f1d70a9b161ed9702181f6c6"
     },
     "database_xlsx": {
       "path": "results/database/biorempp_database_v1.1.0.xlsx",
-      "size_bytes": 7446657,
-      "sha256": "a79cd452204be1ee9c5756d9d972f45a9876dcbeabcd7f55110262895c07a695"
+      "size_bytes": 7432890,
+      "sha256": "686121aaa20f61d83f3c00f4bf337a89d326090cfe3de111bfd7468d6a0d4c7c"
     },
     "database_metadata_json": {
       "path": "results/analysis/database_metadata.json",
       "size_bytes": 25353,
-      "sha256": "d7913e7371cd10195264f62628adc79f0ecf74680ece601131326c89b6992b9d"
+      "sha256": "211699e8de68db35fe37a3cde29286766ab8b659beacd7f39cb90a7dc31c57d7"
     },
     "complete_analysis_json": {
       "path": "results/analysis/complete_analysis.json",
       "size_bytes": 61322,
-      "sha256": "9b2aac7bcf31ad7a6a5ccd7d7a43e57d55e158e694ed43f7b8819500de6b8874"
+      "sha256": "f6a8d131f2204130cffe88f7c9fa824fb4c514aa82263990005ab13c3f7e4e47"
     },
     "kegg_release_json": {
       "path": "results/metadata/kegg_release.json",
@@ -2058,12 +2058,12 @@
     "keys_consistency_json": {
       "path": "results/metadata/keys_consistency_report.json",
       "size_bytes": 2580,
-      "sha256": "0bf4ec1224369b365aeaf5a48610ad62a8c8f240799fe0ee72dacf1384c7f92f"
+      "sha256": "7cf55d18bbf8cf05838960df90f42f927dbf82185f65f8cca7c643c9ab06e143"
     },
     "links_groundtruth_policy_json": {
       "path": "results/metadata/links_groundtruth_policy_report.json",
-      "size_bytes": 227747,
-      "sha256": "b96746060ce8bae62913ad8f67ed9df3bbfb0c264cb30b67ee5869d0084c08af"
+      "size_bytes": 227748,
+      "sha256": "cda06fa941880d138ab70a4d7fabdd8ce0c5a69b05ec9546252831208f37b158"
     }
   }
 }
