@@ -18,8 +18,8 @@ kegg:
     ko_ec_links: "link/ko/ec"
     ko_reaction_links: "link/ko/reaction"
     compound_ec_links: "link/compound/ec"
-    compound_reaction_links: "link/cpd/reaction"
-    ec_reaction_links: "link/ec/reaction"
+    compound_reaction_links: "link/compound/reaction"
+    ec_reaction_links: "link/enzyme/reaction"
     compound_list: "list/cpd/"
   info_endpoint: "info/kegg"
 
