@@ -99,7 +99,7 @@ markdown_extensions:
 extra:
   version:
     provider: mike
-    default: 1.0.0
+    default: 1.1.0
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/BioRemPP/biorempp_db
@@ -116,46 +116,41 @@ extra_javascript:
 nav:
   - Home: index.md
   - Getting Started:
-      - Installation: getting-started/installation.md
+      - Overview: getting-started/overview.md
       - Requirements: getting-started/requirements.md
+      - Installation: getting-started/installation.md
       - Quick Start: getting-started/quick-start.md
   - User Guide:
-      - Overview: user-guide/overview.md
-      - Input Data Files: user-guide/input-data.md
-      - Understanding Output: user-guide/understanding-output.md
+      - Input Data Contract: user-guide/input-data.md
+      - Running The Snakemake Pipeline: user-guide/run-snakemake.md
+      - Understanding Outputs: user-guide/understanding-output.md
       - Troubleshooting: user-guide/troubleshooting.md
   - Pipeline Architecture:
-      - Overview: technical/pipeline-architecture.md
-      - Snakemake Rules: technical/snakemake-rules.md
-      - Configuration Reference: technical/config-reference.md
+      - Overview: pipeline-architecture/overview.md
+      - Execution Stages: pipeline-architecture/execution-stages.md
+      - Rules And Scripts Map: pipeline-architecture/rules-and-scripts.md
+      - Configuration And IO Contracts: pipeline-architecture/configuration-and-io.md
   - Database Reference:
-      - Schema: database/schema.md
-      - Statistics: database/statistics.md
-      - Data Quality: database/data-quality.md
-      - FAIR Compliance: database/fair-compliance.md
+      - Schema: database-reference/schema.md
+      - Curated Inputs: database-reference/curated-inputs.md
+      - Analysis Artifacts: database-reference/analysis-artifacts.md
+      - Provenance And Release Semantics: database-reference/provenance-and-release.md
   - Pipeline Validation:
-      - QC Rules: validation/qc-rules.md
-      - Benchmarking: validation/benchmarking.md
-      - Known Limitations: validation/limitations.md
-      - Reproducibility: validation/reproducibility.md
+      - Overview: pipeline-validation/overview.md
+      - KEGG Link Cache: pipeline-validation/kegg-link-cache.md
+      - Keys Consistency Report: pipeline-validation/keys-consistency.md
+      - Links Groundtruth Policy Report: pipeline-validation/links-groundtruth-policy.md
   - Data Validation (GX):
       - Architecture: validation-gx/architecture.md
       - Expectation Suites: validation-gx/expectation-suites.md
-      - Severity Policy: validation-gx/severity-policy.md
-      - Data Contracts: validation-gx/data-contracts.md
-      - Reproducibility Checks: validation-gx/reproducibility-checks.md
+      - Validation Modes: validation-gx/validation-modes.md
       - Configuration Reference: validation-gx/configuration.md
-      - Test Suite: validation-gx/testing.md
-  - Interoperability:
-      - R and Python Integration: interoperability/r-python-integration.md
-      - Multi-Omics Integration: interoperability/multi-omics.md
+      - Baseline Management: validation-gx/baseline-management.md
+      - Testing: validation-gx/testing.md
   - Reference:
       - Data Sources: reference/data-sources.md
-      - Environmental Agencies: reference/environmental-agencies.md
       - Glossary: reference/glossary.md
   - About:
-      - How to Cite: about/how-to-cite.md
-      - Changelog: about/changelog.md
-      - License: about/license.md
+      - Project Scope: about/project-scope.md
       - Contributing: about/contributing.md
-      - Roadmap: about/roadmap.md
+      - Changelog And Releases: about/changelog-and-releases.md
