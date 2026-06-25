@@ -23,23 +23,19 @@ This page covers operational execution of the active BioRemPP workflow after the
 
 ## Supported Entry Points
 
-### Windows helper script
+### PowerShell helper script
 
-```bat
-biorempp_snakemake_version\scripts\run_snakemake.bat 2
-```
-
-### POSIX helper script
-
-```bash
-./biorempp_snakemake_version/scripts/run_snakemake.sh 2
+```powershell
+.\biorempp_snakemake_version\scripts\run_snakemake.bat 2
 ```
 
 ### Direct compose invocation
 
-```bash
+```powershell
 docker compose -f biorempp_snakemake_version/env/docker-compose.yml run --rm snakemake
 ```
+
+The repository also includes `biorempp_snakemake_version/scripts/run_snakemake.sh` for POSIX environments, but this documentation standardizes executable examples on PowerShell so that command behavior stays consistent across the official pages.
 
 All three entry points run the same workflow contract defined by:
 
@@ -47,6 +43,12 @@ All three entry points run the same workflow contract defined by:
 - `config/config.yaml`
 
 The helper scripts also create the expected `results/`, `work/`, and `logs/` directories before invoking Snakemake.
+
+From the repository-root perspective used across the official docs, those runtime directories are:
+
+- `biorempp_snakemake_version/results/`
+- `biorempp_snakemake_version/work/`
+- `biorempp_snakemake_version/logs/`
 
 ## Workflow Structure
 
@@ -72,24 +74,22 @@ This means a complete run does more than generate the final CSV and XLSX. It als
 
 ### Full run
 
-```bash
+```powershell
 docker compose -f biorempp_snakemake_version/env/docker-compose.yml run --rm snakemake
 ```
 
 ### Dry run
 
-```bash
-docker compose -f biorempp_snakemake_version/env/docker-compose.yml run --rm snakemake \
-  snakemake -n --snakefile Snakefile --configfile config/config.yaml --cores 1
+```powershell
+docker compose -f biorempp_snakemake_version/env/docker-compose.yml run --rm snakemake snakemake -n --snakefile Snakefile --configfile config/config.yaml --cores 1
 ```
 
 ### Run a specific target rule
 
 Example: rebuild only the final workflow report after upstream outputs already exist.
 
-```bash
-docker compose -f biorempp_snakemake_version/env/docker-compose.yml run --rm snakemake \
-  snakemake --snakefile Snakefile --configfile config/config.yaml --cores 1 build_run_report
+```powershell
+docker compose -f biorempp_snakemake_version/env/docker-compose.yml run --rm snakemake snakemake --snakefile Snakefile --configfile config/config.yaml --cores 1 build_run_report
 ```
 
 Use target-specific execution only when you understand the dependency chain and the upstream artifacts are already valid.
@@ -109,13 +109,13 @@ During execution, the main working directories are:
 
 After the pipeline finishes, confirm that the final rule contract is satisfied by checking at minimum:
 
-- `results/database/biorempp_database_v1.1.0.csv`
-- `results/database/biorempp_database_v1.1.0.xlsx`
-- `results/analysis/complete_analysis.json`
-- `results/metadata/kegg_release.json`
-- `results/metadata/keys_consistency_report.json`
-- `results/metadata/links_groundtruth_policy_report.json`
-- `results/reports/workflow_summary.json`
+- `biorempp_snakemake_version/results/database/biorempp_database_v1.1.0.csv`
+- `biorempp_snakemake_version/results/database/biorempp_database_v1.1.0.xlsx`
+- `biorempp_snakemake_version/results/analysis/complete_analysis.json`
+- `biorempp_snakemake_version/results/metadata/kegg_release.json`
+- `biorempp_snakemake_version/results/metadata/keys_consistency_report.json`
+- `biorempp_snakemake_version/results/metadata/links_groundtruth_policy_report.json`
+- `biorempp_snakemake_version/results/reports/workflow_summary.json`
 
 The next operational step is to run the GX validator against this results tree.
 

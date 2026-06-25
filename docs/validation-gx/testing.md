@@ -25,9 +25,8 @@ The GX validator ships a pytest suite under `biorempp_validation/tests/`. These 
 
 The verified containerized command path is:
 
-```bash
-docker compose -f biorempp_snakemake_version/env/docker-compose.yml run --rm validation \
-  python -m pytest biorempp_validation/tests -q
+```powershell
+docker compose -f biorempp_snakemake_version/env/docker-compose.yml run --rm validation python -m pytest biorempp_validation/tests -q
 ```
 
 This uses the same `validation` service that runs the packaged CLI, so the tests execute against the pinned validator environment declared by:
