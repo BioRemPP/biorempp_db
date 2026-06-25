@@ -196,5 +196,7 @@ node_modules/
 # Lock files managed intentionally per tool
 poetry.lock
 Pipfile.lock
-.archive
+.archive/*
+!.archive/FINAL_DOCS/
+!.archive/FINAL_DOCS/**
 .claude
