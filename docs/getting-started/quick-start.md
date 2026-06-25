@@ -38,35 +38,43 @@ Quick check:
 Get-ChildItem input_data | Select-Object Name
 ```
 
-## 2. Run The Snakemake Workflow
+## 2. Dry-Run The Workflow
 
-Choose one of the supported entry points below.
+Before the first full execution, validate that the DAG resolves from the current config:
 
-### Windows
-
-```bat
-biorempp_snakemake_version\scripts\run_snakemake.bat 2
+```powershell
+docker compose -f biorempp_snakemake_version/env/docker-compose.yml run --rm snakemake snakemake --snakefile Snakefile --configfile config/config.yaml --dry-run
 ```
 
-### POSIX
+This should enumerate the planned work without materializing outputs. If this step fails, fix the input or runtime issue before continuing.
 
-```bash
-./biorempp_snakemake_version/scripts/run_snakemake.sh 2
+On POSIX shells, the same command may also be written with line continuation, but the one-line form above is the safest cross-shell example for the official docs.
+
+## 3. Run The Snakemake Workflow
+
+Use one of the supported PowerShell-safe entry points below.
+
+### PowerShell helper script
+
+```powershell
+.\biorempp_snakemake_version\scripts\run_snakemake.bat 2
 ```
 
 ### Direct Compose Invocation
 
-```bash
+```powershell
 docker compose -f biorempp_snakemake_version/env/docker-compose.yml run --rm snakemake
 ```
 
-The helper scripts create the expected `results/`, `work/`, and `logs/` directories before invoking the workflow.
+The helper scripts create the expected `biorempp_snakemake_version/results/`, `biorempp_snakemake_version/work/`, and `biorempp_snakemake_version/logs/` directories before invoking the workflow.
 
-## 3. Run The GX Validator
+The repository also contains a POSIX helper script at `biorempp_snakemake_version/scripts/run_snakemake.sh`, but the official executable examples in this site are written for PowerShell to keep shell behavior unambiguous.
+
+## 4. Run The GX Validator
 
 From the repository root:
 
-```bash
+```powershell
 docker compose -f biorempp_snakemake_version/env/docker-compose.yml run --rm validation
 ```
 
@@ -75,7 +83,19 @@ The validator reads the Snakemake results tree and applies both configured valid
 - `internal_consistency`
 - `regression_detection`
 
-## 4. Inspect The Main Outputs
+## 5. Confirm The Main Output Families
+
+After a successful run, confirm that the expected output families exist:
+
+- `biorempp_snakemake_version/results/database/`
+- `biorempp_snakemake_version/results/analysis/`
+- `biorempp_snakemake_version/results/metadata/`
+- `biorempp_snakemake_version/results/reports/`
+- `biorempp_validation/results/`
+
+This is the first sanity check that generation, integrated validation, reporting, and GX validation all produced artifacts in their expected locations.
+
+## 6. Inspect The Main Outputs
 
 After a successful run, inspect at minimum:
 
@@ -86,7 +106,19 @@ After a successful run, inspect at minimum:
 - `biorempp_snakemake_version/results/reports/workflow_summary.json`
 - `biorempp_validation/results/validation_summary.json`
 
-## 5. Confirm Validation Outcome
+## 7. Perform A First Inspection
+
+Use the first inspection to answer five practical questions:
+
+- did the workflow produce the release-scoped CSV and XLSX exports
+- did the analysis layer produce `complete_analysis.json`
+- did metadata capture the KEGG release used by the run
+- did the workflow summary materialize in `results/reports/`
+- did GX finish and write `validation_summary.json`
+
+These checks are intentionally artifact-based. They confirm that the current contract was executed without relying on frozen row counts or legacy schema assumptions.
+
+## 8. Confirm Validation Outcome
 
 `biorempp_validation/results/validation_summary.json` is the primary validator summary artifact. Review it immediately after each run to confirm whether any critical or warning expectations failed.
 
@@ -95,3 +127,9 @@ After a successful run, inspect at minimum:
 - starting the workflow with an incomplete curated input set
 - relying on stale filenames from older prose instead of the current input contract
 - skipping GX validation and assuming workflow generation alone is sufficient verification
+
+## What To Read Next
+
+- use [Running The Snakemake Pipeline](../user-guide/run-snakemake.md) for rerun and entry-point details
+- use [Understanding Outputs](../user-guide/understanding-output.md) to interpret the generated artifacts
+- use [Troubleshooting](../user-guide/troubleshooting.md) if dry-run, execution, or validation behavior is unexpected
