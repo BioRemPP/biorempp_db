@@ -110,7 +110,6 @@ extra_css:
   - stylesheets/extra.css
 
 extra_javascript:
-  - https://polyfill.io/v3/polyfill.min.js?features=es6
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
 
 nav:
@@ -152,5 +151,6 @@ nav:
       - Glossary: reference/glossary.md
   - About:
       - Project Scope: about/project-scope.md
+      - How To Cite: about/how-to-cite.md
       - Contributing: about/contributing.md
       - Changelog And Releases: about/changelog-and-releases.md
