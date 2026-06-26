@@ -114,6 +114,17 @@ extra_javascript:
 
 nav:
   - Home: index.md
+  - Scientific Background:
+      - Motivation and Scope: about/scientific-background.md
+      - Database Statistics: database-reference/statistics.md
+      - FAIR Compliance: about/fair-compliance.md
+      - Known Limitations: about/limitations.md
+      - Data Availability and Citation: about/availability.md
+  - Database Reference:
+      - Schema: database-reference/schema.md
+      - Curated Inputs: database-reference/curated-inputs.md
+      - Analysis Artifacts: database-reference/analysis-artifacts.md
+      - Provenance And Release Semantics: database-reference/provenance-and-release.md
   - Getting Started:
       - Overview: getting-started/overview.md
       - Requirements: getting-started/requirements.md
@@ -129,11 +140,6 @@ nav:
       - Execution Stages: pipeline-architecture/execution-stages.md
       - Rules And Scripts Map: pipeline-architecture/rules-and-scripts.md
       - Configuration And IO Contracts: pipeline-architecture/configuration-and-io.md
-  - Database Reference:
-      - Schema: database-reference/schema.md
-      - Curated Inputs: database-reference/curated-inputs.md
-      - Analysis Artifacts: database-reference/analysis-artifacts.md
-      - Provenance And Release Semantics: database-reference/provenance-and-release.md
   - Pipeline Validation:
       - Overview: pipeline-validation/overview.md
       - KEGG Link Cache: pipeline-validation/kegg-link-cache.md
@@ -151,6 +157,6 @@ nav:
       - Glossary: reference/glossary.md
   - About:
       - Project Scope: about/project-scope.md
-      - How To Cite: about/how-to-cite.md
+      - Future Development: about/future-development.md
       - Contributing: about/contributing.md
       - Changelog And Releases: about/changelog-and-releases.md

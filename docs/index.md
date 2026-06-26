@@ -39,6 +39,8 @@ Each complete Snakemake run produces four output families:
 - provenance and validation metadata in `biorempp_snakemake_version/results/metadata/`
 - a run-level summary in `biorempp_snakemake_version/results/reports/workflow_summary.json`
 
+See [Understanding Outputs](user-guide/understanding-output.md) for the complete artifact reference.
+
 The release-scoped database contract is currently:
 
 - `biorempp_snakemake_version/results/database/biorempp_database_v1.1.0.csv`
@@ -113,12 +115,13 @@ For that reason, the official pages are written from executable rules, configura
 
 ## Choose Your Starting Path
 
-Use the page sequence below when you need a first validated run. If you already know your role, start here:
-
-- operator: go to [Quick Start](getting-started/quick-start.md)
-- researcher: go to [Overview](getting-started/overview.md) and then [Understanding Outputs](user-guide/understanding-output.md)
-- maintainer: go to [Requirements](getting-started/requirements.md), [Configuration And IO Contracts](pipeline-architecture/configuration-and-io.md), and [Baseline Management](validation-gx/baseline-management.md)
-- reviewer: go to [Overview](getting-started/overview.md), [Pipeline Validation Overview](pipeline-validation/overview.md), and [Project Scope](about/project-scope.md)
+| I need to... | Start here |
+|---|---|
+| Understand the scientific rationale and database content | [Scientific Background](about/scientific-background.md) → [Database Statistics](database-reference/statistics.md) → [Schema](database-reference/schema.md) |
+| Run the pipeline and generate the database | [Requirements](getting-started/requirements.md) → [Quick Start](getting-started/quick-start.md) |
+| Review data quality and validation coverage | [FAIR Compliance](about/fair-compliance.md) → [Known Limitations](about/limitations.md) → [Pipeline Validation](pipeline-validation/overview.md) |
+| Cite or reuse the database | [Data Availability and Citation](about/availability.md) |
+| Review or modify the pipeline implementation | [Requirements](getting-started/requirements.md) → [Configuration And IO Contracts](pipeline-architecture/configuration-and-io.md) → [Baseline Management](validation-gx/baseline-management.md) |
 
 ## Start Here
 
