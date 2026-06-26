@@ -43,7 +43,7 @@ The current workflow contract requires these exact filenames:
 - `kegglistko.txt`
 - `curated_enzyem_names_extracted.txt`
 
-The preflight rule `preflight_check_inputs` stops execution if any of these files is missing.
+The preflight rule `preflight_check_inputs` stops execution if any of these files is missing. For the role each file plays, the fields it contributes, and the normalization rules applied during loading, see [Input Data Contract](../user-guide/input-data.md).
 
 ## Runtime Environment Expectations
 
