@@ -39,18 +39,7 @@ The final database contract is:
 - `results/database/biorempp_database_v1.1.0.csv`
 - `results/database/biorempp_database_v1.1.0.xlsx`
 
-The CSV uses:
-
-- delimiter `;`
-- quoted fields enabled
-
-The current header is:
-
-```text
-cpd, compoundclass, ko, ec, reaction, reaction_description, referenceAG, compoundname, genesymbol, genename, enzyme_activity
-```
-
-In the actual file, these columns are written with `;` as the separator.
+The CSV uses delimiter `;` with quoted fields enabled. The exported column order and field semantics are defined in the [Schema](../database-reference/schema.md).
 
 ## Analysis Artifacts
 
