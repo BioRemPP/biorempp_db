@@ -107,9 +107,7 @@ This means the effective validator contract is the combination of suite JSON plu
 
 ## About `expect_compound_columns_to_be_unique`
 
-The repository does not define a local custom expectation class for `expect_compound_columns_to_be_unique`. The suite references it in `database_critical.json`, and the current `critical_checkpoint_result.json` shows that expectation executing successfully in the active runtime.
-
-That matters for documentation because the behavior is present, but it is not implemented as repository-local extension code under `src/`.
+`expect_compound_columns_to_be_unique` enforces full-row uniqueness across the exported column set. Its column list is injected at runtime from `database_contract.expected_columns` in `validation.yaml`, keeping it aligned with the ordered schema expectation applied in the same suite. A violation means two or more rows in the exported CSV are identical across all eleven public columns.
 
 ## Related Pages
 
