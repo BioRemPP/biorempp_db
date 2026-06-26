@@ -15,7 +15,9 @@ Primary sources:
 
 # Project Scope
 
-BioRemPP is a repository for reproducible database generation and validation. Its current official scope is the modular Snakemake workflow, the companion GX validator, and the documentation required to operate and review both surfaces.
+BioRemPP assembles a knowledge integration resource linking regulated environmental compounds to KEGG-annotated genes, enzymes, and biochemical reactions relevant to bioremediation. The database supports functional annotation of bioremediation potential in genomic and metagenomic contexts. The scope below defines what the repository generates, validates, and documents as part of its official release contract.
+
+The current implementation boundary covers the modular Snakemake workflow, the companion GX validator, and the documentation required to operate and review both surfaces.
 
 ## In Scope
 
