@@ -74,7 +74,7 @@ The Snakemake run produces:
 - KEGG and validation metadata in `biorempp_snakemake_version/results/metadata/`
 - a workflow-level summary in `biorempp_snakemake_version/results/reports/`
 
-The GX validator then writes its own results under `biorempp_validation/results/`.
+The GX validator then writes its own results under `biorempp_validation/results/`. For a complete description of each artifact family, see [Understanding Outputs](../user-guide/understanding-output.md).
 
 ## How This Documentation Is Organized
 

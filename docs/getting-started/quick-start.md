@@ -32,6 +32,8 @@ The repository-root `input_data/` directory must contain:
 - `kegglistko.txt`
 - `curated_enzyem_names_extracted.txt`
 
+For the role and loading rules of each file, see [Input Data Contract](../user-guide/input-data.md).
+
 Quick check:
 
 ```powershell
