@@ -81,7 +81,7 @@ show_banner() {
     echo ""
     echo -e "${COLOR_CYAN}============================================================${COLOR_RESET}"
     echo -e "${COLOR_CYAN}    BioRemPP Database Documentation Build Tool             ${COLOR_RESET}"
-    echo -e "${COLOR_CYAN}                   Version 1.0.0                           ${COLOR_RESET}"
+    echo -e "${COLOR_CYAN}                   Version 1.1.0                           ${COLOR_RESET}"
     echo -e "${COLOR_CYAN}============================================================${COLOR_RESET}"
     echo ""
 }
