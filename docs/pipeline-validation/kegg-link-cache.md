@@ -15,8 +15,6 @@ Observed artifacts:
 - biorempp_snakemake_version/cache/kegg_link_cache/cpd_ec.tsv
 - biorempp_snakemake_version/cache/kegg_link_cache/cpd_reaction.tsv
 - biorempp_snakemake_version/cache/kegg_link_cache/ec_reaction.tsv
-Known gaps:
-- the generated report JSON files currently record `kegg_api.cache_source` as `work/kegg_link_cache/`, but the workflow outputs and observed files are under `cache/kegg_link_cache/`
 -->
 
 # KEGG Link Cache
@@ -83,12 +81,6 @@ Both report scripts read these cache files through `read_link_cache()` and then 
 - report generation
 
 This keeps the report rules deterministic with respect to the cached input files they read.
-
-## Current Discrepancy
-
-The workflow and observed cache files use `cache/kegg_link_cache/`. However, the current generated JSON reports write `kegg_api.cache_source` as `work/kegg_link_cache/`.
-
-That path string comes from the Python report scripts, not from `30_validation.smk`. Treat the real cache location as `cache/kegg_link_cache/` until the report metadata is corrected in code.
 
 ## Related Pages
 
