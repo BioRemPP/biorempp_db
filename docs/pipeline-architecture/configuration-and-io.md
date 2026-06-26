@@ -135,7 +135,7 @@ The KEGG contract is explicit but currently split across layers.
 
 The generation layer does not read `kegg.endpoints.*` from `config.yaml`. It reads endpoint definitions directly from `workflow/lib/io_contracts.R`.
 
-There is one verified discrepancy worth documenting explicitly: `kegg.endpoints.compound_list` exists in `config/config.yaml`, but the current Snakemake rules do not pass that key to any script. The compound list endpoint used by generation still comes from `workflow/lib/io_contracts.R`.
+The compound list endpoint used by the generation layer is defined in `workflow/lib/io_contracts.R`. The `kegg.endpoints.*` keys in `config.yaml` apply exclusively to the validation layer.
 
 ## Value Normalization Contract
 
