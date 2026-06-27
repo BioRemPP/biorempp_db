@@ -106,21 +106,9 @@ The rest of the public release surface is fixed by `Snakefile` and the rule modu
 
 ## Public Database Schema Contract
 
-`workflow/lib/io_contracts.R` defines `EXPECTED_DATABASE_COLUMNS`, and `07_extract_enzymes_export.R` uses that vector to write the final export. The verified public column order is:
+`workflow/lib/io_contracts.R` defines `EXPECTED_DATABASE_COLUMNS` as the authoritative 11-column ordered vector, and `07_extract_enzymes_export.R` uses that vector to write the final export. Internal staging fields used in intermediate transformations are not part of the exported schema.
 
-1. `cpd`
-2. `compoundclass`
-3. `ko`
-4. `ec`
-5. `reaction`
-6. `reaction_description`
-7. `referenceAG`
-8. `compoundname`
-9. `genesymbol`
-10. `genename`
-11. `enzyme_activity`
-
-This is the public database contract. Internal staging fields used in intermediate transformations are not part of the exported schema.
+For the complete column reference including field semantics, identifier patterns, nullability contract, controlled vocabularies, and cardinality relationships, see [Schema](../database-reference/schema.md).
 
 ## KEGG Contract Split
 
