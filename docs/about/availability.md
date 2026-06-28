@@ -68,10 +68,7 @@ The KEGG release version is recorded in `results/metadata/kegg_release.json` for
 
 ## Version Information
 
-| Release | Schema columns | Total entries | KEGG reference | Retrieved |
-|---|---|---|---|---|
-| v1.0.0 | 8 | 10,871 | Release Dec,23 | December 2025 |
-| v1.1.0 | 11 | 123,543 | Release 118.0+ | May 2026 |
+The current release is v1.1.0, generated from KEGG Release 118.0+ (retrieved 2026-05-18). A version comparison table including schema columns, total entries, and KEGG reference is available in [Database Statistics](../database-reference/statistics.md).
 
 ## Related Pages
 

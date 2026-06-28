@@ -16,7 +16,6 @@ Primary sources:
 - git log --oneline -n 20
 Known gaps:
 - `git tag` returned no tags on 2026-06-24
-- `scripts/build-docs.sh` still prints `Version 1.0.0` in its banner while active pipeline and validator contracts are `1.1.0`
 - `mkdocs.yml` advertises `extra.version.provider: mike`, but no checked-in publication workflow documents how versioned docs releases are published
 -->
 
@@ -82,7 +81,7 @@ Three concrete gaps are visible in the checked-in repository:
 - no git tags are present for the current release line
 - documentation versioning hints exist in `mkdocs.yml`, but no checked-in process describes how versioned docs are published
 
-There is also one small version-marker mismatch outside the core pipeline contract: `scripts/build-docs.sh` still prints `Version 1.0.0` in its banner even though the active Snakemake, GX, and docs version markers are `1.1.0`.
+All version markers, including `scripts/build-docs.sh`, are aligned to `1.1.0`.
 
 ## Related Pages
 
