@@ -205,7 +205,7 @@ length(unique(db$cpd))  # 384
 db |>
   dplyr::group_by(referenceAG) |>
   dplyr::summarise(n_cpd = dplyr::n_distinct(cpd)) |>
-  dplyr::arrange(desc(n_cpd))
+  dplyr::arrange(dplyr::desc(n_cpd))
 ```
 
 **Python**
