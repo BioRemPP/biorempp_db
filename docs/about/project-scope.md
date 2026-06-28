@@ -74,16 +74,6 @@ A change is inside the official project scope when it affects one or more of the
 - GX suites, baseline expectations, or test coverage
 - documentation that explains the active pipeline contract
 
-## Current Governance Note
-
-The repository exposes a clear execution contract, but some governance surfaces remain lightweight:
-
-- there is no root `CONTRIBUTING.md`
-- there is no dedicated root `CHANGELOG.md`
-- release interpretation currently depends on version markers in config, package metadata, baselines, and git history
-
-Those gaps do not change the pipeline contract, but they do affect how maintainers should review and communicate change.
-
 ## Related Pages
 
 - [Overview](../index.md)

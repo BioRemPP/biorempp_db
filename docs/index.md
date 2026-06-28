@@ -78,28 +78,9 @@ The companion validator reads the Snakemake results tree and applies two active 
 
 Its configuration is defined in `biorempp_validation/config/validation.yaml`, and its outputs are written to `biorempp_validation/results/`.
 
-## What BioRemPP Does Not Provide By Itself
+## Scope and Interpretation Boundaries
 
-BioRemPP should not be treated as:
-
-- a real-time mirror of KEGG
-- a public API service for serving database records
-- an organism-specific biodegradation prediction engine
-- a complete pathway reconstruction framework
-- a substitute for scientific review of downstream biological interpretation
-
-The official docs therefore describe the checked-in execution and validation contract, not every possible claim that could be made from the generated data.
-
-## Interpretation Limits
-
-The generated database captures functional associations assembled from curated local inputs and KEGG-derived relationships. It does not by itself establish:
-
-- quantitative biodegradation kinetics
-- organism-level expression or activity
-- pathway completeness for a specific sample or genome
-- regulatory or toxicological conclusions without consulting the originating source systems
-
-These limits matter when the database is reused in downstream annotation, filtering, or reporting workflows.
+BioRemPP assembles functional gene-compound associations from KEGG annotations and curated regulatory agency lists. The scope of the repository and the boundaries of what the database does and does not establish are documented in [Project Scope](about/project-scope.md).
 
 ## Why This Documentation Is Structured This Way
 

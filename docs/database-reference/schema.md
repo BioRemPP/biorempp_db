@@ -81,11 +81,11 @@ KEGG Orthology identifier normalized to the `K#####` format. GX critical contrac
 
 ### `ec`
 
-Enzyme Commission number. This field is semantically nullable: rows produced under a less complete evidence model may lack an EC resolution. Missing values are serialized as `NA`. The current release has 961 unresolved rows, giving an EC completeness rate of 99.22%. Remaining nulls are explained by `results/metadata/keys_consistency_report.json`.
+Enzyme Commission number. This field is semantically nullable: rows produced under a less complete evidence model may lack an EC resolution. Missing values are serialized as `NA`. Completeness figures are reported in [Database Statistics](statistics.md). Remaining nulls are explained by `results/metadata/keys_consistency_report.json`.
 
 ### `reaction`
 
-KEGG Reaction identifier normalized to the `R#####` format when present. This field is semantically nullable for the same reason as `ec`. Missing values are serialized as `NA`. The current release has 2,223 unresolved rows, giving a reaction completeness rate of 98.20%. Each resolved `reaction` value is resolvable at `https://www.kegg.jp/entry/{reaction}`.
+KEGG Reaction identifier normalized to the `R#####` format when present. This field is semantically nullable for the same reason as `ec`. Missing values are serialized as `NA`. Each resolved `reaction` value is resolvable at `https://www.kegg.jp/entry/{reaction}`.
 
 ### `reaction_description`
 
@@ -125,38 +125,38 @@ Every other public column is treated as required by the critical validation suit
 
 ### `referenceAG`
 
-| Code | Full name | Jurisdiction | Compounds |
-|---|---|---|---|
-| `ATSDR` | Agency for Toxic Substances and Disease Registry | USA | 191 |
-| `IARC2B` | IARC Group 2B — Possibly carcinogenic to humans | International | 130 |
-| `PSL` | Priority Substances List | Canada | 99 |
-| `EPC` | Environmental Priority Chemicals | Europe | 91 |
-| `WFD` | Water Framework Directive | European Union | 84 |
-| `EPA` | U.S. Environmental Protection Agency | USA | 83 |
-| `IARC1` | IARC Group 1 — Carcinogenic to humans | International | 56 |
-| `CONAMA` | Conselho Nacional do Meio Ambiente | Brazil | 43 |
-| `IARC2A` | IARC Group 2A — Probably carcinogenic to humans | International | 29 |
+| Code | Full name | Jurisdiction |
+|---|---|---|
+| `ATSDR` | Agency for Toxic Substances and Disease Registry | USA |
+| `IARC2B` | IARC Group 2B — Possibly carcinogenic to humans | International |
+| `PSL` | Priority Substances List | Canada |
+| `EPC` | Environmental Priority Chemicals | Europe |
+| `WFD` | Water Framework Directive | European Union |
+| `EPA` | U.S. Environmental Protection Agency | USA |
+| `IARC1` | IARC Group 1 — Carcinogenic to humans | International |
+| `CONAMA` | Conselho Nacional do Meio Ambiente | Brazil |
+| `IARC2A` | IARC Group 2A — Probably carcinogenic to humans | International |
 
-Percentages are calculated over 384 unique compounds. Compounds may appear under more than one agency.
+Compound counts per agency are documented in [Database Statistics](statistics.md).
 
 ### `compoundclass`
 
-| Class | Compounds | Description |
-|---|---|---|
-| `Aromatic` | 123 | Benzene ring-containing compounds |
-| `Chlorinated` | 117 | Halogenated with chlorine substituents |
-| `Nitrogen-containing` | 115 | Compounds with nitrogen functional groups |
-| `Polyaromatic` | 98 | Multiple fused aromatic rings (PAHs) |
-| `Aliphatic` | 94 | Straight-chain or branched hydrocarbons |
-| `Metal` | 29 | Metal and metal-containing compounds |
-| `Inorganic` | 26 | Inorganic compounds (ammonia, sulfates, nitrates) |
-| `Sulfur-containing` | 20 | Organic sulfur functional groups |
-| `Organophosphorus` | 13 | Phosphorus-containing organic compounds |
-| `Organometallic` | 9 | Compounds with direct metal-carbon bonds |
-| `Halogenated` | 8 | Halogenated compounds (bromo/fluoro variants) |
-| `Organosulfur` | 1 | Organic sulfur compounds |
+| Class | Description |
+|---|---|
+| `Aromatic` | Benzene ring-containing compounds |
+| `Chlorinated` | Halogenated with chlorine substituents |
+| `Nitrogen-containing` | Compounds with nitrogen functional groups |
+| `Polyaromatic` | Multiple fused aromatic rings (PAHs) |
+| `Aliphatic` | Straight-chain or branched hydrocarbons |
+| `Metal` | Metal and metal-containing compounds |
+| `Inorganic` | Inorganic compounds (ammonia, sulfates, nitrates) |
+| `Sulfur-containing` | Organic sulfur functional groups |
+| `Organophosphorus` | Phosphorus-containing organic compounds |
+| `Organometallic` | Compounds with direct metal-carbon bonds |
+| `Halogenated` | Halogenated compounds (bromo/fluoro variants) |
+| `Organosulfur` | Organic sulfur compounds |
 
-A compound may appear under more than one class; the sum of compounds per class therefore exceeds 384.
+Compound counts per class and their distribution are documented in [Database Statistics](statistics.md).
 
 ## Row Semantics and Cardinality
 
@@ -178,13 +178,7 @@ The critical uniqueness check is applied to the full 11-column row, not to `cpd`
 
 ## Data Quality
 
-Eight core columns are fully populated. Three columns are semantically nullable by design:
-
-| Column | Completeness | Missing rows |
-|---|---|---|
-| `ec` | 99.22% | 961 |
-| `reaction` | 98.20% | 2,223 |
-| `reaction_description` | 98.20% | 2,223 |
+Eight core columns are fully populated. Three columns are semantically nullable by design: `ec`, `reaction`, and `reaction_description`. Completeness rates and missing-row counts for these fields are documented in [Database Statistics](statistics.md).
 
 All `cpd` values match `^C\d{5}$`. All `ko` values match `^K\d{5}$`. All `reaction` values resolve to `^R\d{5}$` or the `NA` sentinel. `ec` values resolve to standard EC notation or `NA`. Identifier consistency is enforced by the GX critical checkpoint on every release.
 
