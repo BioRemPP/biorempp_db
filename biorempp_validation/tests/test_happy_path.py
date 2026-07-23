@@ -16,3 +16,9 @@ def test_happy_path(config_path):
 
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
     assert summary["counts"]["critical_failed_expectations"] == 0
+    assert summary["counts"]["warning_failed_expectations"] == 0
+
+    critical_payload = json.loads((settings.output_dir / "critical_checkpoint_result.json").read_text(encoding="utf-8"))
+    validation_modes = {item.get("validation_mode") for item in critical_payload["suite_results"]}
+    assert "internal_consistency" in validation_modes
+    assert "regression_detection" in validation_modes

@@ -5,9 +5,9 @@ source("workflow/lib/utils.R")
 load_required_packages(c("dplyr", "jsonlite"))
 
 args <- parse_cli_args()
-require_cli_args(args, c("input-csv", "output", "top-n", "config"))
+require_cli_args(args, c("input-csv", "csv-sep", "output", "top-n"))
 
-db <- read.csv(args[["input-csv"]], stringsAsFactors = FALSE)
+db <- read_database_csv(args[["input-csv"]], sep = args[["csv-sep"]])
 top_n <- as.integer(args[["top-n"]])
 
 compounds_per_class <- db %>%
@@ -23,7 +23,7 @@ compounds_per_agency <- db %>%
 top_compounds <- db %>%
   dplyr::group_by(cpd, compoundname) %>%
   dplyr::summarise(frequency = dplyr::n(), .groups = "drop") %>%
-  dplyr::arrange(dplyr::desc(frequency)) %>%
+  dplyr::arrange(dplyr::desc(frequency), cpd) %>%
   utils::head(top_n)
 
 stats <- list(

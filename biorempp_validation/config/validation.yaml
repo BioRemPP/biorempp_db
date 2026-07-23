@@ -1,21 +1,27 @@
-version: "1.0.0"
+version: "1.1.0"
 
 policy:
   fail_on_critical: true
   fail_on_warning: true
-  generate_data_docs: true
+  generate_summary_page: true
 
-strict_exact: true
+validation_modes:
+  internal_consistency: true
+  regression_detection: true
+
+csv:
+  delimiter: ";"
 
 paths:
   # Relative to biorempp_validation/ project root.
   input_results_root: ../biorempp_snakemake_version/results
+  regression_baseline_root: baselines/release_v1_1_0_kegg_118_0plus
   output_dir: results
   expectations_dir: great_expectations/expectations
   checkpoints_dir: great_expectations/checkpoints
 
 required_files:
-  - database/biorempp_database_v1.0.0.csv
+  - database/biorempp_database_v1.1.0.csv
   - analysis/basic_statistics.json
   - analysis/compound_statistics.json
   - analysis/ko_statistics.json
@@ -26,12 +32,22 @@ required_files:
   - analysis/executive_summary.json
   - analysis/complete_analysis.json
   - metadata/kegg_release.json
+  - metadata/keys_consistency_report.json
+  - metadata/links_groundtruth_policy_report.json
+  - reports/workflow_summary.json
 
 database_contract:
+  nullable_columns:
+    - ec
+    - reaction
+    - reaction_description
   expected_columns:
     - cpd
     - compoundclass
     - ko
+    - ec
+    - reaction
+    - reaction_description
     - referenceAG
     - compoundname
     - genesymbol
@@ -62,9 +78,9 @@ database_contract:
     - Sulfur-containing
 
 drift_thresholds:
-  row_count: {min: 7000, max: 20000}
-  unique_compounds: {min: 250, max: 700}
-  unique_ko: {min: 900, max: 2500}
-  unique_genesymbol: {min: 1000, max: 2200}
-  unique_genename: {min: 900, max: 2200}
-  unique_enzyme_activity: {min: 120, max: 400}
+  row_count: {min: 118000, max: 130000}
+  unique_compounds: {min: 360, max: 410}
+  unique_ko: {min: 1440, max: 1650}
+  unique_genesymbol: {min: 1410, max: 1625}
+  unique_genename: {min: 1320, max: 1525}
+  unique_enzyme_activity: {min: 185, max: 230}

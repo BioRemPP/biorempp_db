@@ -1,7 +1,14 @@
-readxl
-dplyr
-tidyr
-stringr
-readr
-jsonlite
-writexl
+# R package version manifest — pinned versions installed by Dockerfile.
+# Update both this file and the Dockerfile RUN block together when upgrading.
+#
+# CRITICAL: dplyr >= 1.1.0 is required for relationship="many-to-many" in inner_join()
+# used extensively in workflow/scripts/generation/04_merge_relationships.R
+
+dplyr    1.1.4
+httr     1.4.7
+readxl   1.4.3
+tidyr    1.3.1
+stringr  1.5.1
+readr    2.1.5
+jsonlite 1.8.8
+writexl  1.5.0

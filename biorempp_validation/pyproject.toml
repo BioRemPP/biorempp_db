@@ -1,15 +1,15 @@
 [build-system]
-requires = ["setuptools>=69", "wheel"]
+requires = ["setuptools==82.0.1", "wheel==0.47.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "biorempp-validation"
-version = "1.0.0"
+version = "1.1.0"
 description = "Great Expectations validation suite for BioRemPP database outputs."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-  "great_expectations>=1.12,<1.13",
+  "great_expectations~=1.12.0",
   "pandas>=2.0,<3.0",
   "PyYAML>=6.0,<7.0",
   "jsonschema>=4.0,<5.0",

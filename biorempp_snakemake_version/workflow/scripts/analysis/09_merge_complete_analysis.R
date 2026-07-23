@@ -7,7 +7,7 @@ load_required_packages(c("jsonlite"))
 args <- parse_cli_args()
 require_cli_args(
   args,
-  c("metadata", "basic", "compound", "ko", "enzyme", "gene", "crosstab", "executive", "output", "config")
+  c("metadata", "basic", "compound", "ko", "enzyme", "gene", "crosstab", "executive", "output")
 )
 
 results <- list(

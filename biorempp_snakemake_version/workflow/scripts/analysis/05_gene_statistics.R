@@ -5,21 +5,21 @@ source("workflow/lib/utils.R")
 load_required_packages(c("dplyr", "jsonlite"))
 
 args <- parse_cli_args()
-require_cli_args(args, c("input-csv", "output", "config"))
+require_cli_args(args, c("input-csv", "csv-sep", "output"))
 
-db <- read.csv(args[["input-csv"]], stringsAsFactors = FALSE)
+db <- read_database_csv(args[["input-csv"]], sep = args[["csv-sep"]])
 
 genesymbol_frequency <- db %>%
   dplyr::group_by(genesymbol) %>%
   dplyr::summarise(frequency = dplyr::n(), .groups = "drop") %>%
-  dplyr::arrange(dplyr::desc(frequency))
+  dplyr::arrange(dplyr::desc(frequency), genesymbol)
 
 top_genesymbols <- utils::head(genesymbol_frequency, 20)
 
 genename_frequency <- db %>%
   dplyr::group_by(genename) %>%
   dplyr::summarise(frequency = dplyr::n(), .groups = "drop") %>%
-  dplyr::arrange(dplyr::desc(frequency))
+  dplyr::arrange(dplyr::desc(frequency), genename)
 
 top_genenames <- utils::head(genename_frequency, 20)
 

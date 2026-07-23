@@ -1,461 +1,149 @@
+<!--
+Page status: verified
+Audience: operators, maintainers, reviewers
+Applies to: Snakemake and GX
+Version scope: Snakemake output contract v1.1.0 and GX validator v1.1.0
+Last verified on: 2026-06-24
+Primary sources:
+- biorempp_snakemake_version/env/docker-compose.yml
+- biorempp_snakemake_version/env/Dockerfile
+- biorempp_snakemake_version/env/python-requirements.txt
+- biorempp_snakemake_version/env/r-packages.txt
+- biorempp_validation/env/Dockerfile
+- biorempp_snakemake_version/config/config.yaml
+- biorempp_snakemake_version/workflow/lib/io_contracts.R
+- biorempp_snakemake_version/workflow/scripts/generation/00_check_inputs.R
+- requirements.txt
+- input_data directory listing
+-->
+
 # Requirements
 
-This page specifies the software, hardware, and data requirements for running the BioRemPP Database generation pipeline.
+The documented BioRemPP workflow is containerized and expects the curated input contract to be complete before execution starts.
 
----
+## System Requirements
 
-## Software Requirements
+To run the Snakemake workflow and the GX validator as documented in this site, you need:
 
-### Core Dependencies
+- Docker with access to the `docker compose` command
+- a writable local checkout of the repository
+- outbound network access to `https://rest.kegg.jp`
+- the required curated input files in the repository-root `input_data/` directory
 
-| Software | Minimum Version | Recommended Version | Purpose |
-|----------|----------------|---------------------|---------|
-| **R** | 4.0.0 | 4.3.0+ | Statistical computing environment |
-| **Git** | 2.0+ | Latest | Repository cloning (optional) |
+The official onboarding path assumes Docker-first execution. This keeps the workflow runtime, validator runtime, and dependency resolution aligned with the checked-in compose and Dockerfile definitions.
 
-### R Package Dependencies
+## Required Curated Inputs
 
-| Package | Version | License | Purpose |
-|---------|---------|---------|---------|
-| `readxl` | ≥1.3.1 | GPL-3 | Read Excel input files |
-| `dplyr` | ≥1.0.0 | MIT | Data manipulation and transformation |
-| `tidyr` | ≥1.1.0 | MIT | Data tidying operations |
-| `stringr` | ≥1.4.0 | MIT | String processing and regex |
-| `readr` | ≥2.0.0 | MIT | Fast CSV reading/writing |
-| `xlsx` | ≥0.6.0 | GPL-3 | Excel file export (requires Java) |
+The current workflow contract requires these exact filenames:
 
-**Alternative to `xlsx`:** `writexl` (≥1.4.0, no Java required)
+- `kegglistcompounds.xlsx`
+- `curated_regulated_compounds.xlsx`
+- `curated_programatic_missing_compounds.xlsx`
+- `curated_compound_classes.xlsx`
+- `kegglistko.txt`
+- `curated_enzyem_names_extracted.txt`
 
-### System Libraries (Linux Only)
+The preflight rule `preflight_check_inputs` stops execution if any of these files is missing. For the role each file plays, the fields it contributes, and the normalization rules applied during loading, see [Input Data Contract](../user-guide/input-data.md).
 
-Required for R package compilation:
+## Runtime Environment Expectations
 
-=== "Ubuntu/Debian"
-    ```
-    - libcurl4-openssl-dev
-    - libssl-dev
-    - libxml2-dev
-    - build-essential
-    - r-base-dev
-    ```
+The checked-in workflow is modest in shape but still depends on a stable local environment:
 
-=== "CentOS/RHEL"
-    ```
-    - libcurl-devel
-    - openssl-devel
-    - libxml2-devel
-    - gcc
-    - gcc-c++
-    - R-devel
-    ```
+- enough free disk space for container builds, intermediate files, logs, and result artifacts
+- enough memory for the R-based generation steps, the Snakemake process, and the validator container
+- a stable network connection during KEGG fetch steps
+- permission to create or update `biorempp_snakemake_version/results/`, `biorempp_snakemake_version/work/`, and `biorempp_snakemake_version/logs/`
 
-### Optional Dependencies
+If the machine is resource-constrained, prefer fewer workflow cores rather than assuming the default helper-script setting is always appropriate.
 
-| Software | Purpose | When Needed |
-|----------|---------|-------------|
-| **Java JRE** (≥8) | Excel export via `xlsx` package | If using `xlsx` (not `writexl`) |
-| **RStudio** (any version) | Interactive development environment | For GUI-based execution |
-| **Pandoc** (≥2.0) | Documentation building | If building MkDocs locally |
-| **Python** (≥3.8) + MkDocs | Documentation generation | If building documentation site |
+## Runtime Definition
 
----
+The repository defines two containerized services in `biorempp_snakemake_version/env/docker-compose.yml`:
 
-## Hardware Requirements
+| Service | Role | Default command |
+|---|---|---|
+| `snakemake` | runs the database generation workflow | `snakemake --snakefile Snakefile --configfile config/config.yaml --cores 2 --printshellcmds` |
+| `validation` | runs the GX validator against generated outputs | `biorempp-validate --config biorempp_validation/config/validation.yaml` |
 
-### Minimum Configuration
+## Pinned Workflow Environment
 
-Suitable for pipeline execution with default input data:
+The Snakemake image is built from `biorempp_snakemake_version/env/Dockerfile` and currently pins:
 
-| Resource | Minimum | Notes |
-|----------|---------|-------|
-| **RAM** | 4 GB | Sufficient for current dataset (10,869 entries) |
-| **Storage** | 500 MB | Pipeline + input data + outputs |
-| **CPU** | 1 core | Single-threaded execution |
-| **Network** | Required | KEGG API access (HTTPS) |
+- `snakemake==8.30.0`
+- `pulp==2.7.0`
+- the R package versions listed in `biorempp_snakemake_version/env/r-packages.txt`
 
-**Estimated runtime:** 5 minutes on minimum configuration
+The validator image is built from `biorempp_validation/env/Dockerfile` and installs the locked Python environment defined by:
 
-### Recommended Configuration
+- `biorempp_validation/requirements-dev.lock.txt`
+- `biorempp_validation/pyproject.toml`
 
-For comfortable execution and future scalability:
+## Verified Prerequisite Checks
 
-| Resource | Recommended | Benefits |
-|-----------|-------------|----------|
-| **RAM** | 8 GB+ | Faster data processing, supports larger datasets |
-| **Storage** | 2 GB+ | Space for multiple pipeline runs, analysis outputs |
-| **CPU** | 2+ cores | Potential for future parallelization |
-| **Network** | Stable broadband | Faster KEGG API queries |
+Before the first run, verify at minimum:
 
-**Estimated runtime:** 3-8 minutes on recommended configuration
+### Docker availability
 
-### HPC/Server Configuration
-
-For institutional compute clusters or large-scale batch processing:
-
-| Resource | Typical | Use Case |
-|----------|---------|----------|
-| **RAM** | 16-32 GB | Batch runs, extended datasets |
-| **Storage** | 10 GB+ | Multiple versions, analysis archives |
-| **CPU** | 8+ cores | Parallel processing (future releases) |
-| **Network** | Institutional | Reliable API access |
-
----
-
-## Network Requirements
-
-### Internet Connectivity
-
-**Required for:**
-
-- KEGG REST API queries (https://rest.kegg.jp/)
-  - KO-EC and KO-Reaction links
-  - Compound-EC and Compound-Reaction links
-  - Compound list with names
-  - KO list with gene information
-
-**Bandwidth requirements:**
-
-| Operation | Data Transfer | Frequency |
-|-----------|--------------|-----------|
-| KEGG API queries | ~50-100 MB | Per pipeline run |
-| Repository clone | ~20 MB | One-time |
-| Documentation build | ~5 MB | Optional |
-
-**Network conditions:**
-
-- **Latency:** <500 ms to rest.kegg.jp (typical: 50-200 ms)
-- **Stability:** Continuous connection for 5-15 minutes
-- **Firewall:** HTTPS (port 443) outbound access required
-
-### Offline Execution
-
-**Limited support:** Pipeline requires KEGG API for core functionality. Offline execution is **not supported** in v1.0.0.
-
-**Future releases** may support:
-
-- Cached KEGG data for offline execution
-- Pre-downloaded snapshot option
-- Local KEGG mirror integration
-
-**Current workaround:**
-
-1. Run pipeline once with internet to cache API responses
-2. Modify pipeline to skip API calls and use cached data (advanced users only)
-
----
-
-## Data Requirements
-
-### Input Data Files
-
-The following files must be present in `input_data/` directory:
-
-| File | Format | Size | Description |
-|------|--------|------|-------------|
-| `kegglistcompounds.xlsx` | Excel | ~425 KB | KEGG compound reference list |
-| `compostos_todasagencias.xlsx` | Excel | ~30 KB | Environmental agency compound lists |
-| `missing_compounds_founds_curated.xlsx` | Excel | ~38 KB | Manual curations for missing compounds |
-| `confirm_class_CURATED.xlsx` | Excel | ~17 KB | Compound chemical classifications |
-| `kegglistko.txt` | Text | ~1.6 MB | KEGG Orthology reference list |
-| `enzymes_unique.txt` | Text | ~3 KB | Unique enzyme activity terms |
-
-**Total input data:** ~2.2 MB
-
-All files are included in the repository and do not require separate download.
-
-### Expected Output
-
-| File | Format | Approximate Size | Content |
-|------|--------|------------------|---------|
-| `biorempp_database_v1.0.0.csv` | CSV | ~1.3 MB | Main database (10,869 rows × 8 columns) |
-| `biorempp_database_v1.0.0.xlsx` | Excel | ~460 KB | Excel-formatted database |
-| `biorempp_db.csv` | CSV | ~1.1 MB | Alternative format output |
-
-### Analysis Outputs (Optional)
-
-Generated by `analysis/analyze_database.R`:
-
-| File | Format | Size | Content |
-|------|--------|------|---------|
-| `database_metadata.json` | JSON | ~2 KB | Schema and provenance |
-| `basic_statistics.json` | JSON | <1 KB | Core metrics |
-| `compound_statistics.json` | JSON | ~1.5 KB | Compound analysis |
-| `ko_statistics.json` | JSON | <1 KB | KO analysis |
-| `enzyme_statistics.json` | JSON | ~1 KB | Enzyme analysis |
-| `gene_statistics.json` | JSON | ~1.4 KB | Gene analysis |
-| `crosstab_statistics.json` | JSON | ~1.8 KB | Cross-dimensional analysis |
-| `executive_summary.json` | JSON | <1 KB | Summary metrics |
-| `complete_analysis.json` | JSON | ~10 KB | Full analysis bundle |
-
-**Total analysis outputs:** ~20 KB (9 JSON files)
-
----
-
-## Operating System Compatibility
-
-### Tested Platforms
-
-| Platform | Version | Status | Notes |
-|----------|---------|--------|-------|
-| **Windows** | 10, 11 | ✅ Fully Tested | PowerShell, Command Prompt, Git Bash |
-| **macOS** | 12 (Monterey), 13 (Ventura), 14 (Sonoma) | ✅ Fully Tested | Intel and Apple Silicon (M1/M2) |
-| **Ubuntu Linux** | 20.04 LTS, 22.04 LTS | ✅ Fully Tested | Primary development platform |
-| **Debian** | 10 (Buster), 11 (Bullseye) | ✅ Tested | Server deployments |
-| **CentOS** | 7, 8 | ✅ Tested | HPC environments |
-| **RHEL** | 8, 9 | ✅ Tested | Enterprise servers |
-| **Fedora** | 36+  | ⚠️  Expected to work | Not formally tested |
-| **Arch Linux** | Rolling | ⚠️  Expected to work | Community-tested |
-
-### Unsupported Platforms
-
-| Platform | Reason |
-|----------|--------|
-| Windows 7/8 | End-of-life, R compatibility issues |
-| macOS < 10.14 | Incompatible with modern R versions |
-| 32-bit systems | R ≥4.0 requires 64-bit architecture |
-
----
-
-## Execution Environments
-
-### Local Workstation
-
-**Use cases:**
-
-- Interactive exploration and development
-- Initial testing and validation
-- Small-scale analyses
-- Documentation building
-
-**Recommended for:**
-
-- First-time users learning the pipeline
-- Researchers running single analyses
-- Developers modifying pipeline code
-
-### Remote Server
-
-**Use cases:**
-
-- Production-grade database generation
-- Batch processing multiple datasets
-- Reproducible workflow execution
-- Institutional deployments
-
-**Recommended for:**
-
-- Bioinformatics core facilities
-- Research groups with dedicated servers
-- Multi-user environments
-- Scheduled/automated runs
-
-### High-Performance Computing (HPC)
-
-**Use cases:**
-
-- Large-scale batch processing
-- Extended/modified datasets
-- Future parallelized versions
-- Resource-intensive analyses
-
-**Recommended for:**
-
-- Institutional compute clusters
-- Multi-omics integration workflows
-- Computational research groups
-- Production deployments at scale
-
-### Cloud Computing
-
-**Use cases:**
-
-- On-demand pipeline execution
-- Scalable compute resources
-- Reproducible containerized workflows
-- CI/CD integration
-
-**Supported platforms:**
-
-- AWS EC2 (Linux AMIs with R ≥4.0)
-- Google Cloud Compute Engine
-- Microsoft Azure Virtual Machines
-- Any cloud VM with R support
-
----
-
-## R Session Requirements
-
-### Locale and Encoding
-
-**Recommended settings:**
-
-```r
-# Check current locale
-Sys.getlocale()
-
-# Set UTF-8 encoding (if needed)
-Sys.setlocale("LC_ALL", "en_US.UTF-8")
+```powershell
+docker info
 ```
 
-**Why:** Ensures proper handling of compound names with special characters (e.g., Greek letters, subscripts).
-
-### Memory Settings
-
-**Default (sufficient for v1.0.0):**
-
-```r
-# Check memory limit (Windows only)
-memory.limit()  # Default: system-dependent
+```powershell
+docker compose version
 ```
 
-**For large datasets (future versions):**
+### Curated input presence
 
-```r
-# Increase memory limit (Windows only)
-memory.limit(size = 16000)  # 16 GB
-
-# Unix/macOS: Set via shell before launching R
-# ulimit -s unlimited
+```powershell
+Get-ChildItem input_data | Select-Object Name
 ```
 
-### Timeout Configuration
+### Writable workspace expectation
 
-**Recommended for KEGG API:**
+The helper scripts create or reuse:
 
-```r
-# Set timeout to 5 minutes (300 seconds)
-options(timeout = 300)
+- `biorempp_snakemake_version/results/`
+- `biorempp_snakemake_version/work/`
+- `biorempp_snakemake_version/logs/`
+
+If those directories cannot be created or updated, execution will fail before the run is complete.
+
+### Network reachability
+
+```powershell
+curl.exe -I https://rest.kegg.jp/info/kegg
 ```
 
-**Why:** KEGG API queries may timeout on slow connections. Default timeout (60s) is often insufficient.
+The workflow depends on KEGG REST access during generation and the integrated validation layer also relies on KEGG-linked checks.
 
----
+## Offline Execution Boundary
 
-## Verification Commands
+The official workflow should be treated as network-dependent. The checked-in generation path fetches KEGG data during execution, so this documentation does not present offline execution as a supported first-run mode.
 
-Run these commands to verify your system meets requirements:
+If a team later develops a controlled cached-run procedure, that procedure should be documented explicitly from the active implementation rather than inferred from historical behavior.
 
-### Check R Version
+## Optional Documentation Tooling
 
-```r
-R.version.string
-# Expected: "R version 4.3.2 (2023-10-31)" or higher
-```
+If you want to build this documentation locally, install the root documentation dependencies:
 
-### Check Installed Packages
+- `mkdocs`
+- `mkdocs-material`
+- `mkdocs-minify-plugin`
+- `pymdown-extensions`
+- `Pygments`
 
-```r
-installed.packages()[c("readxl", "dplyr", "tidyr", "stringr", "readr", "xlsx"), "Version"]
-```
+These packages are defined in the repository-root `requirements.txt`.
 
-### Check System Memory
+## Platform Notes
 
-```r
-# Total RAM available to R
-memory.size()  # Windows
-# or
-system("free -h")  # Linux/macOS
-```
+The documentation and helper scripts assume:
 
-### Check Network Connectivity
+- Docker can mount the repository workspace correctly
+- the local shell can invoke `docker compose`
+- line endings and path separators do not change the required curated filenames
 
-```bash
-# Test KEGG API access
-curl -I https://rest.kegg.jp/list/pathway
+Most operator-facing failures are therefore environment or runtime issues rather than schema-definition issues. Platform-specific troubleshooting belongs in [Troubleshooting](../user-guide/troubleshooting.md).
 
-# Expected: HTTP/1.1 200 OK
-```
+## Next Step
 
-### Complete System Check
-
-```r
-# Run this R script to check all requirements
-cat("=== BioRemPP System Requirements Check ===\n\n")
-
-cat("R Version:\n")
-print(R.version.string)
-
-cat("\nRequired Packages:\n")
-packages <- c("readxl", "dplyr", "tidyr", "stringr", "readr", "xlsx")
-for (pkg in packages) {
-  installed <- requireNamespace(pkg, quietly = TRUE)
-  cat(sprintf("  %s: %s\n", pkg, ifelse(installed, "✓ INSTALLED", "✗ MISSING")))
-}
-
-cat("\nMemory:\n")
-cat(sprintf("  Available RAM: %.2f GB\n", memory.size() / 1024))
-
-cat("\nLocale:\n")
-cat(sprintf("  %s\n", Sys.getlocale()))
-
-cat("\n=== Check Complete ===\n")
-```
-
----
-
-## Troubleshooting Requirements Issues
-
-### "R version too old"
-
-**Error:** `Error: R >= 4.0.0 required`
-
-**Solution:** Upgrade R from [CRAN](https://cran.r-project.org/)
-
----
-
-### "Package X not available"
-
-**Error:** `Error: package 'dplyr' is not available`
-
-**Solution:**
-
-```r
-# Update CRAN mirror
-options(repos = "https://cloud.r-project.org/")
-
-# Install missing package
-install.packages("dplyr")
-```
-
----
-
-### "Cannot allocate memory"
-
-**Error:** `Error: cannot allocate vector of size X GB`
-
-**Solutions:**
-
-1. Close other applications
-2. Restart R session
-3. Increase system memory or use server
-4. Use HPC for larger datasets
-
----
-
-### "KEGG API connection failed"
-
-**Error:** `Error: Failed to fetch data from KEGG API`
-
-**Solutions:**
-
-1. Check internet connection
-2. Test KEGG access: `curl https://rest.kegg.jp/list/pathway`
-3. Configure proxy if behind firewall
-4. Increase timeout: `options(timeout = 300)`
-
----
-
-## Next Steps
-
-After verifying requirements:
-
-1. **Install the pipeline:** [Installation Guide](installation.md)
-2. **Run first analysis:** [Quick Start Guide](quick-start.md)
-3. **Understand inputs:** [Input Data Files](../user-guide/input-data.md)
-
----
-
-## Questions?
-
-**GitHub Issues:** [https://github.com/BioRemPP/biorempp_db/issues](https://github.com/BioRemPP/biorempp_db/issues)  
-**Email:** biorempp@gmail.com
+Continue to [Installation](installation.md) to prepare the environment and verify the input directory before the first run.

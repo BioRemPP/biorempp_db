@@ -11,8 +11,10 @@ def _has_keys(payload: dict[str, Any], required_keys: list[str]) -> bool:
 
 
 def build_analysis_critical_df(
+    database_df: pd.DataFrame,
     analysis_payloads: dict[str, dict[str, Any]],
     expected_columns: list[str],
+    nullable_columns: list[str],
 ) -> pd.DataFrame:
     basic = analysis_payloads["basic_statistics"]
     compound = analysis_payloads["compound_statistics"]
@@ -25,7 +27,22 @@ def build_analysis_critical_df(
     complete = analysis_payloads["complete_analysis"]
 
     missing_values = basic.get("missing_values", {})
-    all_missing_zero = all(float(value) == 0 for value in missing_values.values()) if missing_values else False
+    optional_na_columns = set(nullable_columns)
+    reaction_description_consistent_with_reaction = bool(
+        (
+            (database_df["reaction"].isna() | (database_df["reaction"].astype(str).str.strip().str.upper() == "NA"))
+            | (
+                ~database_df["reaction_description"].isna()
+                & (database_df["reaction_description"].astype(str).str.strip() != "")
+                & (database_df["reaction_description"].astype(str).str.strip().str.upper() != "NA")
+            )
+        ).all()
+    ) if {"reaction", "reaction_description"}.issubset(database_df.columns) else False
+    all_missing_zero = (
+        all(float(value) == 0 for key, value in missing_values.items() if key not in optional_na_columns)
+        if missing_values
+        else False
+    )
 
     row = {
         "basic_required_keys_present": _has_keys(
@@ -62,6 +79,7 @@ def build_analysis_critical_df(
         "basic_total_columns": int(basic.get("total_columns", -1)),
         "basic_expected_columns_match": list(basic.get("column_names", [])) == expected_columns,
         "basic_all_missing_values_zero": all_missing_zero,
+        "reaction_description_consistent_with_reaction": reaction_description_consistent_with_reaction,
     }
     return pd.DataFrame([row])
 
@@ -90,6 +108,14 @@ def build_analysis_warning_df(analysis_payloads: dict[str, dict[str, Any]]) -> p
         "enzyme_top_n": len(enzyme.get("top_30_enzymes", {}).get("enzyme_names", [])),
         "executive_text_fields_non_empty": executive_text_fields_non_empty,
         "crosstab_required_sections_present": crosstab_required_sections_present,
+        "reaction_description_fill_rate_percent": (
+            float(
+                analysis_payloads.get("database_metadata", {})
+                .get("data_quality", {})
+                .get("completeness", {})
+                .get("reaction_description", 0.0)
+            )
+        ),
     }
     return pd.DataFrame([row])
 
@@ -105,6 +131,26 @@ def build_kegg_metadata_df(kegg_release: dict[str, Any]) -> pd.DataFrame:
         else 0,
     }
     return pd.DataFrame([row])
+
+
+def build_pipeline_reports_critical_df(
+    keys_consistency: dict[str, Any],
+    links_groundtruth_policy: dict[str, Any],
+    workflow_summary: dict[str, Any],
+) -> pd.DataFrame:
+    na_justified = keys_consistency["results"]["all_remaining_na_justified"]
+    policy_metrics = links_groundtruth_policy["policy_aware_metrics"]
+    artifacts = workflow_summary["artifacts"]
+    hashes_present = all(
+        isinstance(v.get("sha256"), str) and len(v["sha256"]) == 64
+        for v in artifacts.values()
+    )
+    return pd.DataFrame([{
+        "keys_consistency_na_justified": bool(na_justified),
+        "links_policy_union_rate_percent": float(policy_metrics["policy_union_rate_percent"]),
+        "links_no_policy_support": int(policy_metrics["no_policy_support"]),
+        "workflow_artifact_hashes_present": hashes_present,
+    }])
 
 
 def _ordered_dict_from_series(
@@ -254,6 +300,7 @@ def build_analysis_exact_df(
     analysis_payloads: dict[str, dict[str, Any]],
     kegg_release: dict[str, Any],
     expected_columns: list[str],
+    observed_kegg_release: dict[str, Any] | None = None,
 ) -> pd.DataFrame:
     basic = analysis_payloads["basic_statistics"]
     compound = analysis_payloads["compound_statistics"]
@@ -332,10 +379,10 @@ def build_analysis_exact_df(
         (str(k), int(v)) for k, v in (compound.get("compounds_per_agency", {}) or {}).items()
     )
 
-    observed_ko_total = int(database_df["ko"].nunique())
-    observed_enzyme_total = int(database_df["enzyme_activity"].nunique())
-    observed_gene_symbol_total = int(database_df["genesymbol"].nunique())
-    observed_gene_name_total = int(database_df["genename"].nunique())
+    observed_ko_total = observed_basic["unique_ko_entries"]
+    observed_enzyme_total = observed_basic["unique_enzyme_activities"]
+    observed_gene_symbol_total = observed_basic["unique_gene_symbols"]
+    observed_gene_name_total = observed_basic["unique_gene_names"]
 
     observed_top_compounds = _top_compounds_exact(database_df, top_n=20)
     observed_top_ko = _top_ko_exact(database_df, top_n=20)
@@ -376,6 +423,10 @@ def build_analysis_exact_df(
         "enzyme_types_identified": observed_basic["unique_enzyme_activities"],
         "gene_symbols_mapped": observed_basic["unique_gene_symbols"],
     }
+    expected_metadata_kegg = metadata.get("data_sources", {}).get("kegg_release", {})
+    metadata_kegg_exact_match = expected_metadata_kegg == kegg_release
+    if observed_kegg_release is not None:
+        metadata_kegg_exact_match = metadata_kegg_exact_match and observed_kegg_release == kegg_release
 
     row = {
         "basic_stats_exact_match": observed_basic == expected_basic,
@@ -399,6 +450,6 @@ def build_analysis_exact_df(
             and executive.get("highlights", {}) == computed_highlights
             and executive.get("coverage", {}) == computed_coverage
         ),
-        "metadata_kegg_exact_match": metadata.get("data_sources", {}).get("kegg_release", {}) == kegg_release,
+        "metadata_kegg_exact_match": metadata_kegg_exact_match,
     }
     return pd.DataFrame([row])

@@ -1,2 +1,3 @@
-snakemake==7.32.4
+snakemake==8.30.0
+# pulp is Snakemake's ILP solver for DAG scheduling (required: >=2.3.1,<2.10 for snakemake 8.x)
 pulp==2.7.0

@@ -16,11 +16,11 @@
 #   ├── generate_database.R (this script)
 #   ├── input_data/
 #   │   ├── kegglistcompounds.xlsx
-#   │   ├── compostos_todasagencias.xlsx
-#   │   ├── missing_compounds_founds_curated.xlsx
+#   │   ├── curated_regulated_compounds.xlsx
+#   │   ├── curated_programatic_missing_compounds.xlsx
 #   │   ├── confirm_class_CURATED.xlsx
 #   │   ├── kegglistko.txt
-#   │   └── enzymes_unique.txt
+#   │   └── curated_enzyem_names_extracted.txt
 #   └── output_data/ (generated files saved here)
 #
 ################################################################################
@@ -67,7 +67,7 @@ message("✓ Working directory set to: ", getwd())
 #' Loads all necessary packages for database generation.
 #' Stops execution with informative error if any package is missing.
 load_required_packages <- function() {
-  required_packages <- c("readxl", "dplyr", "tidyr", "stringr", "readr", "xlsx")
+  required_packages <- c("readxl", "dplyr", "tidyr", "stringr", "readr", "writexl")
   
   missing_packages <- c()
   for (pkg in required_packages) {
@@ -87,7 +87,7 @@ load_required_packages <- function() {
   library(tidyr)
   library(stringr)
   library(readr)
-  library(xlsx)
+  library(writexl)
   
   message("✓ All required packages loaded successfully")
 }
@@ -149,7 +149,7 @@ load_kegg_compounds_local <- function() {
 #' 
 #' @return Data frame with columns: cpd, referenceAG
 load_agency_compounds <- function() {
-  file_path <- "input_data/compostos_todasagencias.xlsx"
+  file_path <- "input_data/curated_regulated_compounds.xlsx"
   
   agency_compounds <- read_excel(file_path, col_names = FALSE)
   colnames(agency_compounds) <- c("cpd", "referenceAG")
@@ -165,7 +165,7 @@ load_agency_compounds <- function() {
 #' 
 #' @return Data frame with columns: cpd, ko
 load_curated_compounds <- function() {
-  file_path <- "input_data/missing_compounds_founds_curated.xlsx"
+  file_path <- "input_data/curated_programatic_missing_compounds.xlsx"
   
   curated_compounds <- read_excel(file_path)
   colnames(curated_compounds) <- c("cpd", "ko")
@@ -184,7 +184,7 @@ load_curated_compounds <- function() {
 #' 
 #' @return Data frame with columns: cpd, compoundclass
 load_compound_classifications <- function() {
-  file_path <- "input_data/confirm_class_CURATED.xlsx"
+  file_path <- "input_data/curated_compound_classes.xlsx"
   
   compound_classes <- read_excel(file_path)
   
@@ -226,12 +226,12 @@ load_kegg_ko_list <- function() {
 #' 
 #' @return Character vector of enzyme terms
 load_enzyme_terms <- function() {
-  file_path <- "input_data/enzymes_unique.txt"
+  file_path <- "input_data/curated_enzyem_names_extracted.txt"
   
   # Check if file exists
   if (!file.exists(file_path)) {
     stop("Enzyme terms file not found: ", file_path,
-         "\nPlease ensure enzymes_unique.txt is in the input_data/ directory")
+         "\nPlease ensure curated_enzyem_names_extracted.txt is in the input_data/ directory")
   }
   
   enzyme_terms <- readLines(file_path, warn = FALSE) %>%
@@ -312,7 +312,7 @@ fetch_compound_ec_links <- function() {
 #' 
 #' @return Data frame with columns: reaction, cpd
 fetch_compound_reaction_links <- function() {
-  fetch_kegg_api("link/cpd/reaction", c("reaction", "cpd"), sep = "")
+  fetch_kegg_api("link/compound/reaction", c("reaction", "cpd"), sep = "")
 }
 
 
@@ -729,7 +729,7 @@ main_pipeline <- function() {
   # Save as Excel (optional)
   output_xlsx <- "output_data/biorempp_database_v1.0.0.xlsx"
   tryCatch({
-    write.xlsx(final_database, output_xlsx, row.names = FALSE)
+    writexl::write_xlsx(final_database, output_xlsx)
     message("✓ Saved database to: ", output_xlsx)
   }, error = function(e) {
     message("⚠ Could not save Excel file: ", e$message)

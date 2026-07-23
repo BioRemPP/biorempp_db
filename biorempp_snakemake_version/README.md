@@ -4,7 +4,7 @@ Public, modular, and reproducible BioRemPP pipeline implementation for database 
 
 ## 1) Purpose
 
-This directory provides an implementation of the `v1.0.0` database workflow, including:
+This directory provides an implementation of the `v1.1.0` database workflow, including:
 
 - consolidated database generation (`CSV` and `XLSX`)
 - modular analysis outputs in `JSON`
@@ -18,7 +18,7 @@ This directory provides an implementation of the `v1.0.0` database workflow, inc
 - **Functional modularity:** small R scripts, each with a single responsibility.
 - **Public reproducibility:** full runtime environment versioned under `env/`.
 - **Traceability:** KEGG release metadata and output hashes are generated every run.
-- **Contract compatibility:** final output names remain `biorempp_database_v1.0.0.*`.
+- **Contract compatibility:** final output names remain `biorempp_database_v1.1.0.*`.
 
 ## 3) Pipeline architecture (DAG)
 
@@ -159,8 +159,13 @@ By default, this command reads inputs from `../input_data` (repository root).
 
 ### Database outputs
 
-- `results/database/biorempp_database_v1.0.0.csv`
-- `results/database/biorempp_database_v1.0.0.xlsx`
+- `results/database/biorempp_database_v1.1.0.csv`
+- `results/database/biorempp_database_v1.1.0.xlsx`
+
+CSV contract:
+- delimiter: `;`
+- quoted fields: enabled (`"..."`)
+- includes `reaction_description` with KEGG equation text (from `list/reaction`, preserving `<=>`)
 
 ### Analysis outputs
 
@@ -199,7 +204,7 @@ Main keys:
 
 - `version`
 - `paths.input_dir` (default: `../input_data`), `paths.results_dir`, `paths.work_dir`, `paths.logs_dir`
-- `outputs.database_csv`, `outputs.database_xlsx`
+- `outputs.database_csv`, `outputs.database_xlsx`, `outputs.database_csv_delimiter`, `outputs.database_csv_quote`
 - `kegg.base_url`, `kegg.endpoints`, `kegg.info_endpoint`
 - `analysis.top_n_compounds`, `analysis.top_n_ko`, `analysis.top_n_enzymes`
 
@@ -229,5 +234,5 @@ docker compose -f env/docker-compose.yml run --rm snakemake \
 ## 12) Release status
 
 - Snakemake modular pipeline: **active**
-- `v1.0.0` output contract: **preserved**
+- `v1.1.0` output contract: **active**
 - Public reproducibility environment: **fully versioned**

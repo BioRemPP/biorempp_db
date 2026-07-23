@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from copy import deepcopy
 import json
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,7 @@ from .json_to_dataframe import (
     build_analysis_exact_df,
     build_analysis_warning_df,
     build_kegg_metadata_df,
+    build_pipeline_reports_critical_df,
 )
 from .loaders import (
     find_missing_paths,
@@ -46,86 +48,51 @@ def _load_suite_payload(path: Path) -> dict[str, Any]:
         return json.load(handle)
 
 
+def _clone_suite_payload(payload: dict[str, Any], name: str) -> dict[str, Any]:
+    cloned = deepcopy(payload)
+    cloned["name"] = name
+    return cloned
+
+
 def _apply_config_overrides_to_suite_payloads(
     suite_payloads: dict[str, dict[str, Any]],
     settings: ValidationSettings,
-    analysis_payloads: dict[str, dict[str, Any]],
 ) -> None:
-    db_critical = suite_payloads["database_critical"]
-    db_warning = suite_payloads["database_warning"]
-    analysis_warning = suite_payloads["analysis_json_warning"]
-    expected_reference_agencies = list(settings.expected_reference_agencies)
-    expected_compound_classes = list(settings.expected_compound_classes)
+    db_critical = suite_payloads.get("database_critical")
+    db_warning = suite_payloads.get("database_warning")
+    analysis_critical = suite_payloads.get("analysis_json_critical")
 
-    for expectation in db_critical.get("expectations", []):
-        if expectation.get("type") == "expect_table_columns_to_match_ordered_list":
-            expectation["kwargs"]["column_list"] = settings.expected_columns
-        if expectation.get("type") == "expect_compound_columns_to_be_unique":
-            expectation["kwargs"]["column_list"] = settings.expected_columns
+    if db_critical:
+        for expectation in db_critical.get("expectations", []):
+            if expectation.get("type") == "expect_table_columns_to_match_ordered_list":
+                expectation["kwargs"]["column_list"] = settings.expected_columns
+            if expectation.get("type") == "expect_compound_columns_to_be_unique":
+                expectation["kwargs"]["column_list"] = settings.expected_columns
+
+    if analysis_critical:
+        for expectation in analysis_critical.get("expectations", []):
+            if expectation.get("type") != "expect_column_values_to_be_between":
+                continue
+            kwargs = expectation.get("kwargs", {})
+            if kwargs.get("column") != "basic_total_columns":
+                continue
+            expected_column_count = len(settings.expected_columns)
+            kwargs["min_value"] = expected_column_count
+            kwargs["max_value"] = expected_column_count
+
+    if not db_warning:
+        return
 
     thresholds = settings.drift_thresholds
-    if settings.strict_exact:
-        basic = analysis_payloads["basic_statistics"]
-        compound = analysis_payloads["compound_statistics"]
-        ko = analysis_payloads["ko_statistics"]
-        enzyme = analysis_payloads["enzyme_statistics"]
-
-        thresholds = {
-            "row_count": {
-                "min": int(basic.get("total_entries", -1)),
-                "max": int(basic.get("total_entries", -1)),
-            },
-            "unique_compounds": {
-                "min": int(basic.get("unique_compounds", -1)),
-                "max": int(basic.get("unique_compounds", -1)),
-            },
-            "unique_ko": {
-                "min": int(basic.get("unique_ko_entries", -1)),
-                "max": int(basic.get("unique_ko_entries", -1)),
-            },
-            "unique_genesymbol": {
-                "min": int(basic.get("unique_gene_symbols", -1)),
-                "max": int(basic.get("unique_gene_symbols", -1)),
-            },
-            "unique_genename": {
-                "min": int(basic.get("unique_gene_names", -1)),
-                "max": int(basic.get("unique_gene_names", -1)),
-            },
-            "unique_enzyme_activity": {
-                "min": int(basic.get("unique_enzyme_activities", -1)),
-                "max": int(basic.get("unique_enzyme_activities", -1)),
-            },
-        }
-        expected_reference_agencies = list((compound.get("compounds_per_agency", {}) or {}).keys())
-        expected_compound_classes = list((compound.get("compounds_per_class", {}) or {}).keys())
-
-        compound_top_n = len((compound.get("top_20_compounds", {}) or {}).get("compound_ids", []))
-        ko_top_n = len((ko.get("top_20_ko", {}) or {}).get("ko_ids", []))
-        enzyme_top_n = len((enzyme.get("top_30_enzymes", {}) or {}).get("enzyme_names", []))
-        for expectation in analysis_warning.get("expectations", []):
-            expectation_type = expectation.get("type")
-            kwargs = expectation.get("kwargs", {})
-            column = kwargs.get("column")
-            if expectation_type != "expect_column_values_to_be_between":
-                continue
-            if column == "compound_top_n":
-                kwargs["min_value"] = compound_top_n
-                kwargs["max_value"] = compound_top_n
-            elif column == "ko_top_n":
-                kwargs["min_value"] = ko_top_n
-                kwargs["max_value"] = ko_top_n
-            elif column == "enzyme_top_n":
-                kwargs["min_value"] = enzyme_top_n
-                kwargs["max_value"] = enzyme_top_n
     for expectation in db_warning.get("expectations", []):
         expectation_type = expectation.get("type")
         kwargs = expectation.get("kwargs", {})
         column = kwargs.get("column")
 
         if expectation_type == "expect_column_distinct_values_to_be_in_set" and column == "referenceAG":
-            kwargs["value_set"] = expected_reference_agencies
+            kwargs["value_set"] = list(settings.expected_reference_agencies)
         elif expectation_type == "expect_column_distinct_values_to_be_in_set" and column == "compoundclass":
-            kwargs["value_set"] = expected_compound_classes
+            kwargs["value_set"] = list(settings.expected_compound_classes)
         elif expectation_type == "expect_column_unique_value_count_to_be_between" and column == "cpd":
             kwargs["min_value"] = thresholds["unique_compounds"]["min"]
             kwargs["max_value"] = thresholds["unique_compounds"]["max"]
@@ -146,21 +113,89 @@ def _apply_config_overrides_to_suite_payloads(
             kwargs["max_value"] = thresholds["row_count"]["max"]
 
 
+def _build_validation_entry(
+    suite_name: str,
+    dataset_name: str,
+    validation_mode: str | None = None,
+) -> dict[str, Any]:
+    validation = {"suite": suite_name, "dataset": dataset_name}
+    if validation_mode is not None:
+        validation["validation_mode"] = validation_mode
+    return validation
+
+
+def _build_checkpoint_validations(
+    checkpoint_name: str,
+    checkpoint_config: dict[str, Any],
+    settings: ValidationSettings,
+) -> list[dict[str, Any]]:
+    validations: list[dict[str, Any]] = []
+
+    for validation in checkpoint_config.get("validations", []):
+        suite_name = validation["suite"]
+        dataset_name = validation["dataset"]
+
+        if checkpoint_name == "critical_gate":
+            if suite_name == "analysis_json_critical":
+                if settings.validation_modes.internal_consistency:
+                    validations.append(_build_validation_entry(suite_name, dataset_name, "internal_consistency"))
+                continue
+
+            if suite_name == "analysis_json_exact_critical":
+                if settings.validation_modes.internal_consistency:
+                    validations.append(
+                        _build_validation_entry(
+                            "analysis_json_internal_consistency_critical",
+                            "analysis_internal_consistency",
+                            "internal_consistency",
+                        )
+                    )
+                if settings.validation_modes.regression_detection:
+                    validations.append(
+                        _build_validation_entry(
+                            "analysis_json_regression_critical",
+                            "analysis_regression",
+                            "regression_detection",
+                        )
+                    )
+                continue
+
+            if suite_name == "cross_consistency_critical":
+                if settings.validation_modes.internal_consistency:
+                    validations.append(_build_validation_entry(suite_name, dataset_name, "internal_consistency"))
+                continue
+
+            if suite_name == "metadata_kegg_critical":
+                validations.append(_build_validation_entry(suite_name, dataset_name, "current_artifacts"))
+                continue
+
+            validations.append(_build_validation_entry(suite_name, dataset_name))
+            continue
+
+        if suite_name == "analysis_json_warning":
+            if settings.validation_modes.internal_consistency:
+                validations.append(_build_validation_entry(suite_name, dataset_name, "internal_consistency"))
+            continue
+
+        validations.append(_build_validation_entry(suite_name, dataset_name))
+
+    return validations
+
+
 def _run_checkpoint(
-    checkpoint_path: Path,
+    checkpoint_name: str,
+    validations: list[dict[str, Any]],
     suite_payloads: dict[str, dict[str, Any]],
     dataframe_by_dataset: dict[str, Any],
     datasource,
 ) -> dict[str, Any]:
-    checkpoint_cfg = load_checkpoint_config(checkpoint_path)
-    checkpoint_name = checkpoint_cfg.get("name", checkpoint_path.stem)
-
     suite_results: list[dict[str, Any]] = []
     checkpoint_success = True
 
-    for validation in checkpoint_cfg.get("validations", []):
+    for validation in validations:
         suite_name = validation["suite"]
         dataset_name = validation["dataset"]
+        validation_mode = validation.get("validation_mode")
 
         suite_payload = suite_payloads[suite_name]
         suite = ExpectationSuite(**suite_payload)
@@ -178,6 +213,7 @@ def _run_checkpoint(
             {
                 "suite_name": suite_name,
                 "dataset": dataset_name,
+                "validation_mode": validation_mode,
                 "success": suite_success,
                 "result": result,
             }
@@ -196,14 +232,14 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
         json.dump(payload, handle, indent=2)
 
 
-def _write_data_docs_placeholder(output_dir: Path, summary: dict[str, Any]) -> None:
+def _write_summary_page(output_dir: Path, summary: dict[str, Any]) -> None:
     data_docs_dir = output_dir / "data_docs"
     data_docs_dir.mkdir(parents=True, exist_ok=True)
     html = f"""<!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><title>BioRemPP Validation Data Docs</title></head>
+<head><meta charset="utf-8"><title>BioRemPP Validation Summary</title></head>
 <body>
-  <h1>BioRemPP Validation Data Docs</h1>
+  <h1>BioRemPP Validation Summary</h1>
   <p>Generated at: {summary["run_timestamp_utc"]}</p>
   <p>Critical checkpoint success: {summary["critical_checkpoint_success"]}</p>
   <p>Warning checkpoint success: {summary["warning_checkpoint_success"]}</p>
@@ -215,14 +251,22 @@ def _write_data_docs_placeholder(output_dir: Path, summary: dict[str, Any]) -> N
     (data_docs_dir / "index.html").write_text(html, encoding="utf-8")
 
 
-def _build_missing_files_outputs(output_dir: Path, missing_files: list[str]) -> None:
+def _build_preflight_failure_outputs(
+    output_dir: Path,
+    suite_name: str,
+    dataset: str,
+    expectation_type: str,
+    missing_files: list[str],
+    validation_mode: str | None = None,
+) -> None:
     critical_payload = {
         "checkpoint_name": "critical_gate",
         "success": False,
         "suite_results": [
             {
-                "suite_name": "preflight_required_files",
-                "dataset": "filesystem",
+                "suite_name": suite_name,
+                "dataset": dataset,
+                "validation_mode": validation_mode,
                 "success": False,
                 "result": {
                     "success": False,
@@ -230,7 +274,7 @@ def _build_missing_files_outputs(output_dir: Path, missing_files: list[str]) -> 
                         {
                             "success": False,
                             "expectation_config": {
-                                "type": "expect_required_files_to_exist",
+                                "type": expectation_type,
                                 "kwargs": {"missing_files": missing_files},
                             },
                         }
@@ -246,74 +290,239 @@ def _build_missing_files_outputs(output_dir: Path, missing_files: list[str]) -> 
     _write_json(output_dir / "validation_summary.json", summary)
 
 
+def _resolve_database_csv_relative_path(required_files: list[str]) -> str:
+    candidates = [item for item in required_files if item.startswith("database/") and item.endswith(".csv")]
+    if not candidates:
+        raise KeyError("No database CSV file declared in required_files.")
+    if len(candidates) > 1:
+        raise ValueError(f"Multiple database CSV files declared in required_files: {candidates}")
+    return candidates[0]
+
+
+_ALWAYS_REQUIRED_NON_CSV = (
+    "metadata/kegg_release.json",
+    "metadata/keys_consistency_report.json",
+    "metadata/links_groundtruth_policy_report.json",
+    "reports/workflow_summary.json",
+)
+
+
+def _resolve_current_required_files(settings: ValidationSettings) -> list[str]:
+    database_csv_relative_path = _resolve_database_csv_relative_path(settings.required_files)
+    required_files = [database_csv_relative_path, *_ALWAYS_REQUIRED_NON_CSV]
+
+    if settings.validation_modes.internal_consistency:
+        always_required_set = {database_csv_relative_path, *_ALWAYS_REQUIRED_NON_CSV}
+        required_files.extend(
+            item
+            for item in settings.required_files
+            if item not in always_required_set
+        )
+
+    return list(dict.fromkeys(required_files))
+
+
+_PIPELINE_REPORT_FILES = frozenset({
+    "metadata/keys_consistency_report.json",
+    "metadata/links_groundtruth_policy_report.json",
+    "reports/workflow_summary.json",
+})
+
+
+def _resolve_regression_baseline_required_files(settings: ValidationSettings) -> list[str]:
+    return [
+        item for item in settings.required_files
+        if not item.startswith("database/") and item not in _PIPELINE_REPORT_FILES
+    ]
+
+
+def _build_suite_payloads(settings: ValidationSettings) -> dict[str, dict[str, Any]]:
+    suite_payloads = {
+        "database_critical": _load_suite_payload(settings.expectations_dir / "database_critical.json"),
+        "database_warning": _load_suite_payload(settings.expectations_dir / "database_warning.json"),
+        "metadata_kegg_critical": _load_suite_payload(settings.expectations_dir / "metadata_kegg_critical.json"),
+        "pipeline_reports_critical": _load_suite_payload(settings.expectations_dir / "pipeline_reports_critical.json"),
+    }
+
+    if settings.validation_modes.internal_consistency or settings.validation_modes.regression_detection:
+        exact_suite_payload = _load_suite_payload(settings.expectations_dir / "analysis_json_exact_critical.json")
+
+        if settings.validation_modes.internal_consistency:
+            suite_payloads["analysis_json_internal_consistency_critical"] = _clone_suite_payload(
+                exact_suite_payload,
+                "analysis_json_internal_consistency_critical",
+            )
+
+        if settings.validation_modes.regression_detection:
+            suite_payloads["analysis_json_regression_critical"] = _clone_suite_payload(
+                exact_suite_payload,
+                "analysis_json_regression_critical",
+            )
+
+    if settings.validation_modes.internal_consistency:
+        suite_payloads["analysis_json_critical"] = _load_suite_payload(
+            settings.expectations_dir / "analysis_json_critical.json"
+        )
+        suite_payloads["analysis_json_warning"] = _load_suite_payload(
+            settings.expectations_dir / "analysis_json_warning.json"
+        )
+        suite_payloads["cross_consistency_critical"] = _load_suite_payload(
+            settings.expectations_dir / "cross_consistency_critical.json"
+        )
+
+    return suite_payloads
+
+
+def _build_validation_dataframes(
+    settings: ValidationSettings,
+    database_csv,
+    current_kegg_release: dict[str, Any],
+    current_analysis_payloads: dict[str, dict[str, Any]] | None,
+    baseline_analysis_payloads: dict[str, dict[str, Any]] | None,
+    baseline_kegg_release: dict[str, Any] | None,
+    keys_consistency_report: dict[str, Any],
+    links_groundtruth_policy_report: dict[str, Any],
+    workflow_summary: dict[str, Any],
+) -> dict[str, Any]:
+    dataframe_by_dataset = {
+        "database_csv": database_csv,
+        "metadata_kegg": build_kegg_metadata_df(kegg_release=current_kegg_release),
+        "pipeline_reports": build_pipeline_reports_critical_df(
+            keys_consistency=keys_consistency_report,
+            links_groundtruth_policy=links_groundtruth_policy_report,
+            workflow_summary=workflow_summary,
+        ),
+    }
+
+    if settings.validation_modes.internal_consistency and current_analysis_payloads is not None:
+        dataframe_by_dataset["analysis_critical"] = build_analysis_critical_df(
+            database_df=database_csv,
+            analysis_payloads=current_analysis_payloads,
+            expected_columns=settings.expected_columns,
+            nullable_columns=settings.nullable_columns,
+        )
+        dataframe_by_dataset["analysis_warning"] = build_analysis_warning_df(
+            analysis_payloads=current_analysis_payloads
+        )
+        dataframe_by_dataset["analysis_internal_consistency"] = build_analysis_exact_df(
+            database_df=database_csv,
+            analysis_payloads=current_analysis_payloads,
+            kegg_release=current_kegg_release,
+            expected_columns=settings.expected_columns,
+        )
+        dataframe_by_dataset["cross_consistency"] = build_cross_consistency_df(
+            database_df=database_csv,
+            basic_stats=current_analysis_payloads["basic_statistics"],
+        )
+
+    if settings.validation_modes.regression_detection and baseline_analysis_payloads is not None and baseline_kegg_release is not None:
+        dataframe_by_dataset["analysis_regression"] = build_analysis_exact_df(
+            database_df=database_csv,
+            analysis_payloads=baseline_analysis_payloads,
+            kegg_release=baseline_kegg_release,
+            expected_columns=settings.expected_columns,
+            observed_kegg_release=current_kegg_release,
+        )
+
+    return dataframe_by_dataset
+
+
 def run(settings: ValidationSettings) -> int:
     output_dir = settings.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    resolved_paths = resolve_required_paths(settings.input_results_root, settings.required_files)
+    current_required_files = _resolve_current_required_files(settings)
+    resolved_paths = resolve_required_paths(settings.input_results_root, current_required_files)
     missing_files = find_missing_paths(resolved_paths)
     if missing_files:
-        _build_missing_files_outputs(output_dir=output_dir, missing_files=missing_files)
+        _build_preflight_failure_outputs(
+            output_dir=output_dir,
+            suite_name="preflight_current_required_files",
+            dataset="current_results",
+            expectation_type="expect_required_files_to_exist",
+            missing_files=missing_files,
+        )
         return 1
 
-    database_csv = load_database_csv(resolved_paths["database/biorempp_database_v1.0.0.csv"])
-    analysis_payloads = load_analysis_payloads(settings.input_results_root)
-    kegg_release = load_json(resolved_paths["metadata/kegg_release.json"])
-
-    analysis_critical_df = build_analysis_critical_df(
-        analysis_payloads=analysis_payloads,
-        expected_columns=settings.expected_columns,
+    database_csv_relative_path = _resolve_database_csv_relative_path(settings.required_files)
+    database_csv = load_database_csv(
+        resolved_paths[database_csv_relative_path],
+        sep=settings.csv_delimiter,
     )
-    analysis_warning_df = build_analysis_warning_df(analysis_payloads=analysis_payloads)
-    analysis_exact_df = build_analysis_exact_df(
-        database_df=database_csv,
-        analysis_payloads=analysis_payloads,
-        kegg_release=kegg_release,
-        expected_columns=settings.expected_columns,
-    )
-    kegg_df = build_kegg_metadata_df(kegg_release=kegg_release)
-    cross_consistency_df = build_cross_consistency_df(
-        database_df=database_csv,
-        basic_stats=analysis_payloads["basic_statistics"],
-    )
+    current_kegg_release = load_json(resolved_paths["metadata/kegg_release.json"])
+    keys_consistency_report = load_json(resolved_paths["metadata/keys_consistency_report.json"])
+    links_groundtruth_policy_report = load_json(resolved_paths["metadata/links_groundtruth_policy_report.json"])
+    workflow_summary = load_json(resolved_paths["reports/workflow_summary.json"])
 
-    dataframe_by_dataset = {
-        "database_csv": database_csv,
-        "analysis_critical": analysis_critical_df,
-        "analysis_warning": analysis_warning_df,
-        "analysis_exact": analysis_exact_df,
-        "metadata_kegg": kegg_df,
-        "cross_consistency": cross_consistency_df,
-    }
+    current_analysis_payloads: dict[str, dict[str, Any]] | None = None
+    if settings.validation_modes.internal_consistency:
+        current_analysis_payloads = load_analysis_payloads(settings.input_results_root)
 
-    suite_payloads = {
-        "database_critical": _load_suite_payload(settings.expectations_dir / "database_critical.json"),
-        "database_warning": _load_suite_payload(settings.expectations_dir / "database_warning.json"),
-        "analysis_json_critical": _load_suite_payload(settings.expectations_dir / "analysis_json_critical.json"),
-        "analysis_json_exact_critical": _load_suite_payload(
-            settings.expectations_dir / "analysis_json_exact_critical.json"
-        ),
-        "analysis_json_warning": _load_suite_payload(settings.expectations_dir / "analysis_json_warning.json"),
-        "metadata_kegg_critical": _load_suite_payload(settings.expectations_dir / "metadata_kegg_critical.json"),
-        "cross_consistency_critical": _load_suite_payload(settings.expectations_dir / "cross_consistency_critical.json"),
-    }
-    _apply_config_overrides_to_suite_payloads(
-        suite_payloads=suite_payloads,
+    baseline_analysis_payloads: dict[str, dict[str, Any]] | None = None
+    baseline_kegg_release: dict[str, Any] | None = None
+    if settings.validation_modes.regression_detection:
+        baseline_required_files = _resolve_regression_baseline_required_files(settings)
+        baseline_resolved_paths = resolve_required_paths(
+            settings.regression_baseline_root,
+            baseline_required_files,
+        )
+        missing_baseline_files = find_missing_paths(baseline_resolved_paths)
+        if missing_baseline_files:
+            _build_preflight_failure_outputs(
+                output_dir=output_dir,
+                suite_name="preflight_regression_baseline_files",
+                dataset="regression_baseline",
+                expectation_type="expect_regression_baseline_files_to_exist",
+                missing_files=missing_baseline_files,
+                validation_mode="regression_detection",
+            )
+            return 1
+
+        baseline_analysis_payloads = load_analysis_payloads(settings.regression_baseline_root)
+        baseline_kegg_release = load_json(baseline_resolved_paths["metadata/kegg_release.json"])
+
+    dataframe_by_dataset = _build_validation_dataframes(
         settings=settings,
-        analysis_payloads=analysis_payloads,
+        database_csv=database_csv,
+        current_kegg_release=current_kegg_release,
+        current_analysis_payloads=current_analysis_payloads,
+        baseline_analysis_payloads=baseline_analysis_payloads,
+        baseline_kegg_release=baseline_kegg_release,
+        keys_consistency_report=keys_consistency_report,
+        links_groundtruth_policy_report=links_groundtruth_policy_report,
+        workflow_summary=workflow_summary,
     )
+
+    suite_payloads = _build_suite_payloads(settings)
+    _apply_config_overrides_to_suite_payloads(suite_payloads=suite_payloads, settings=settings)
 
     context = create_context()
     datasource = create_pandas_datasource(context=context)
 
+    critical_checkpoint_cfg = load_checkpoint_config(settings.checkpoints_dir / "critical_gate.yml")
+    warning_checkpoint_cfg = load_checkpoint_config(settings.checkpoints_dir / "warning_report.yml")
+
+    critical_checkpoint_name = critical_checkpoint_cfg.get("name", "critical_gate")
+    warning_checkpoint_name = warning_checkpoint_cfg.get("name", "warning_report")
+
     critical_payload = _run_checkpoint(
-        checkpoint_path=settings.checkpoints_dir / "critical_gate.yml",
+        checkpoint_name=critical_checkpoint_name,
+        validations=_build_checkpoint_validations(
+            checkpoint_name=critical_checkpoint_name,
+            checkpoint_config=critical_checkpoint_cfg,
+            settings=settings,
+        ),
         suite_payloads=suite_payloads,
         dataframe_by_dataset=dataframe_by_dataset,
         datasource=datasource,
     )
     warning_payload = _run_checkpoint(
-        checkpoint_path=settings.checkpoints_dir / "warning_report.yml",
+        checkpoint_name=warning_checkpoint_name,
+        validations=_build_checkpoint_validations(
+            checkpoint_name=warning_checkpoint_name,
+            checkpoint_config=warning_checkpoint_cfg,
+            settings=settings,
+        ),
         suite_payloads=suite_payloads,
         dataframe_by_dataset=dataframe_by_dataset,
         datasource=datasource,
@@ -328,8 +537,8 @@ def run(settings: ValidationSettings) -> int:
     _write_json(output_dir / "warning_checkpoint_result.json", warning_payload)
     _write_json(output_dir / "validation_summary.json", summary)
 
-    if settings.generate_data_docs:
-        _write_data_docs_placeholder(output_dir=output_dir, summary=summary)
+    if settings.generate_summary_page:
+        _write_summary_page(output_dir=output_dir, summary=summary)
 
     if settings.fail_on_critical and not critical_payload.get("success", False):
         return 1

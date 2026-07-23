@@ -79,3 +79,61 @@ read_json_file <- function(path) {
   }
   jsonlite::fromJSON(path, simplifyVector = FALSE)
 }
+
+load_na_markers <- function(path = "workflow/lib/na_markers.txt") {
+  defaults <- c("", "NA", "NAN", "<NA>", "NONE", "NULL", "N/A")
+  if (!file.exists(path)) {
+    return(unique(toupper(defaults)))
+  }
+
+  lines <- readLines(path, warn = FALSE, encoding = "UTF-8")
+  lines <- trimws(lines)
+  lines <- lines[lines != "" & !startsWith(lines, "#")]
+
+  combined <- unique(c(defaults, lines))
+  unique(toupper(combined))
+}
+
+NA_MARKERS <- load_na_markers()
+
+is_na_like <- function(values, na_markers = NA_MARKERS) {
+  text <- trimws(as.character(values))
+  upper <- toupper(text)
+  is.na(values) | text == "" | upper %in% na_markers
+}
+
+is_present_value <- function(values, na_markers = NA_MARKERS) {
+  !is_na_like(values, na_markers = na_markers)
+}
+
+normalize_na_text <- function(values, na_markers = NA_MARKERS) {
+  text <- trimws(as.character(values))
+  text[is_na_like(values, na_markers = na_markers)] <- NA_character_
+  text
+}
+
+read_database_csv <- function(path, sep = ",") {
+  read.csv(
+    file = path,
+    stringsAsFactors = FALSE,
+    sep = sep,
+    quote = "\"",
+    check.names = FALSE,
+    na.strings = c("NA", "<NA>", "")
+  )
+}
+
+write_database_csv <- function(dataframe, path, sep = ",", quote = TRUE) {
+  ensure_parent_dir(path)
+  write.table(
+    x = dataframe,
+    file = path,
+    sep = sep,
+    quote = quote,
+    qmethod = "double",
+    row.names = FALSE,
+    col.names = TRUE,
+    na = "NA",
+    fileEncoding = "UTF-8"
+  )
+}

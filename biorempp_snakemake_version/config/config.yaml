@@ -1,4 +1,4 @@
-version: "1.0.0"
+version: "1.1.0"
 
 paths:
   input_dir: "../input_data"
@@ -7,8 +7,10 @@ paths:
   logs_dir: "logs"
 
 outputs:
-  database_csv: "biorempp_database_v1.0.0.csv"
-  database_xlsx: "biorempp_database_v1.0.0.xlsx"
+  database_csv: "biorempp_database_v1.1.0.csv"
+  database_xlsx: "biorempp_database_v1.1.0.xlsx"
+  database_csv_delimiter: ";"
+  database_csv_quote: true
 
 kegg:
   base_url: "https://rest.kegg.jp"
@@ -16,7 +18,8 @@ kegg:
     ko_ec_links: "link/ko/ec"
     ko_reaction_links: "link/ko/reaction"
     compound_ec_links: "link/compound/ec"
-    compound_reaction_links: "link/cpd/reaction"
+    compound_reaction_links: "link/compound/reaction"
+    ec_reaction_links: "link/enzyme/reaction"
     compound_list: "list/cpd/"
   info_endpoint: "info/kegg"
 
@@ -24,3 +27,6 @@ analysis:
   top_n_compounds: 20
   top_n_ko: 20
   top_n_enzymes: 30
+
+validation:
+  max_invalid_line_ratio: 0.01

@@ -6,7 +6,7 @@ source("workflow/lib/io_contracts.R")
 load_required_packages(c("readxl", "dplyr", "stringr"))
 
 args <- parse_cli_args()
-require_cli_args(args, c("input-dir", "output", "config"))
+require_cli_args(args, c("input-dir", "output"))
 
 input_dir <- args[["input-dir"]]
 output_file <- args[["output"]]
@@ -24,21 +24,21 @@ load_kegg_compounds <- function(base_dir) {
 }
 
 load_agency_compounds <- function(base_dir) {
-  file_path <- file.path(base_dir, "compostos_todasagencias.xlsx")
+  file_path <- file.path(base_dir, "curated_regulated_compounds.xlsx")
   data <- readxl::read_excel(file_path, col_names = FALSE)
   colnames(data) <- c("cpd", "referenceAG")
   data
 }
 
 load_curated_compounds <- function(base_dir) {
-  file_path <- file.path(base_dir, "missing_compounds_founds_curated.xlsx")
+  file_path <- file.path(base_dir, "curated_programatic_missing_compounds.xlsx")
   data <- readxl::read_excel(file_path)
   colnames(data) <- c("cpd", "ko")
   data[, c("cpd", "ko")]
 }
 
 load_compound_classes <- function(base_dir) {
-  file_path <- file.path(base_dir, "confirm_class_CURATED.xlsx")
+  file_path <- file.path(base_dir, "curated_compound_classes.xlsx")
   readxl::read_excel(file_path)
 }
 
@@ -58,7 +58,7 @@ load_kegg_ko_list <- function(base_dir) {
 }
 
 load_enzyme_terms <- function(base_dir) {
-  file_path <- file.path(base_dir, "enzymes_unique.txt")
+  file_path <- file.path(base_dir, "curated_enzyem_names_extracted.txt")
   terms <- readLines(file_path, warn = FALSE)
   terms <- trimws(terms)
   unique(terms[terms != ""])

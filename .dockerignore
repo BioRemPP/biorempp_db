@@ -1,0 +1,76 @@
+.git
+.github
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.cache
+.idea
+.vscode
+.claude
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.tmp
+*.log
+.DS_Store
+Thumbs.db
+venv
+.venv
+input_data
+biorempp_validation/results
+biorempp_snakemake_version/results
+biorempp_snakemake_version/work
+biorempp_snakemake_version/logs
+biorempp_snakemake_version/.snakemake
+.archive
+.planning
+
+# ============================================================================
+# Python virtual environments
+# ============================================================================
+venv/
+.venv/
+env/
+ENV/
+
+# ============================================================================
+# MkDocs build artifacts
+# ============================================================================
+site/
+.mkdocs_cache/
+
+# ============================================================================
+# Root-level build and runtime artifacts
+# ============================================================================
+work/
+output_data/
+.benchmarks/
+
+# ============================================================================
+# Documentation source — not needed in the validation image
+# ============================================================================
+docs/
+mkdocs.yml
+requirements.txt
+.readthedocs.yaml
+
+# ============================================================================
+# Root utility scripts — not needed in image
+# ============================================================================
+scripts/
+generate_database.R
+
+# ============================================================================
+# The entire Snakemake pipeline is not needed to build the validation image.
+# The validation Dockerfile only COPYs from biorempp_validation/.
+# ============================================================================
+biorempp_snakemake_version/
+
+# ============================================================================
+# Python package build artifacts
+# ============================================================================
+*.egg-info/
+*.egg
+dist/
+build/

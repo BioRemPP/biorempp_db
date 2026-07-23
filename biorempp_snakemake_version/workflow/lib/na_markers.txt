@@ -1,0 +1,8 @@
+# Canonical NA-like markers used across R and Python scripts.
+# Empty string is always treated as NA-like even though it is not listed here.
+NA
+NAN
+<NA>
+NONE
+NULL
+N/A

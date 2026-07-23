@@ -1,0 +1,71 @@
+# BioRemPP Snakemake — Docker Build Context Ignore
+# Build context: biorempp_snakemake_version/
+# Dockerfile COPYs: env/python-requirements.txt only
+# Everything not needed for image construction is excluded here.
+
+# ============================================================================
+# Runtime artifacts — generated at execution time, not needed to build image
+# ============================================================================
+results/
+work/
+logs/
+cache/
+
+# ============================================================================
+# Curated input data — mounted at runtime via Docker volume
+# ============================================================================
+input_data/
+
+# ============================================================================
+# Snakemake internal state
+# ============================================================================
+.snakemake/
+
+# ============================================================================
+# Python bytecode
+# ============================================================================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ============================================================================
+# R runtime artifacts
+# ============================================================================
+*.RData
+*.RDataTmp
+*.rds
+*.Rhistory
+
+# ============================================================================
+# Logs and temporary files
+# ============================================================================
+*.log
+*.tmp
+*.temp
+
+# ============================================================================
+# OS artifacts
+# ============================================================================
+.DS_Store
+.AppleDouble
+Thumbs.db
+Desktop.ini
+
+# ============================================================================
+# Workflow code, config and scripts
+# The Dockerfile only installs system dependencies via env/python-requirements.txt.
+# The actual workflow code is accessed at runtime through the volume mount.
+# ============================================================================
+workflow/
+config/
+scripts/
+Snakefile
+README.md
+
+# ============================================================================
+# IDE and editor artifacts
+# ============================================================================
+.vscode/
+.idea/
+*.code-workspace

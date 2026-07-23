@@ -3,28 +3,36 @@
 This project provides a standalone validation layer for BioRemPP outputs using Great Expectations.
 
 It validates:
-- Final database CSV contract (`v1.0.0`)
+- Final database CSV contract (`v1.1.0`, delimiter `;`)
 - Analysis JSON artifacts
 - KEGG release traceability metadata
+- Reaction textual annotation consistency (`reaction` vs `reaction_description`)
 
 Validation policy is hybrid:
 - `critical`: blocks the run (`exit 1`)
 - `warning`: reported and can be configured to block (`fail_on_warning`)
 
-Current default mode is strict exact (no drift):
-- `strict_exact: true`
+Validation now has two explicit and independent modes:
+- `internal_consistency`: validates the current CSV against the current run's analysis JSON artifacts and KEGG metadata.
+- `regression_detection`: validates the current CSV against a frozen baseline snapshot committed in this repo.
+
+Default shipped behavior enables both modes:
+- `validation_modes.internal_consistency: true`
+- `validation_modes.regression_detection: true`
 - `fail_on_warning: true`
-- Expected values are validated exactly against `biorempp_snakemake_version/results/analysis` artifacts.
 
 ## Directory Architecture
 
 ```text
 biorempp_validation/
 |-- README.md
+|-- requirements.lock.txt
+|-- requirements-dev.lock.txt
 |-- pyproject.toml
-|-- requirements.txt
 |-- config/
 |   `-- validation.yaml
+|-- env/
+|   `-- Dockerfile
 |-- great_expectations/
 |   |-- great_expectations.yml
 |   |-- checkpoints/
@@ -70,9 +78,29 @@ Important:
 - This path is resolved relative to `biorempp_validation/` project root.
 - It does **not** read from `input_data/`.
 - This keeps behavior consistent with the Snakemake pipeline outputs.
+- CSV delimiter is configured in `config/validation.yaml` (`csv.delimiter`, default `;`).
 
 Expected files under that results root:
-- `database/biorempp_database_v1.0.0.csv`
+- `database/biorempp_database_v1.1.0.csv`
+- `analysis/basic_statistics.json`
+- `analysis/compound_statistics.json`
+- `analysis/ko_statistics.json`
+- `analysis/enzyme_statistics.json`
+- `analysis/gene_statistics.json`
+- `analysis/crosstab_statistics.json`
+- `analysis/database_metadata.json`
+- `analysis/executive_summary.json`
+- `analysis/complete_analysis.json`
+- `metadata/kegg_release.json`
+- `metadata/keys_consistency_report.json`
+- `metadata/links_groundtruth_policy_report.json`
+- `reports/workflow_summary.json`
+
+Expected regression baseline root:
+
+`baselines/release_v1_1_0_kegg_118_0plus`
+
+Expected files under that baseline root:
 - `analysis/basic_statistics.json`
 - `analysis/compound_statistics.json`
 - `analysis/ko_statistics.json`
@@ -87,12 +115,17 @@ Expected files under that results root:
 ## Validation Suites
 
 - `database_critical`: schema, nulls, regex IDs, duplicate full rows
-- `database_warning`: controlled vocabulary + strict exact counts when `strict_exact=true`
+- `database_warning`: controlled vocabulary + drift thresholds from `validation.yaml`
 - `analysis_json_critical`: required keys/types and core structural checks
 - `analysis_json_warning`: top-N and summary quality checks
 - `analysis_json_exact_critical`: exact parity checks for analytics metrics/top-N/crosstabs/executive summary
 - `metadata_kegg_critical`: KEGG traceability contract
 - `cross_consistency_critical`: parity checks between CSV and `basic_statistics.json`
+- `pipeline_reports_critical`: sentinel checks for three first-class pipeline report outputs
+
+At runtime, `analysis_json_exact_critical` is expanded into two concrete uses:
+- `analysis_json_internal_consistency_critical`
+- `analysis_json_regression_critical`
 
 ## Checkpoints
 
@@ -101,28 +134,55 @@ Expected files under that results root:
 
 ## Installation
 
-From repository root:
+Recommended interface: Docker.
+
+Build the validator image from repository root:
 
 ```bash
-pip install -e biorempp_validation
-```
-
-or:
-
-```bash
-pip install -r biorempp_validation/requirements.txt
+docker compose -f biorempp_snakemake_version/env/docker-compose.yml build validation
 ```
 
 ## Run
 
+Recommended:
+
 ```bash
-python -m biorempp_validation.run_validation --config biorempp_validation/config/validation.yaml
+docker compose -f biorempp_snakemake_version/env/docker-compose.yml run --rm validation
 ```
 
-Alternative entrypoint:
+Explicit entrypoint inside the container:
 
 ```bash
-biorempp-validate --config biorempp_validation/config/validation.yaml
+docker compose -f biorempp_snakemake_version/env/docker-compose.yml run --rm validation \
+  biorempp-validate --config biorempp_validation/config/validation.yaml
+```
+
+## Testing
+
+Run the validator test suite in the same pinned container:
+
+```bash
+docker compose -f biorempp_snakemake_version/env/docker-compose.yml run --rm validation \
+  python -m pytest biorempp_validation/tests -q
+```
+
+## Dependency Lockfiles
+
+The validator image installs from exact lockfiles generated from `pyproject.toml`:
+
+- `requirements.lock.txt`: runtime only
+- `requirements-dev.lock.txt`: runtime + test tooling
+
+Refresh them from the container:
+
+```bash
+docker compose -f biorempp_snakemake_version/env/docker-compose.yml run --rm validation \
+  pip-compile biorempp_validation/pyproject.toml -o biorempp_validation/requirements.lock.txt
+```
+
+```bash
+docker compose -f biorempp_snakemake_version/env/docker-compose.yml run --rm validation \
+  pip-compile biorempp_validation/pyproject.toml --extra dev -o biorempp_validation/requirements-dev.lock.txt
 ```
 
 ## Outputs
@@ -139,14 +199,25 @@ Exit codes:
 
 If `fail_on_warning: true`, any warning failure also returns `1`.
 
-## Testing
+`validation_summary.json` includes `validation_mode` per failed expectation so it is clear whether a failure came from `internal_consistency`, `regression_detection`, or `current_artifacts`.
 
-```bash
-pytest biorempp_validation/tests -q
-```
+Operational details for the dual-mode contract live in [docs/validation_modes.md](docs/validation_modes.md).
+
+## Baseline Refresh
+
+The regression baseline is a release artifact, not a runtime by-product. Update it only when a pipeline change is intentional and has been reviewed.
+
+Recommended refresh flow:
+- regenerate the upstream Snakemake results for the intended release;
+- review the validation diff and confirm the new outputs are expected;
+- replace the files under `baselines/<baseline_id>/`;
+- adjust warning thresholds in `config/validation.yaml` only when the drift window itself should change;
+- commit the baseline refresh together with the pipeline change that justifies it.
 
 ## Notes
 
 - Validation is read-only against upstream Snakemake results.
+- `validation_modes` is the only supported mode-selection interface.
 - Warning thresholds and vocabularies are configurable in `config/validation.yaml`.
 - KEGG source URL is enforced as `https://rest.kegg.jp/info/kegg`.
+- Docker is the canonical runtime for consistent execution and pinned dependencies.

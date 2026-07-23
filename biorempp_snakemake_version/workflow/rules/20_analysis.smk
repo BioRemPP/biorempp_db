@@ -9,15 +9,15 @@ rule basic_statistics:
     output:
         join(ANALYSIS_DIR, "basic_statistics.json")
     params:
-        config_file = "config/config.yaml"
+        csv_sep = OUTPUTS["database_csv_delimiter"]
     log:
         join(PATHS["logs_dir"], "analysis_basic_statistics.log")
     shell:
         (
             "Rscript workflow/scripts/analysis/01_basic_statistics.R "
             "--input-csv {input} "
+            "--csv-sep \"{params.csv_sep}\" "
             "--output {output} "
-            "--config {params.config_file} "
             "> {log} 2>&1"
         )
 
@@ -28,17 +28,17 @@ rule compound_statistics:
     output:
         join(ANALYSIS_DIR, "compound_statistics.json")
     params:
-        config_file = "config/config.yaml",
-        top_n = config["analysis"]["top_n_compounds"]
+        top_n = config["analysis"]["top_n_compounds"],
+        csv_sep = OUTPUTS["database_csv_delimiter"]
     log:
         join(PATHS["logs_dir"], "analysis_compound_statistics.log")
     shell:
         (
             "Rscript workflow/scripts/analysis/02_compound_statistics.R "
             "--input-csv {input} "
+            "--csv-sep \"{params.csv_sep}\" "
             "--output {output} "
             "--top-n {params.top_n} "
-            "--config {params.config_file} "
             "> {log} 2>&1"
         )
 
@@ -49,17 +49,17 @@ rule ko_statistics:
     output:
         join(ANALYSIS_DIR, "ko_statistics.json")
     params:
-        config_file = "config/config.yaml",
-        top_n = config["analysis"]["top_n_ko"]
+        top_n = config["analysis"]["top_n_ko"],
+        csv_sep = OUTPUTS["database_csv_delimiter"]
     log:
         join(PATHS["logs_dir"], "analysis_ko_statistics.log")
     shell:
         (
             "Rscript workflow/scripts/analysis/03_ko_statistics.R "
             "--input-csv {input} "
+            "--csv-sep \"{params.csv_sep}\" "
             "--output {output} "
             "--top-n {params.top_n} "
-            "--config {params.config_file} "
             "> {log} 2>&1"
         )
 
@@ -70,17 +70,17 @@ rule enzyme_statistics:
     output:
         join(ANALYSIS_DIR, "enzyme_statistics.json")
     params:
-        config_file = "config/config.yaml",
-        top_n = config["analysis"]["top_n_enzymes"]
+        top_n = config["analysis"]["top_n_enzymes"],
+        csv_sep = OUTPUTS["database_csv_delimiter"]
     log:
         join(PATHS["logs_dir"], "analysis_enzyme_statistics.log")
     shell:
         (
             "Rscript workflow/scripts/analysis/04_enzyme_statistics.R "
             "--input-csv {input} "
+            "--csv-sep \"{params.csv_sep}\" "
             "--output {output} "
             "--top-n {params.top_n} "
-            "--config {params.config_file} "
             "> {log} 2>&1"
         )
 
@@ -91,15 +91,15 @@ rule gene_statistics:
     output:
         join(ANALYSIS_DIR, "gene_statistics.json")
     params:
-        config_file = "config/config.yaml"
+        csv_sep = OUTPUTS["database_csv_delimiter"]
     log:
         join(PATHS["logs_dir"], "analysis_gene_statistics.log")
     shell:
         (
             "Rscript workflow/scripts/analysis/05_gene_statistics.R "
             "--input-csv {input} "
+            "--csv-sep \"{params.csv_sep}\" "
             "--output {output} "
-            "--config {params.config_file} "
             "> {log} 2>&1"
         )
 
@@ -110,15 +110,15 @@ rule crosstab_statistics:
     output:
         join(ANALYSIS_DIR, "crosstab_statistics.json")
     params:
-        config_file = "config/config.yaml"
+        csv_sep = OUTPUTS["database_csv_delimiter"]
     log:
         join(PATHS["logs_dir"], "analysis_crosstab_statistics.log")
     shell:
         (
             "Rscript workflow/scripts/analysis/06_crosstab_statistics.R "
             "--input-csv {input} "
+            "--csv-sep \"{params.csv_sep}\" "
             "--output {output} "
-            "--config {params.config_file} "
             "> {log} 2>&1"
         )
 
@@ -126,22 +126,24 @@ rule crosstab_statistics:
 rule database_metadata:
     input:
         csv = DATABASE_FILE,
-        kegg_info = join(RESULTS_DIR, "metadata", "kegg_release.json")
+        kegg_info = join(RESULTS_DIR, "metadata", "kegg_release.json"),
+        kegg_data = join(WORK_DIR, "kegg_data.rds")
     output:
         join(ANALYSIS_DIR, "database_metadata.json")
     params:
-        config_file = "config/config.yaml",
-        version = config["version"]
+        version = config["version"],
+        csv_sep = OUTPUTS["database_csv_delimiter"]
     log:
         join(PATHS["logs_dir"], "analysis_database_metadata.log")
     shell:
         (
             "Rscript workflow/scripts/analysis/07_metadata.R "
             "--input-csv {input.csv} "
+            "--csv-sep \"{params.csv_sep}\" "
             "--kegg-info {input.kegg_info} "
+            "--kegg-data {input.kegg_data} "
             "--output {output} "
             "--version {params.version} "
-            "--config {params.config_file} "
             "> {log} 2>&1"
         )
 
@@ -154,8 +156,6 @@ rule executive_summary:
         enzyme = join(ANALYSIS_DIR, "enzyme_statistics.json")
     output:
         join(ANALYSIS_DIR, "executive_summary.json")
-    params:
-        config_file = "config/config.yaml"
     log:
         join(PATHS["logs_dir"], "analysis_executive_summary.log")
     shell:
@@ -166,7 +166,6 @@ rule executive_summary:
             "--ko {input.ko} "
             "--enzyme {input.enzyme} "
             "--output {output} "
-            "--config {params.config_file} "
             "> {log} 2>&1"
         )
 
@@ -183,8 +182,6 @@ rule complete_analysis:
         executive = join(ANALYSIS_DIR, "executive_summary.json")
     output:
         join(ANALYSIS_DIR, "complete_analysis.json")
-    params:
-        config_file = "config/config.yaml"
     log:
         join(PATHS["logs_dir"], "analysis_complete_analysis.log")
     shell:
@@ -199,6 +196,5 @@ rule complete_analysis:
             "--crosstab {input.crosstab} "
             "--executive {input.executive} "
             "--output {output} "
-            "--config {params.config_file} "
             "> {log} 2>&1"
         )

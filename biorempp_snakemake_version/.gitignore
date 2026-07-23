@@ -5,3 +5,10 @@ logs/*
 !input_data/.gitkeep
 !work/.gitkeep
 !logs/.gitkeep
+cache/*
+!cache/.gitkeep
+
+# Python bytecode in workflow subdirectories
+# (also covered by root .gitignore recursively, explicit here for clarity)
+**/__pycache__/
+**/*.pyc

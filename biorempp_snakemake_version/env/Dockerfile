@@ -1,8 +1,8 @@
-FROM rocker/tidyverse:4.3
+FROM rocker/tidyverse:4.4@sha256:7b6ad006caffcbae246f8f3e761a2ec268b2101a25d54266a27c1bce6ced0689
 
 LABEL maintainer="BioRemPP Development Team"
 LABEL description="BioRemPP Snakemake pipeline"
-LABEL version="1.0.0"
+LABEL version="1.1.0"
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=UTC
@@ -21,10 +21,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY env/python-requirements.txt /tmp/python-requirements.txt
-RUN pip3 install --no-cache-dir -r /tmp/python-requirements.txt
+RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/python-requirements.txt
 
-COPY env/r-packages.txt /tmp/r-packages.txt
-RUN R -e "pkgs <- scan('/tmp/r-packages.txt', what='character', quiet=TRUE); install.packages(pkgs, repos='https://cloud.r-project.org/')"
+RUN R -e "\
+  install.packages('remotes', repos='https://cloud.r-project.org/', quiet=TRUE); \
+  remotes::install_version('dplyr',    version='1.1.4', repos='https://cloud.r-project.org/', upgrade='never'); \
+  remotes::install_version('httr',     version='1.4.7', repos='https://cloud.r-project.org/', upgrade='never'); \
+  remotes::install_version('readxl',   version='1.4.3', repos='https://cloud.r-project.org/', upgrade='never'); \
+  remotes::install_version('tidyr',    version='1.3.1', repos='https://cloud.r-project.org/', upgrade='never'); \
+  remotes::install_version('stringr',  version='1.5.1', repos='https://cloud.r-project.org/', upgrade='never'); \
+  remotes::install_version('readr',    version='2.1.5', repos='https://cloud.r-project.org/', upgrade='never'); \
+  remotes::install_version('jsonlite', version='1.8.8', repos='https://cloud.r-project.org/', upgrade='never'); \
+  remotes::install_version('writexl',  version='1.5.0', repos='https://cloud.r-project.org/', upgrade='never')"
 
 WORKDIR /workspace
 

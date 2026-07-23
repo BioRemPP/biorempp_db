@@ -9,6 +9,7 @@ def _extract_failed_expectations(checkpoint_payload: dict[str, Any], severity: s
     for suite_result in checkpoint_payload.get("suite_results", []):
         suite_name = suite_result["suite_name"]
         dataset = suite_result["dataset"]
+        validation_mode = suite_result.get("validation_mode")
         for expectation_result in suite_result.get("result", {}).get("results", []):
             if expectation_result.get("success", False):
                 continue
@@ -16,6 +17,7 @@ def _extract_failed_expectations(checkpoint_payload: dict[str, Any], severity: s
             failed.append(
                 {
                     "severity": severity,
+                    "validation_mode": validation_mode,
                     "suite": suite_name,
                     "dataset": dataset,
                     "expectation_type": config.get("type"),

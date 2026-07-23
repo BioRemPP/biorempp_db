@@ -5,9 +5,9 @@ source("workflow/lib/utils.R")
 load_required_packages(c("jsonlite"))
 
 args <- parse_cli_args()
-require_cli_args(args, c("input-csv", "output", "config"))
+require_cli_args(args, c("input-csv", "csv-sep", "output"))
 
-db <- read.csv(args[["input-csv"]], stringsAsFactors = FALSE)
+db <- read_database_csv(args[["input-csv"]], sep = args[["csv-sep"]])
 
 stats <- list(
   total_entries = nrow(db),
@@ -24,6 +24,9 @@ stats <- list(
     cpd = sum(is.na(db$cpd)),
     compoundclass = sum(is.na(db$compoundclass)),
     ko = sum(is.na(db$ko)),
+    ec = sum(is.na(db$ec)),
+    reaction = sum(is.na(db$reaction)),
+    reaction_description = sum(is.na(db$reaction_description)),
     referenceAG = sum(is.na(db$referenceAG)),
     compoundname = sum(is.na(db$compoundname)),
     genesymbol = sum(is.na(db$genesymbol)),
