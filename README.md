@@ -164,7 +164,7 @@ KEGG traceability is captured per run:
 ## Project Layout
 
 ```text
-BioRemPP_DB_1.0.0/
+BioRemPP_DB_1.1.0/
 |-- README.md
 |-- README_DEPRECATED.md
 |-- input_data/
